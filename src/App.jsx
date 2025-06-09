@@ -5,6 +5,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import { ConfigProvider } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
+import Analytics from './pages/Analytics';
 
 // Protected route wrapper component
 const ProtectedRoute = ({ children }) => {
@@ -190,8 +191,7 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <MainLayout>
-                      <h1>Analytics</h1>
-                      <p>Analytics page content will go here</p>
+                      <Analytics />
                     </MainLayout>
                   </ProtectedRoute>
                 } 

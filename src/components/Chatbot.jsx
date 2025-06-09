@@ -207,14 +207,14 @@ const Chatbot = () => {
             value={input}
             onChange={e => setInput(e.target.value)}
             onPressEnter={sendMessage}
-            // disabled={!conversationId || loading || initLoading}
+            disabled={!conversationId || loading || initLoading}
             autoFocus
           />
           <Button
             type="primary"
             icon={<SendOutlined />}
             onClick={sendMessage}
-            // disabled={!input.trim() || !conversationId || loading || initLoading}
+            disabled={!input.trim() || !conversationId || loading || initLoading}
           />
         </Input.Group>
       </Drawer>

@@ -147,6 +147,8 @@ export const analyticsService = {
   getInventoryAnalytics: () => api.get('/analytics/inventory'),
   getOrdersAnalytics: () => api.get('/analytics/orders'),
   getWorkforceAnalytics: () => api.get('/analytics/workforce'),
+  getOperationsAnalytics: () => api.get('/analytics/operations'),
+  getWarehouseUtilization: () => api.get('/analytics/warehouse-utilization'),
 };
 
 // Dashboard services
@@ -155,6 +157,7 @@ export const dashboardService = {
   getRecentOrders: () => api.get('/dashboard/recent-orders'),
   getLowStockItems: () => api.get('/dashboard/low-stock'),
   getPendingTasks: () => api.get('/dashboard/pending-tasks'),
+  getStats: (role) => api.get(`/dashboard/stats?role=${role}`),
 };
 
 // Chatbot services
