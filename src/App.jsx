@@ -6,6 +6,8 @@ import Dashboard from './pages/Dashboard';
 import { ConfigProvider } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
 import Analytics from './pages/Analytics';
+import SeasonalInventory from './pages/SeasonalInventory';
+import SeasonalInventoryDemo from './pages/SeasonalInventoryDemo';
 
 // Protected route wrapper component
 const ProtectedRoute = ({ children }) => {
@@ -192,6 +194,17 @@ function App() {
                   <ProtectedRoute>
                     <MainLayout>
                       <Analytics />
+                    </MainLayout>
+                  </ProtectedRoute>
+                } 
+              />
+              
+              <Route 
+                path="/seasonal-inventory" 
+                element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <SeasonalInventory />
                     </MainLayout>
                   </ProtectedRoute>
                 } 

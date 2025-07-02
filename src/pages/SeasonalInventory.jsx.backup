@@ -1,0 +1,410 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  Row,
+  Col,
+  Select,
+  Button,
+  DatePicker,
+  Table,
+  Statistic,
+  Alert,
+  Spin,
+  Tag,
+  Space,
+  InputNumber,
+  Modal,
+  Typography,
+  Divider,
+  Progress
+} from 'antd';
+import {
+  LineChartOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+  AlertOutlined,
+  TrendingUpOutlined,
+  TrendingDownOutlined,
+  CalendarOutlined,
+  BarChartOutlined
+} from '@ant-design/icons';
+import { seasonalInventoryService } from '../services/seasonalInventoryApi';
+import ForecastChart from '../components/SeasonalInventory/ForecastChart';
+import SeasonalPatternsChart from '../components/SeasonalInventory/SeasonalPatternsChart';
+import InventoryRecommendations from '../components/SeasonalInventory/InventoryRecommendations';
+
+const { Option } = Select;
+const { RangePicker } = DatePicker;
+const { Title, Text } = Typography;
+
+const SeasonalInventory = () => {
+  const [loading, setLoading] = useState(false);
+  const [systemStatus, setSystemStatus] = useState(null);
+  const [availableProducts, setAvailableProducts] = useState([]);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [forecastDays, setForecastDays] = useState(30);
+  const [forecastData, setForecastData] = useState(null);
+  const [itemAnalysis, setItemAnalysis] = useState(null);
+  const [recommendations, setRecommendations] = useState([]);
+  const [modelMetrics, setModelMetrics] = useState(null);
+  const [isRetrainingModalVisible, setIsRetrainingModalVisible] = useState(false);
+  const [retrainingProgress, setRetrainingProgress] = useState(0);
+
+  // Initialize component
+  useEffect(() => {
+    initializeData();
+  }, []);
+
+  const initializeData = async () => {
+    setLoading(true);
+    try {
+      // Load system status
+      const status = await seasonalInventoryService.getSystemStatus();
+      setSystemStatus(status);
+
+      // Load available products
+      const products = await seasonalInventoryService.getAvailableProducts(50);
+      setAvailableProducts(products.products || []);
+
+      // Set default product if available
+      if (products.products && products.products.length > 0) {
+        setSelectedProduct(products.products[0].product_id);
+      }
+    } catch (error) {
+      console.error('Error initializing data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load forecast data for selected product
+  const loadForecastData = async (productId) => {
+    if (!productId) return;
+    
+    setLoading(true);
+    try {
+      // Get forecast
+      const forecast = await seasonalInventoryService.getProductForecast(productId, forecastDays);
+      setForecastData(forecast);
+
+      // Get item analysis
+      const analysis = await seasonalInventoryService.getItemAnalysis(productId);
+      setItemAnalysis(analysis);
+
+      // Get model metrics
+      const metrics = await seasonalInventoryService.getModelMetrics(productId);
+      setModelMetrics(metrics);
+
+      // Get recommendations
+      const recs = await seasonalInventoryService.getInventoryRecommendations([productId]);
+      setRecommendations(recs.recommendations || []);
+
+    } catch (error) {
+      console.error('Error loading forecast data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle product selection change
+  const handleProductChange = (productId) => {
+    setSelectedProduct(productId);
+    loadForecastData(productId);
+  };
+
+  // Handle forecast days change
+  const handleForecastDaysChange = (days) => {
+    setForecastDays(days);
+    if (selectedProduct) {
+      loadForecastData(selectedProduct);
+    }
+  };
+
+  // Handle model retraining
+  const handleRetrain = async () => {
+    if (!selectedProduct) return;
+
+    setIsRetrainingModalVisible(true);
+    setRetrainingProgress(0);
+
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setRetrainingProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 1000);
+
+      await seasonalInventoryService.retrainModels([selectedProduct]);
+      
+      clearInterval(progressInterval);
+      setRetrainingProgress(100);
+      
+      setTimeout(() => {
+        setIsRetrainingModalVisible(false);
+        loadForecastData(selectedProduct);
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error retraining model:', error);
+      setIsRetrainingModalVisible(false);
+    }
+  };
+
+  // Get trend icon based on analysis
+  const getTrendIcon = (trend) => {
+    if (trend === 'increasing') return <TrendingUpOutlined style={{ color: '#52c41a' }} />;
+    if (trend === 'decreasing') return <TrendingDownOutlined style={{ color: '#ff4d4f' }} />;
+    return <LineChartOutlined style={{ color: '#1890ff' }} />;
+  };
+
+  // Table columns for recommendations
+  const recommendationColumns = [
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      render: (type) => {
+        const colors = {
+          'reorder_point': 'blue',
+          'order_quantity': 'green',
+          'peak_preparation': 'orange',
+          'trend_alert': 'red'
+        };
+        return <Tag color={colors[type] || 'default'}>{type.replace('_', ' ').toUpperCase()}</Tag>;
+      }
+    },
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title'
+    },
+    {
+      title: 'Value',
+      dataIndex: 'value',
+      key: 'value',
+      render: (value) => <strong>{value}</strong>
+    },
+    {
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description'
+    }
+  ];
+
+  return (
+    <div style={{ padding: '24px' }}>
+      <Row gutter={[16, 16]}>
+        {/* Header Section */}
+        <Col span={24}>
+          <Card>
+            <Row justify="space-between" align="middle">
+              <Col>
+                <Title level={2}>
+                  <BarChartOutlined style={{ marginRight: '8px' }} />
+                  Seasonal Inventory Prediction
+                </Title>
+                <Text type="secondary">
+                  AI-powered demand forecasting and inventory optimization
+                </Text>
+              </Col>
+              <Col>
+                <Space>
+                  <Button 
+                    icon={<ReloadOutlined />} 
+                    onClick={() => loadForecastData(selectedProduct)}
+                    loading={loading}
+                  >
+                    Refresh
+                  </Button>
+                  <Button 
+                    type="primary" 
+                    icon={<LineChartOutlined />}
+                    onClick={handleRetrain}
+                    disabled={!selectedProduct || loading}
+                  >
+                    Retrain Model
+                  </Button>
+                </Space>
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+
+        {/* System Status */}
+        <Col span={24}>
+          {systemStatus && (
+            <Alert
+              message={`System Status: ${systemStatus.status}`}
+              description={`Processing ${systemStatus.data_info?.total_records || 'N/A'} records across ${systemStatus.data_info?.unique_products || 'N/A'} products`}
+              type={systemStatus.status === 'available' ? 'success' : 'warning'}
+              showIcon
+              style={{ marginBottom: '16px' }}
+            />
+          )}
+        </Col>
+
+        {/* Controls Section */}
+        <Col span={24}>
+          <Card title="Forecast Configuration">
+            <Row gutter={[16, 16]} align="middle">
+              <Col span={8}>
+                <Text strong>Select Product:</Text>
+                <Select
+                  style={{ width: '100%', marginTop: '8px' }}
+                  placeholder="Choose a product"
+                  value={selectedProduct}
+                  onChange={handleProductChange}
+                  showSearch
+                  filterOption={(input, option) =>
+                    option.children.toLowerCase().indexOf(input.toLowerCase()) >= 0
+                  }
+                >
+                  {availableProducts.map(product => (
+                    <Option key={product.product_id} value={product.product_id}>
+                      {product.product_id} - {product.description || 'No description'}
+                    </Option>
+                  ))}
+                </Select>
+              </Col>
+              <Col span={4}>
+                <Text strong>Forecast Days:</Text>
+                <InputNumber
+                  style={{ width: '100%', marginTop: '8px' }}
+                  min={7}
+                  max={90}
+                  value={forecastDays}
+                  onChange={handleForecastDaysChange}
+                />
+              </Col>
+              <Col span={4}>
+                <Button
+                  type="primary"
+                  icon={<SearchOutlined />}
+                  onClick={() => loadForecastData(selectedProduct)}
+                  disabled={!selectedProduct}
+                  loading={loading}
+                  style={{ marginTop: '24px' }}
+                >
+                  Generate Forecast
+                </Button>
+              </Col>
+            </Row>
+          </Card>
+        </Col>
+
+        {/* Key Metrics */}
+        {itemAnalysis && (
+          <Col span={24}>
+            <Row gutter={[16, 16]}>
+              <Col span={6}>
+                <Card>
+                  <Statistic
+                    title="Average Daily Demand"
+                    value={itemAnalysis.forecast_insights?.average_daily_demand || 0}
+                    precision={1}
+                    valueStyle={{ color: '#1890ff' }}
+                    prefix={getTrendIcon(itemAnalysis.forecast_insights?.demand_trend)}
+                  />
+                </Card>
+              </Col>
+              <Col span={6}>
+                <Card>
+                  <Statistic
+                    title="Peak Demand"
+                    value={itemAnalysis.forecast_insights?.peak_demand_value || 0}
+                    precision={1}
+                    valueStyle={{ color: '#f5222d' }}
+                    prefix={<AlertOutlined />}
+                  />
+                </Card>
+              </Col>
+              <Col span={6}>
+                <Card>
+                  <Statistic
+                    title="Total Predicted Demand"
+                    value={itemAnalysis.forecast_insights?.predicted_total_demand || 0}
+                    precision={0}
+                    valueStyle={{ color: '#52c41a' }}
+                    prefix={<TrendingUpOutlined />}
+                  />
+                </Card>
+              </Col>
+              <Col span={6}>
+                <Card>
+                  <Statistic
+                    title="Model Accuracy (MAPE)"
+                    value={modelMetrics?.mape || 0}
+                    precision={2}
+                    suffix="%"
+                    valueStyle={{ 
+                      color: (modelMetrics?.mape || 0) < 5 ? '#52c41a' : 
+                             (modelMetrics?.mape || 0) < 10 ? '#faad14' : '#f5222d' 
+                    }}
+                    prefix={<LineChartOutlined />}
+                  />
+                </Card>
+              </Col>
+            </Row>
+          </Col>
+        )}
+
+        {/* Forecast Chart */}
+        {forecastData && (
+          <Col span={16}>
+            <Card title="Demand Forecast" extra={<CalendarOutlined />}>
+              <ForecastChart data={forecastData} />
+            </Card>
+          </Col>
+        )}
+
+        {/* Seasonal Patterns */}
+        {itemAnalysis?.seasonal_patterns && (
+          <Col span={8}>
+            <Card title="Seasonal Patterns">
+              <SeasonalPatternsChart data={itemAnalysis.seasonal_patterns} />
+            </Card>
+          </Col>
+        )}
+
+        {/* Inventory Recommendations */}
+        {recommendations.length > 0 && (
+          <Col span={24}>
+            <Card title="Inventory Recommendations" extra={<AlertOutlined />}>
+              <Table
+                columns={recommendationColumns}
+                dataSource={recommendations}
+                pagination={false}
+                size="small"
+                rowKey={(record, index) => index}
+              />
+            </Card>
+          </Col>
+        )}
+      </Row>
+
+      {/* Retraining Modal */}
+      <Modal
+        title="Retraining Model"
+        visible={isRetrainingModalVisible}
+        footer={null}
+        closable={false}
+        centered
+      >
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <Spin size="large" />
+          <div style={{ marginTop: '16px' }}>
+            <Progress percent={retrainingProgress} />
+            <Text>Retraining model for {selectedProduct}...</Text>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+};
+
+export default SeasonalInventory;

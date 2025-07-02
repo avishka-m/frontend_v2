@@ -13,6 +13,7 @@ import {
   CheckSquareOutlined,
   GiftOutlined,
   RollbackOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 
@@ -83,6 +84,11 @@ export const ROLE_NAVIGATION = {
       key: 'analytics',
       icon: <BarChartOutlined />,
       label: <Link to="/analytics">Analytics</Link>,
+    },
+    {
+      key: 'seasonal-inventory',
+      icon: <LineChartOutlined />,
+      label: <Link to="/seasonal-inventory">AI Forecasting</Link>,
     },
     {
       key: 'settings',
