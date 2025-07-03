@@ -24,7 +24,7 @@ export const authService = {
         console.log('AuthService: Token stored, fetching user profile...');
         
         // Get user profile information after setting the token
-        const userProfile = await this.getCurrentUser();
+        const userProfile = await authService.getCurrentUser();
         console.log('AuthService: User profile fetched:', userProfile);
         
         return {
