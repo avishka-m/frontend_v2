@@ -21,7 +21,7 @@ import {
 
 const ROLE_NAVIGATION = {
   Manager: [
-    { path: '/inventory', name: 'Dashboard', icon: Home }, // Use inventory as dashboard for now
+    { path: '/dashboard', name: 'Dashboard', icon: Home },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
     { path: '/customers', name: 'Customers', icon: Store },
@@ -37,7 +37,7 @@ const ROLE_NAVIGATION = {
     { path: '/settings', name: 'Settings', icon: Settings }
   ],
   ReceivingClerk: [
-    { path: '/inventory', name: 'Dashboard', icon: Home },
+    { path: '/dashboard', name: 'Dashboard', icon: Home },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/receiving', name: 'Receiving', icon: ArrowLeftRight },
     { path: '/locations', name: 'Locations', icon: MapPin },
@@ -45,19 +45,19 @@ const ROLE_NAVIGATION = {
     { path: '/orders', name: 'View Orders', icon: ShoppingCart }
   ],
   Picker: [
-    { path: '/inventory', name: 'Dashboard', icon: Home },
+    { path: '/dashboard', name: 'Dashboard', icon: Home },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/picking', name: 'Picking Tasks', icon: ClipboardCheck },
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
     { path: '/locations', name: 'Locations', icon: MapPin }
   ],
   Packer: [
-    { path: '/inventory', name: 'Dashboard', icon: Home },
+    { path: '/dashboard', name: 'Dashboard', icon: Home },
     { path: '/packing', name: 'Packing Tasks', icon: Archive },
     { path: '/orders', name: 'Orders', icon: ShoppingCart }
   ],
   Driver: [
-    { path: '/inventory', name: 'Dashboard', icon: Home },
+    { path: '/dashboard', name: 'Dashboard', icon: Home },
     { path: '/shipping', name: 'Shipping', icon: Truck },
     { path: '/vehicles', name: 'Vehicles', icon: Truck }
   ]

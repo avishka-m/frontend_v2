@@ -45,9 +45,9 @@ function App() {
   return (
     <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AuthProvider>
-          <ChatbotProvider>
-            <NotificationProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <ChatbotProvider>
               <Notification />
               <Routes>
                 {/* Public routes */}
@@ -55,8 +55,9 @@ function App() {
                 
                 {/* Protected routes - within layout */}
                 <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                  {/* Dashboard - accessible to all authenticated users */}
-                  {/* <Route path="/dashboard" element={<Dashboard />} /> */}
+                  {/* Dashboard - redirect to inventory for now */}
+                  <Route path="/dashboard" element={<Navigate to="/inventory" replace />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   
                   {/* Inventory routes - Manager, ReceivingClerk, Picker */}
                   <Route path="/inventory" element={
@@ -180,9 +181,9 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
-            </NotificationProvider>
-          </ChatbotProvider>
-        </AuthProvider>
+            </ChatbotProvider>
+          </AuthProvider>
+        </NotificationProvider>
       </BrowserRouter>
     </ErrorBoundary>
   );

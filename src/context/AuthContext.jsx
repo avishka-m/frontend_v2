@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 import { authService } from '../services';
+import { useNotification } from './NotificationContext';
 
 // Create the auth context
 const AuthContext = createContext();
@@ -10,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [authenticated, setAuthenticated] = useState(false);
+  const { addNotification } = useNotification();
 
   // Attempt to load user from local storage on mount
   useEffect(() => {
@@ -19,35 +21,48 @@ export const AuthProvider = ({ children }) => {
         
         // Check if token exists
         if (authService.isAuthenticated()) {
-          const storedUsername = localStorage.getItem('username');
-          const storedRole = localStorage.getItem('userRole');
-          const storedFirstName = localStorage.getItem('userFirstName');
-          const storedLastName = localStorage.getItem('userLastName');
-          const storedEmail = localStorage.getItem('userEmail');
-          
-          if (storedUsername && storedRole) {
-            // Set user data from localStorage
+          // Try to fetch fresh data from API first
+          try {
+            const userData = await authService.getCurrentUser();
+            const userFirstName = userData.firstName || userData.name?.split(' ')[0] || '';
+            const userLastName = userData.lastName || userData.name?.split(' ').slice(1).join(' ') || '';
+            
             setCurrentUser({
-              username: storedUsername,
-              role: storedRole,
-              firstName: storedFirstName || '',
-              lastName: storedLastName || '',
-              email: storedEmail || '',
-              fullName: `${storedFirstName || ''} ${storedLastName || ''}`.trim() || storedUsername
+              ...userData,
+              fullName: userData.name || `${userFirstName} ${userLastName}`.trim() || userData.username
             });
             setAuthenticated(true);
             
-            // Try to fetch fresh data from API
-            try {
-              const userData = await authService.getCurrentUser();
-              setCurrentUser(prevUser => ({
-                ...prevUser,
-                ...userData,
-                fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username
-              }));
-            } catch (err) {
-              // Continue with localStorage data if API fails
-              console.log('Failed to fetch fresh user data, using cached data');
+            // Update localStorage with fresh data
+            localStorage.setItem('username', userData.username);
+            localStorage.setItem('userRole', userData.role);
+            localStorage.setItem('userFirstName', userFirstName);
+            localStorage.setItem('userLastName', userLastName);
+            localStorage.setItem('userEmail', userData.email || '');
+            
+          } catch (err) {
+            // If API fails, try to use cached data from localStorage
+            console.log('API failed, using cached user data:', err.message);
+            const storedUsername = localStorage.getItem('username');
+            const storedRole = localStorage.getItem('userRole');
+            const storedFirstName = localStorage.getItem('userFirstName');
+            const storedLastName = localStorage.getItem('userLastName');
+            const storedEmail = localStorage.getItem('userEmail');
+            
+            if (storedUsername && storedRole) {
+              setCurrentUser({
+                username: storedUsername,
+                role: storedRole,
+                firstName: storedFirstName || '',
+                lastName: storedLastName || '',
+                email: storedEmail || '',
+                fullName: `${storedFirstName || ''} ${storedLastName || ''}`.trim() || storedUsername
+              });
+              setAuthenticated(true);
+            } else {
+              // No valid cached data, clear everything
+              authService.logout();
+              setAuthenticated(false);
             }
           }
         }
@@ -67,38 +82,61 @@ export const AuthProvider = ({ children }) => {
   // Login function
   const login = async (username, password) => {
     try {
+      console.log('AuthContext: Starting login process for:', username);
       setLoading(true);
       setError(null);
       
       const userData = await authService.login(username, password);
+      console.log('AuthContext: Login service returned:', userData);
       
-      // Store user data in localStorage
+      // Store user data in localStorage - handle both complete and partial user data
+      const userFirstName = userData.firstName || userData.name?.split(' ')[0] || '';
+      const userLastName = userData.lastName || userData.name?.split(' ').slice(1).join(' ') || '';
+      
       localStorage.setItem('username', userData.username);
-      localStorage.setItem('userRole', userData.role);
-      localStorage.setItem('userFirstName', userData.firstName || '');
-      localStorage.setItem('userLastName', userData.lastName || '');
+      localStorage.setItem('userRole', userData.role || 'User');
+      localStorage.setItem('userFirstName', userFirstName);
+      localStorage.setItem('userLastName', userLastName);
       localStorage.setItem('userEmail', userData.email || '');
       
       // Set current user with complete data
-      setCurrentUser({
+      const currentUserData = {
         id: userData.id,
         username: userData.username,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        role: userData.role,
-        fullName: `${userData.firstName} ${userData.lastName}`.trim()
-      });
+        firstName: userFirstName,
+        lastName: userLastName,
+        email: userData.email || '',
+        role: userData.role || 'User',
+        fullName: userData.name || `${userFirstName} ${userLastName}`.trim() || userData.username
+      };
       
+      console.log('AuthContext: Setting current user:', currentUserData);
+      setCurrentUser(currentUserData);
       setAuthenticated(true);
       setError(null);
       
-      return userData;
+      // Show success notification
+      addNotification({
+        type: 'success',
+        message: 'Login Successful!',
+        description: `Welcome back, ${currentUserData.fullName || currentUserData.username}!`
+      });
+      
+      console.log('AuthContext: Login successful');
+      return true; // Return success boolean
     } catch (err) {
-      console.error('Login error:', err);
-      setError(err.response?.data?.detail || 'Failed to login. Please check your credentials.');
+      console.error('AuthContext: Login error:', err);
+      setError(err.message || 'Failed to login. Please check your credentials.');
       setAuthenticated(false);
-      throw err;
+      
+      // Show error notification
+      addNotification({
+        type: 'error',
+        message: 'Login Failed',
+        description: err.message || 'Please check your credentials and try again.'
+      });
+      
+      return false; // Return failure boolean
     } finally {
       setLoading(false);
     }

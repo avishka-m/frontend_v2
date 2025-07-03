@@ -3,103 +3,53 @@ import { api } from './apiConfig';
 export const authService = {
   login: async (username, password) => {
     try {
-      // For development purposes, implement a mock login
-      // In production, this would connect to your backend API
-      if (process.env.NODE_ENV === 'development' || !api.defaults.baseURL) {
-        console.log('Using mock authentication in development mode');
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Mock user data based on username
-        // Different roles for testing role-based access
-        let userData;
-        
-        if (username === 'manager') {
-          userData = {
-            id: 1,
-            username: 'manager',
-            firstName: 'Admin',
-            lastName: 'User',
-            email: 'admin@warehouse.com',
-            role: 'Manager',
-            access_token: 'mock-jwt-token-manager'
-          };
-        } else if (username === 'receiving') {
-          userData = {
-            id: 2,
-            username: 'receiving',
-            firstName: 'Receiving',
-            lastName: 'Clerk',
-            email: 'receiving@warehouse.com',
-            role: 'ReceivingClerk',
-            access_token: 'mock-jwt-token-receiving'
-          };
-        } else if (username === 'picker') {
-          userData = {
-            id: 3,
-            username: 'picker',
-            firstName: 'Warehouse',
-            lastName: 'Picker',
-            email: 'picker@warehouse.com',
-            role: 'Picker',
-            access_token: 'mock-jwt-token-picker'
-          };
-        } else if (username === 'packer') {
-          userData = {
-            id: 4,
-            username: 'packer',
-            firstName: 'Package',
-            lastName: 'Packer',
-            email: 'packer@warehouse.com',
-            role: 'Packer',
-            access_token: 'mock-jwt-token-packer'
-          };
-        } else if (username === 'driver') {
-          userData = {
-            id: 5,
-            username: 'driver',
-            firstName: 'Delivery',
-            lastName: 'Driver',
-            email: 'driver@warehouse.com',
-            role: 'Driver',
-            access_token: 'mock-jwt-token-driver'
-          };
-        } else {
-          // Default case - generic user for any other username
-          userData = {
-            id: 6,
-            username: username,
-            firstName: 'Generic',
-            lastName: 'User',
-            email: `${username}@warehouse.com`,
-            role: 'ReceivingClerk', // Default role
-            access_token: `mock-jwt-token-${username}`
-          };
-        }
-        
-        // Save token to localStorage for persistence
-        localStorage.setItem('token', userData.access_token);
-        localStorage.setItem('username', userData.username);
-        localStorage.setItem('userRole', userData.role);
-        
-        return userData;
-      }
+      console.log('AuthService: Starting login for user:', username);
       
-      // Real API implementation for production
-      const response = await api.post('/auth/token', {
-        username,
-        password,
-      }, {
+      // Real API implementation - always use backend API
+      const formData = new FormData();
+      formData.append('username', username);
+      formData.append('password', password);
+
+      console.log('AuthService: Sending login request to backend...');
+      const response = await api.post('/api/v1/auth/token', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
       });
+
+      console.log('AuthService: Login response received:', response.data);
+
+      if (response.data.access_token) {
+        localStorage.setItem('token', response.data.access_token);
+        console.log('AuthService: Token stored, fetching user profile...');
+        
+        // Get user profile information after setting the token
+        const userProfile = await authService.getCurrentUser();
+        console.log('AuthService: User profile fetched:', userProfile);
+        
+        return {
+          ...userProfile,
+          access_token: response.data.access_token,
+          token_type: response.data.token_type
+        };
+      }
       
-      localStorage.setItem('token', response.data.access_token);
-      return response.data;
+      throw new Error('No access token received');
     } catch (error) {
-      throw error;
+      console.error('AuthService: Login error:', error);
+      if (error.response?.status === 401) {
+        throw new Error('Invalid username or password');
+      }
+      // If it's an error from getCurrentUser, return a simpler success response
+      if (error.message.includes('Failed to get user information')) {
+        console.log('AuthService: Profile fetch failed, returning basic login success');
+        return {
+          username: username,
+          access_token: localStorage.getItem('token'),
+          message: 'Login successful but user profile could not be loaded'
+        };
+      }
+      throw new Error(error.response?.data?.detail || error.message || 'Login failed');
     }
   },
   
@@ -115,36 +65,44 @@ export const authService = {
   
   getCurrentUser: async () => {
     try {
-      // For development purposes, return mock user data
-      if (process.env.NODE_ENV === 'development' || !api.defaults.baseURL) {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        const username = localStorage.getItem('username');
-        const role = localStorage.getItem('userRole');
-        
-        if (!username) {
-          throw new Error('No user is currently logged in');
-        }
-        
-        // Mock user data based on stored username and role
-        return {
-          id: Math.floor(Math.random() * 1000) + 1,
-          username: username,
-          firstName: username.charAt(0).toUpperCase() + username.slice(1),
-          lastName: role.charAt(0).toUpperCase() + role.slice(1),
-          email: `${username}@warehouse.com`,
-          role: role,
-          permissions: getPermissionsByRole(role),
-          lastLogin: new Date().toISOString()
-        };
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Real API implementation - get user profile from backend
+      const response = await api.get('/api/v1/auth/me');
+      
+      // Parse the name into first and last name
+      const fullName = response.data.name || '';
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.slice(1).join(' ') || '';
+      
+      return {
+        id: response.data.id,
+        username: response.data.username,
+        firstName: firstName,
+        lastName: lastName,
+        email: response.data.email,
+        role: response.data.role,
+        phone: response.data.phone,
+        permissions: getPermissionsByRole(response.data.role),
+        created_at: response.data.created_at,
+        updated_at: response.data.updated_at
+      };
+    } catch (error) {
+      console.error('Get current user error:', error);
+      
+      // If the API call fails, clear the token and throw error
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        localStorage.removeItem('userRole');
+        throw new Error('Authentication expired. Please login again.');
       }
       
-      // Real API implementation for production
-      const response = await api.get('/users/me');
-      return response.data;
-    } catch (error) {
-      throw error;
+      throw new Error(error.response?.data?.detail || 'Failed to get user information');
     }
   }
 };
