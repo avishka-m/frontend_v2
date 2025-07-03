@@ -3,7 +3,7 @@
  * Handles all chatbot-related API operations
  */
 
-import { apiGet, apiPost, apiPut, apiDelete } from './api.js';
+import { apiGet, apiPost, apiPut, apiDelete } from './api';
 
 /**
  * Chat API Service

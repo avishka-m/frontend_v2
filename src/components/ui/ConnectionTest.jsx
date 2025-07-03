@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Typography, Space, Tag, Spin } from 'antd';
 import { Wifi, WifiOff, CheckCircle } from 'lucide-react';
-import { chatService } from '../services/chatService';
+import { chatService } from '../../services/chatService';
 
 const { Text, Title } = Typography;
 
