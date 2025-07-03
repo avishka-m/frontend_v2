@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // API URLs from environment variables
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8002';
 const CHATBOT_API_URL = import.meta.env.VITE_CHATBOT_API_URL || 'http://localhost:8002/api/v1/chatbot';
 
 // Create main API instance

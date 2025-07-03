@@ -21,10 +21,13 @@ const Login = () => {
       setLoginError('');
       const success = await login(values.username, values.password);
       if (success) {
-        navigate('/inventory'); // Navigate to inventory instead of dashboard for now
+        navigate('/dashboard'); // Navigate to dashboard after successful login
+      } else {
+        setLoginError(error || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
-      setLoginError('Failed to log in. Please check your credentials.');
+      console.error('Login submission error:', err);
+      setLoginError(err.message || 'Failed to log in. Please check your credentials.');
     } finally {
       setSubmitting(false);
     }
@@ -100,11 +103,11 @@ const Login = () => {
               <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                 <h3 className="text-sm font-medium text-blue-800 mb-2">Test Credentials:</h3>
                 <div className="text-xs text-blue-700 space-y-1">
-                  <div><strong>Manager:</strong> username: manager, password: any</div>
-                  <div><strong>Receiving Clerk:</strong> username: receiving, password: any</div>
-                  <div><strong>Picker:</strong> username: picker, password: any</div>
-                  <div><strong>Packer:</strong> username: packer, password: any</div>
-                  <div><strong>Driver:</strong> username: driver, password: any</div>
+                  <div><strong>Manager:</strong> username: manager, password: manager123</div>
+                  <div><strong>Receiving Clerk:</strong> username: receiver, password: receiver123</div>
+                  <div><strong>Picker:</strong> username: picker, password: picker123</div>
+                  <div><strong>Packer:</strong> username: packer, password: packer123</div>
+                  <div><strong>Driver:</strong> username: driver, password: driver123</div>
                 </div>
               </div>
 
