@@ -45,9 +45,9 @@ function App() {
   return (
     <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <AuthProvider>
-          <ChatbotProvider>
-            <NotificationProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <ChatbotProvider>
               <Notification />
               <Routes>
                 {/* Public routes */}
@@ -181,9 +181,9 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
-            </NotificationProvider>
-          </ChatbotProvider>
-        </AuthProvider>
+            </ChatbotProvider>
+          </AuthProvider>
+        </NotificationProvider>
       </BrowserRouter>
     </ErrorBoundary>
   );

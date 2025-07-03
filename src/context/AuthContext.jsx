@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 import { authService } from '../services';
+import { useNotification } from './NotificationContext';
 
 // Create the auth context
 const AuthContext = createContext();
@@ -10,6 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [authenticated, setAuthenticated] = useState(false);
+  const { addNotification } = useNotification();
 
   // Attempt to load user from local storage on mount
   useEffect(() => {
@@ -113,12 +115,27 @@ export const AuthProvider = ({ children }) => {
       setAuthenticated(true);
       setError(null);
       
+      // Show success notification
+      addNotification({
+        type: 'success',
+        message: 'Login Successful!',
+        description: `Welcome back, ${currentUserData.fullName || currentUserData.username}!`
+      });
+      
       console.log('AuthContext: Login successful');
       return true; // Return success boolean
     } catch (err) {
       console.error('AuthContext: Login error:', err);
       setError(err.message || 'Failed to login. Please check your credentials.');
       setAuthenticated(false);
+      
+      // Show error notification
+      addNotification({
+        type: 'error',
+        message: 'Login Failed',
+        description: err.message || 'Please check your credentials and try again.'
+      });
+      
       return false; // Return failure boolean
     } finally {
       setLoading(false);
