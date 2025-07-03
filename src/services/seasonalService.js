@@ -4,7 +4,7 @@
  */
 
 // Updated import path for proper module resolution
-import { apiGet, apiPost, apiDelete } from '../api';
+import { apiGet, apiPost, apiDelete } from './api';
 
 /**
  * Seasonal Inventory API Service
