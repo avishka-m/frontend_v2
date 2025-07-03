@@ -33,6 +33,17 @@ export const ChatProvider = ({ children }) => {
     }
   }, [user]);
 
+  // Auto-refresh conversations every 30 seconds
+  useEffect(() => {
+    if (user) {
+      const interval = setInterval(() => {
+        loadConversations();
+      }, 30000); // 30 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [user]);
+
   const loadConversations = async () => {
     try {
       setLoading(true);

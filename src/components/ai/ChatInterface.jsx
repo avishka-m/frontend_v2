@@ -83,22 +83,25 @@ const ChatInterface = () => {
           textAlign: 'center'
         }}>
           <Empty
-            image={<MessageSquare size={64} color="#ccc" />}
+            image={<MessageSquare size={80} color="#1890ff" />}
             description={
               <div>
-                <Title level={4} style={{ color: '#999', marginBottom: 8 }}>
+                <Title level={3} style={{ color: '#1890ff', marginBottom: 12 }}>
                   No Conversation Selected
                 </Title>
-                <Text type="secondary">
+                <Text type="secondary" style={{ fontSize: '16px' }}>
                   Select an existing conversation or create a new one to start chatting
                 </Text>
               </div>
             }
           />
           
-          <Divider />
+          <Divider style={{ margin: '32px 0' }} />
           
-          <div style={{ maxWidth: 300 }}>
+          <div style={{ maxWidth: 400 }}>
+            <Title level={5} style={{ marginBottom: 16, textAlign: 'center' }}>
+              Select AI Assistant Role:
+            </Title>
             <RoleSelector />
           </div>
         </div>

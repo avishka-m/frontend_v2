@@ -3,6 +3,7 @@
  * Handles all chatbot-related API operations
  */
 
+// Updated import path for proper module resolution
 import { apiGet, apiPost, apiPut, apiDelete } from './api';
 
 /**
@@ -100,5 +101,7 @@ export const chatService = {
     }
   }
 };
+
+
 
 export default chatService;

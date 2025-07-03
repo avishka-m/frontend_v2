@@ -25,7 +25,8 @@ import {
   HardHat, 
   Package, 
   Truck, 
-  Crown 
+  Crown,
+  RefreshCw 
 } from 'lucide-react';
 import { useChat } from '../../contexts/ChatContext';
 import { formatDistanceToNow } from 'date-fns';
@@ -57,6 +58,7 @@ const ConversationList = () => {
     createConversation, 
     selectConversation, 
     deleteConversation,
+    loadConversations,
     selectedRole 
   } = useChat();
   
@@ -95,6 +97,15 @@ const ConversationList = () => {
     }
   };
 
+  const handleRefreshConversations = async () => {
+    try {
+      await loadConversations();
+      message.success('Conversations refreshed');
+    } catch (error) {
+      message.error('Failed to refresh conversations');
+    }
+  };
+
   const formatLastMessageTime = (timestamp) => {
     if (!timestamp) return 'No messages';
     try {
@@ -113,14 +124,23 @@ const ConversationList = () => {
         </Space>
       }
       extra={
-        <Button 
-          type="primary" 
-          icon={<Plus size={16} />} 
-          onClick={handleCreateConversation}
-          loading={loading}
-        >
-          New Chat
-        </Button>
+        <Space>
+          <Button 
+            type="text" 
+            icon={<RefreshCw size={16} />} 
+            onClick={handleRefreshConversations}
+            loading={loading}
+            title="Refresh conversations"
+          />
+          <Button 
+            type="primary" 
+            icon={<Plus size={16} />} 
+            onClick={handleCreateConversation}
+            loading={loading}
+          >
+            New Chat
+          </Button>
+        </Space>
       }
       style={{ height: '100%' }}
       bodyStyle={{ padding: 0, height: 'calc(100% - 57px)' }}
