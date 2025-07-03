@@ -1,80 +1,71 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { NOTIFICATION_TYPES } from '../../context/NotificationContext';
+import { inventoryService } from '../../services/inventoryService';
 
 const AddInventoryItem = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
   
-  // Form state
+  // Form state - Updated to match backend model
   const [formData, setFormData] = useState({
     name: '',
-    sku: '',
     category: '',
-    quantity: 0,
-    unitPrice: 0,
-    reorderLevel: 10,
-    maxStockLevel: 100,
-    description: '',
-    location: '',
-    supplier: '',
-    barcode: '',
-    expiryDate: '',
-    weight: 0,
-    dimensions: {
-      length: 0,
-      width: 0,
-      height: 0
-    }
+    size: 'M',
+    storage_type: 'standard',
+    stock_level: 0,
+    min_stock_level: 10,
+    max_stock_level: 100,
+    supplierID: 1,
+    locationID: 1
   });
 
-  // Categories and locations for dropdowns
+  // Categories based on backend sample data
   const categories = [
     'Electronics',
-    'Clothing',
-    'Books',
-    'Home & Garden',
-    'Sports & Outdoors',
-    'Health & Beauty',
-    'Tools & Hardware',
-    'Food & Beverages',
+    'Clothing', 
+    'Food',
     'Other'
   ];
 
+  // Storage types based on backend model
+  const storageTypes = [
+    'standard',
+    'refrigerated',
+    'hazardous'
+  ];
+
+  // Size options based on backend model
+  const sizes = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
+
+  // Mock supplier and location options (would come from backend in real app)
+  const suppliers = [
+    { id: 1, name: 'TechCorp Electronics' },
+    { id: 2, name: 'Fashion World' },
+    { id: 3, name: 'Food Supply Co' }
+  ];
+
   const locations = [
-    'Warehouse A - Section 1',
-    'Warehouse A - Section 2',
-    'Warehouse A - Section 3',
-    'Warehouse B - Section 1',
-    'Warehouse B - Section 2',
-    'Storage Room',
-    'Cold Storage',
-    'Receiving Dock',
-    'Shipping Dock'
+    { id: 1, name: 'Warehouse A-1' },
+    { id: 2, name: 'Warehouse A-2' },
+    { id: 3, name: 'Warehouse B-1' },
+    { id: 4, name: 'Warehouse B-2' },
+    { id: 5, name: 'Cold Storage' },
+    { id: 6, name: 'Receiving Dock' },
+    { id: 7, name: 'Shipping Dock' },
+    { id: 8, name: 'Hazmat Storage' }
   ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    if (name.startsWith('dimensions.')) {
-      const dimension = name.split('.')[1];
-      setFormData({
-        ...formData,
-        dimensions: {
-          ...formData.dimensions,
-          [dimension]: parseFloat(value) || 0
-        }
-      });
-    } else {
-      setFormData({
-        ...formData,
-        [name]: ['quantity', 'unitPrice', 'reorderLevel', 'maxStockLevel', 'weight'].includes(name) 
-          ? parseFloat(value) || 0 
-          : value
-      });
-    }
+    setFormData({
+      ...formData,
+      [name]: ['stock_level', 'min_stock_level', 'max_stock_level', 'supplierID', 'locationID'].includes(name) 
+        ? parseInt(value) || 0 
+        : value
+    });
   };
 
   const validateForm = () => {
@@ -87,29 +78,38 @@ const AddInventoryItem = () => {
       return false;
     }
 
-    if (!formData.sku.trim()) {
+    if (!formData.category) {
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Validation Error',
-        description: 'SKU is required.'
+        description: 'Category is required.'
       });
       return false;
     }
 
-    if (formData.quantity < 0) {
+    if (formData.stock_level < 0) {
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Validation Error',
-        description: 'Quantity cannot be negative.'
+        description: 'Stock level cannot be negative.'
       });
       return false;
     }
 
-    if (formData.unitPrice <= 0) {
+    if (formData.min_stock_level < 0) {
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Validation Error',
-        description: 'Unit price must be greater than 0.'
+        description: 'Minimum stock level cannot be negative.'
+      });
+      return false;
+    }
+
+    if (formData.max_stock_level <= formData.min_stock_level) {
+      addNotification({
+        type: NOTIFICATION_TYPES.ERROR,
+        message: 'Validation Error',
+        description: 'Maximum stock level must be greater than minimum stock level.'
       });
       return false;
     }
@@ -127,23 +127,12 @@ const AddInventoryItem = () => {
     setLoading(true);
     
     try {
-      // API call to add inventory would go here
-      // const response = await fetch('/api/inventory', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify(formData)
-      // });
-      
-      // if (!response.ok) {
-      //   throw new Error('Failed to add inventory item');
-      // }
+      const createdItem = await inventoryService.addInventoryItem(formData);
       
       addNotification({
         type: NOTIFICATION_TYPES.SUCCESS,
         message: 'Item added successfully',
-        description: `${formData.name} (SKU: ${formData.sku}) has been added to inventory.`
+        description: `${formData.name} has been added to inventory with ID ${createdItem.itemID}.`
       });
       
       navigate('/inventory');
@@ -184,27 +173,13 @@ const AddInventoryItem = () => {
             
             <div>
               <label className="block text-gray-700 font-medium mb-2">
-                SKU *
-                <input
-                  type="text"
-                  name="sku"
-                  value={formData.sku}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  required
-                  placeholder="e.g., SKU001"
-                />
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Category
+                Category *
                 <select
                   name="category"
                   value={formData.category}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
                 >
                   <option value="">Select a category</option>
                   {categories.map(cat => (
@@ -216,109 +191,15 @@ const AddInventoryItem = () => {
             
             <div>
               <label className="block text-gray-700 font-medium mb-2">
-                Supplier
-                <input
-                  type="text"
-                  name="supplier"
-                  value={formData.supplier}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Supplier name"
-                />
-              </label>
-            </div>
-            
-            <div className="md:col-span-2">
-              <label className="block text-gray-700 font-medium mb-2">
-                Description
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleChange}
-                  rows="3"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Item description"
-                />
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Inventory Details */}
-        <div className="mb-6 border border-gray-200 rounded-md p-4">
-          <h2 className="text-lg font-semibold mb-4">Inventory Details</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Current Quantity *
-                <input
-                  type="number"
-                  name="quantity"
-                  value={formData.quantity}
-                  onChange={handleChange}
-                  min="0"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  required
-                />
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Unit Price * ($)
-                <input
-                  type="number"
-                  name="unitPrice"
-                  value={formData.unitPrice}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.01"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  required
-                />
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Reorder Level
-                <input
-                  type="number"
-                  name="reorderLevel"
-                  value={formData.reorderLevel}
-                  onChange={handleChange}
-                  min="0"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                />
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Max Stock Level
-                <input
-                  type="number"
-                  name="maxStockLevel"
-                  value={formData.maxStockLevel}
-                  onChange={handleChange}
-                  min="0"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                />
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Location
+                Size
                 <select
-                  name="location"
-                  value={formData.location}
+                  name="size"
+                  value={formData.size}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
                 >
-                  <option value="">Select location</option>
-                  {locations.map(loc => (
-                    <option key={loc} value={loc}>{loc}</option>
+                  {sizes.map(size => (
+                    <option key={size} value={size}>{size}</option>
                   ))}
                 </select>
               </label>
@@ -326,93 +207,103 @@ const AddInventoryItem = () => {
             
             <div>
               <label className="block text-gray-700 font-medium mb-2">
-                Barcode
-                <input
-                  type="text"
-                  name="barcode"
-                  value={formData.barcode}
+                Storage Type
+                <select
+                  name="storage_type"
+                  value={formData.storage_type}
                   onChange={handleChange}
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                  placeholder="Barcode number"
-                />
+                >
+                  {storageTypes.map(type => (
+                    <option key={type} value={type}>
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">
+                Supplier *
+                <select
+                  name="supplierID"
+                  value={formData.supplierID}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                >
+                  {suppliers.map(supplier => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            
+            <div>
+              <label className="block text-gray-700 font-medium mb-2">
+                Location *
+                <select
+                  name="locationID"
+                  value={formData.locationID}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                >
+                  {locations.map(location => (
+                    <option key={location.id} value={location.id}>{location.name}</option>
+                  ))}
+                </select>
               </label>
             </div>
           </div>
         </div>
 
-        {/* Physical Properties */}
+        {/* Stock Information */}
         <div className="mb-6 border border-gray-200 rounded-md p-4">
-          <h2 className="text-lg font-semibold mb-4">Physical Properties</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <h2 className="text-lg font-semibold mb-4">Stock Information</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-gray-700 font-medium mb-2">
-                Weight (kg)
+                Current Stock Level *
                 <input
                   type="number"
-                  name="weight"
-                  value={formData.weight}
+                  name="stock_level"
+                  value={formData.stock_level}
                   onChange={handleChange}
                   min="0"
-                  step="0.01"
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
                 />
               </label>
             </div>
             
             <div>
               <label className="block text-gray-700 font-medium mb-2">
-                Length (cm)
+                Minimum Stock Level *
                 <input
                   type="number"
-                  name="dimensions.length"
-                  value={formData.dimensions.length}
+                  name="min_stock_level"
+                  value={formData.min_stock_level}
                   onChange={handleChange}
                   min="0"
-                  step="0.1"
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
                 />
               </label>
             </div>
             
             <div>
               <label className="block text-gray-700 font-medium mb-2">
-                Width (cm)
+                Maximum Stock Level *
                 <input
                   type="number"
-                  name="dimensions.width"
-                  value={formData.dimensions.width}
+                  name="max_stock_level"
+                  value={formData.max_stock_level}
                   onChange={handleChange}
-                  min="0"
-                  step="0.1"
+                  min="1"
                   className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                />
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Height (cm)
-                <input
-                  type="number"
-                  name="dimensions.height"
-                  value={formData.dimensions.height}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.1"
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
-                />
-              </label>
-            </div>
-            
-            <div>
-              <label className="block text-gray-700 font-medium mb-2">
-                Expiry Date
-                <input
-                  type="date"
-                  name="expiryDate"
-                  value={formData.expiryDate}
-                  onChange={handleChange}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
                 />
               </label>
             </div>
@@ -424,26 +315,30 @@ const AddInventoryItem = () => {
           <h2 className="text-lg font-semibold mb-4">Summary</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
             <div>
-              <span className="font-medium">Total Value:</span> ${(formData.quantity * formData.unitPrice).toFixed(2)}
-            </div>
-            <div>
               <span className="font-medium">Stock Status:</span> 
               <span className={`ml-2 px-2 py-1 rounded text-xs ${
-                formData.quantity <= formData.reorderLevel 
+                formData.stock_level === 0
                   ? 'bg-red-100 text-red-800' 
-                  : formData.quantity >= formData.maxStockLevel 
+                  : formData.stock_level <= formData.min_stock_level 
                     ? 'bg-yellow-100 text-yellow-800' 
-                    : 'bg-green-100 text-green-800'
+                    : formData.stock_level >= formData.max_stock_level 
+                      ? 'bg-orange-100 text-orange-800' 
+                      : 'bg-green-100 text-green-800'
               }`}>
-                {formData.quantity <= formData.reorderLevel 
-                  ? 'Low Stock' 
-                  : formData.quantity >= formData.maxStockLevel 
-                    ? 'Overstock' 
-                    : 'Normal'}
+                {formData.stock_level === 0
+                  ? 'Out of Stock' 
+                  : formData.stock_level <= formData.min_stock_level 
+                    ? 'Low Stock' 
+                    : formData.stock_level >= formData.max_stock_level 
+                      ? 'Overstock' 
+                      : 'Normal'}
               </span>
             </div>
             <div>
-              <span className="font-medium">Volume:</span> {(formData.dimensions.length * formData.dimensions.width * formData.dimensions.height / 1000).toFixed(2)} L
+              <span className="font-medium">Storage:</span> {formData.storage_type.charAt(0).toUpperCase() + formData.storage_type.slice(1)}
+            </div>
+            <div>
+              <span className="font-medium">Size:</span> {formData.size}
             </div>
           </div>
         </div>
