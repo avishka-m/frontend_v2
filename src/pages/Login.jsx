@@ -19,9 +19,9 @@ const Login = () => {
   const handleSubmit = async (values, { setSubmitting }) => {
     try {
       setLoginError('');
-      const success = await login(values);
+      const success = await login(values.username, values.password);
       if (success) {
-        navigate('/dashboard');
+        navigate('/inventory'); // Navigate to inventory instead of dashboard for now
       }
     } catch (err) {
       setLoginError('Failed to log in. Please check your credentials.');
@@ -93,6 +93,18 @@ const Login = () => {
                   <Link to="/forgot-password" className="font-medium text-primary-600 hover:text-primary-500">
                     Forgot your password?
                   </Link>
+                </div>
+              </div>
+
+              {/* Test Credentials Helper */}
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+                <h3 className="text-sm font-medium text-blue-800 mb-2">Test Credentials:</h3>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <div><strong>Manager:</strong> username: manager, password: any</div>
+                  <div><strong>Receiving Clerk:</strong> username: receiving, password: any</div>
+                  <div><strong>Picker:</strong> username: picker, password: any</div>
+                  <div><strong>Packer:</strong> username: packer, password: any</div>
+                  <div><strong>Driver:</strong> username: driver, password: any</div>
                 </div>
               </div>
 

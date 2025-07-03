@@ -19,18 +19,36 @@ export const AuthProvider = ({ children }) => {
         
         // Check if token exists
         if (authService.isAuthenticated()) {
-          try {
-            // Fetch real user data from the API
-            const userData = await authService.getCurrentUser();
-            setCurrentUser(userData);
-            setAuthenticated(true);
-          } catch (err) {
-            // Fallback to basic data if API fails
+          const storedUsername = localStorage.getItem('username');
+          const storedRole = localStorage.getItem('userRole');
+          const storedFirstName = localStorage.getItem('userFirstName');
+          const storedLastName = localStorage.getItem('userLastName');
+          const storedEmail = localStorage.getItem('userEmail');
+          
+          if (storedUsername && storedRole) {
+            // Set user data from localStorage
             setCurrentUser({
-              username: localStorage.getItem('username') || 'User',
-              role: localStorage.getItem('userRole') || 'clerk',
+              username: storedUsername,
+              role: storedRole,
+              firstName: storedFirstName || '',
+              lastName: storedLastName || '',
+              email: storedEmail || '',
+              fullName: `${storedFirstName || ''} ${storedLastName || ''}`.trim() || storedUsername
             });
             setAuthenticated(true);
+            
+            // Try to fetch fresh data from API
+            try {
+              const userData = await authService.getCurrentUser();
+              setCurrentUser(prevUser => ({
+                ...prevUser,
+                ...userData,
+                fullName: `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.username
+              }));
+            } catch (err) {
+              // Continue with localStorage data if API fails
+              console.log('Failed to fetch fresh user data, using cached data');
+            }
           }
         }
       } catch (err) {
@@ -54,27 +72,32 @@ export const AuthProvider = ({ children }) => {
       
       const userData = await authService.login(username, password);
       
-      // Store user data
-      localStorage.setItem('username', username);
-      localStorage.setItem('userRole', userData.role || 'clerk');
+      // Store user data in localStorage
+      localStorage.setItem('username', userData.username);
+      localStorage.setItem('userRole', userData.role);
+      localStorage.setItem('userFirstName', userData.firstName || '');
+      localStorage.setItem('userLastName', userData.lastName || '');
+      localStorage.setItem('userEmail', userData.email || '');
       
-      // Try to get the full user profile
-      try {
-        const fullProfile = await authService.getCurrentUser();
-        setCurrentUser(fullProfile);
-      } catch (err) {
-        // Fallback to basic data if API fails
-        setCurrentUser({
-          username,
-          role: userData.role || 'clerk',
-        });
-      }
+      // Set current user with complete data
+      setCurrentUser({
+        id: userData.id,
+        username: userData.username,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
+        role: userData.role,
+        fullName: `${userData.firstName} ${userData.lastName}`.trim()
+      });
       
       setAuthenticated(true);
+      setError(null);
+      
       return userData;
     } catch (err) {
       console.error('Login error:', err);
       setError(err.response?.data?.detail || 'Failed to login. Please check your credentials.');
+      setAuthenticated(false);
       throw err;
     } finally {
       setLoading(false);
@@ -86,8 +109,12 @@ export const AuthProvider = ({ children }) => {
     authService.logout();
     localStorage.removeItem('username');
     localStorage.removeItem('userRole');
+    localStorage.removeItem('userFirstName');
+    localStorage.removeItem('userLastName');
+    localStorage.removeItem('userEmail');
     setCurrentUser(null);
     setAuthenticated(false);
+    setError(null);
   };
 
   // Update user function

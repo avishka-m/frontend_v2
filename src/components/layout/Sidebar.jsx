@@ -21,7 +21,7 @@ import {
 
 const ROLE_NAVIGATION = {
   Manager: [
-    { path: '../dashboard/Dashboard.jsx', name: 'Dashboard', icon: Home },
+    { path: '/inventory', name: 'Dashboard', icon: Home }, // Use inventory as dashboard for now
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
     { path: '/customers', name: 'Customers', icon: Store },
@@ -37,7 +37,7 @@ const ROLE_NAVIGATION = {
     { path: '/settings', name: 'Settings', icon: Settings }
   ],
   ReceivingClerk: [
-    { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/inventory', name: 'Dashboard', icon: Home },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/receiving', name: 'Receiving', icon: ArrowLeftRight },
     { path: '/locations', name: 'Locations', icon: MapPin },
@@ -45,19 +45,19 @@ const ROLE_NAVIGATION = {
     { path: '/orders', name: 'View Orders', icon: ShoppingCart }
   ],
   Picker: [
-    { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/inventory', name: 'Dashboard', icon: Home },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/picking', name: 'Picking Tasks', icon: ClipboardCheck },
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
     { path: '/locations', name: 'Locations', icon: MapPin }
   ],
   Packer: [
-    { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/inventory', name: 'Dashboard', icon: Home },
     { path: '/packing', name: 'Packing Tasks', icon: Archive },
     { path: '/orders', name: 'Orders', icon: ShoppingCart }
   ],
   Driver: [
-    { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/inventory', name: 'Dashboard', icon: Home },
     { path: '/shipping', name: 'Shipping', icon: Truck },
     { path: '/vehicles', name: 'Vehicles', icon: Truck }
   ]
@@ -122,14 +122,14 @@ const Sidebar = () => {
           <div className="p-4 border-t border-gray-200">
             <div className="flex items-center">
               <div className="h-8 w-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
-                {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
+                {currentUser?.firstName?.charAt(0).toUpperCase() || currentUser?.username?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="ml-3">
                 <p className="text-sm font-medium text-gray-700">
-                  {currentUser?.username || 'User'}
+                  {currentUser?.fullName || currentUser?.firstName || currentUser?.username || 'User'}
                 </p>
-                <p className="text-xs text-gray-500 capitalize">
-                  {currentUser?.role || 'User'}
+                <p className="text-xs text-gray-500">
+                  {currentUser?.role?.replace(/([A-Z])/g, ' $1').trim() || 'User'}
                 </p>
               </div>
             </div>

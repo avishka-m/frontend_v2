@@ -73,14 +73,14 @@ const Header = () => {
             className="flex items-center space-x-2 text-sm bg-gray-50 rounded-lg px-3 py-2 hover:bg-gray-100"
           >
             <div className="h-8 w-8 rounded-full bg-primary-500 flex items-center justify-center text-white font-semibold">
-              {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
+              {currentUser?.firstName?.charAt(0).toUpperCase() || currentUser?.username?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="hidden md:block text-left">
               <div className="font-medium text-gray-800">
-                {currentUser?.firstName || currentUser?.username || 'User'}
+                {currentUser?.fullName || currentUser?.firstName || currentUser?.username || 'User'}
               </div>
-              <div className="text-xs text-gray-500">
-                {currentUser?.role || 'Staff'}
+              <div className="text-xs text-gray-500 capitalize">
+                {currentUser?.role?.replace(/([A-Z])/g, ' $1').trim() || 'Staff'}
               </div>
             </div>
             <ChevronDown className="w-4 h-4 text-gray-400" />
