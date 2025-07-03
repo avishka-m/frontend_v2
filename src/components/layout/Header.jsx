@@ -32,7 +32,7 @@ const Header = () => {
   return (
     <header className="bg-white shadow-sm h-16 flex items-center justify-between px-4 md:px-6">
       <div className="flex items-center">
-        <h1 className="text-lg md:text-xl font-semibold text-gray-800">
+        <h1 className="hidden md:block text-lg md:text-xl font-semibold text-gray-800">
           Warehouse Management System
         </h1>
       </div>
