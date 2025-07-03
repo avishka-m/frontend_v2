@@ -55,8 +55,9 @@ function App() {
                 
                 {/* Protected routes - within layout */}
                 <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                  {/* Dashboard - accessible to all authenticated users */}
-                  {/* <Route path="/dashboard" element={<Dashboard />} /> */}
+                  {/* Dashboard - redirect to inventory for now */}
+                  <Route path="/dashboard" element={<Navigate to="/inventory" replace />} />
+                  <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   
                   {/* Inventory routes - Manager, ReceivingClerk, Picker */}
                   <Route path="/inventory" element={

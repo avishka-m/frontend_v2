@@ -236,7 +236,7 @@ export const inventoryService = {
     try {
       // Backend doesn't have a specific categories endpoint, 
       // so we get all inventory and extract unique categories
-      const allInventory = await this.getInventory({ limit: 1000 });
+      const allInventory = await inventoryService.getInventory({ limit: 1000 });
       const categories = [...new Set(allInventory.map(item => item.category))];
       return categories.length > 0 ? categories : ['Electronics', 'Clothing', 'Food', 'Other'];
     } catch (error) {
