@@ -28,6 +28,36 @@ class RoleBasedService {
     }
   }
 
+  async getProcessedOrdersByWorker(workerId, stage) {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/role-based/receiving-clerk/processed-orders/${workerId}`, {
+        headers: this.getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching processed orders:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || 'Failed to fetch processed orders' 
+      };
+    }
+  }
+
+  async getReceivingClerkStats() {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/role-based/receiving-clerk/stats`, {
+        headers: this.getAuthHeaders()
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching receiving clerk stats:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.detail || 'Failed to fetch stats' 
+      };
+    }
+  }
+
   // Picker methods
   async getOrdersForPicker() {
     try {
@@ -114,13 +144,14 @@ class RoleBasedService {
   // Update order status
   async updateOrderStatus(orderId, newStatus) {
     try {
-      const response = await axios.post(`${API_BASE_URL}/role-based/update-order-status`, {
-        order_id: orderId,
-        new_status: newStatus,
-        worker_id: 0 // Will be set by backend based on current user
-      }, {
-        headers: this.getAuthHeaders()
-      });
+      const response = await axios.put(
+        `${API_BASE_URL}/role-based/orders/${orderId}/status`,
+        null, // No body needed
+        {
+          headers: this.getAuthHeaders(),
+          params: { new_status: newStatus }
+        }
+      );
       return response.data;
     } catch (error) {
       console.error('Error updating order status:', error);
