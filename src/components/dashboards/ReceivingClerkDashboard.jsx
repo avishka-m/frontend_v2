@@ -1,55 +1,134 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { 
-  Package, 
-  CheckCircle, 
-  Clock, 
-  AlertCircle,
-  ArrowRight,
   User,
-  Calendar
+  RefreshCw,
+  History,
+  Search,
+  Bell,
+  Clock,
+  CheckCircle,
+  Package,
+  AlertCircle
 } from 'lucide-react';
+import OrderCard from '../receiving/OrderCard';
+import OrderDetails from '../receiving/OrderDetails';
+import OrderStats from '../receiving/OrderStats';
 import roleBasedService from '../../services/roleBasedService';
 import { toast } from 'react-hot-toast';
 
 const ReceivingClerkDashboard = () => {
   const { currentUser } = useAuth();
-  const [orders, setOrders] = useState([]);
+  const [activeOrders, setActiveOrders] = useState([]);
+  const [processedOrders, setProcessedOrders] = useState([]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [autoRefresh, setAutoRefresh] = useState(true);
+  const [lastUpdate, setLastUpdate] = useState(new Date());
+  const [notifications, setNotifications] = useState([]);
+  const refreshIntervalRef = useRef(null);
 
+  // Real-time updates
   useEffect(() => {
-    fetchOrders();
-  }, []);
+    fetchActiveOrders();
+    
+    if (autoRefresh) {
+      refreshIntervalRef.current = setInterval(() => {
+        fetchActiveOrders(true); // Silent refresh
+      }, 5000); // Update every 5 seconds
+    }
 
-  const fetchOrders = async () => {
+    return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+    };
+  }, [autoRefresh]);
+
+  const fetchActiveOrders = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
+      
       const result = await roleBasedService.getOrdersForReceivingClerk();
+      
       if (result.success) {
-        setOrders(result.data);
+        const previousCount = activeOrders.length;
+        setActiveOrders(result.data);
+        
+        // Show notification for new orders
+        if (silent && result.data.length > previousCount) {
+          addNotification({
+            type: 'info',
+            message: `${result.data.length - previousCount} new order(s) received`
+          });
+        }
+        
+        setLastUpdate(new Date());
       } else {
-        toast.error(result.error || 'Failed to fetch orders');
+        if (!silent) toast.error(result.error || 'Failed to fetch orders');
       }
     } catch (error) {
-      toast.error('Failed to fetch orders');
+      if (!silent) toast.error('Failed to fetch orders');
+      console.error('Error fetching orders:', error);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
+  };
+
+  const fetchProcessedOrders = async () => {
+    try {
+      const result = await roleBasedService.getProcessedOrdersByWorker(currentUser?.id, 'receiving');
+      
+      if (result.success) {
+        setProcessedOrders(result.data);
+      } else {
+        toast.error(result.error || 'Failed to fetch processed orders');
+      }
+    } catch (error) {
+      toast.error('Failed to fetch processed orders');
+      console.error('Error fetching processed orders:', error);
+    }
+  };
+
+  const addNotification = (notification) => {
+    const newNotification = {
+      ...notification,
+      id: Date.now(),
+      timestamp: new Date()
+    };
+    setNotifications(prev => [newNotification, ...prev.slice(0, 4)]);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== newNotification.id));
+    }, 5000);
   };
 
   const handleStartReceiving = async (orderId) => {
     try {
       setProcessingOrder(orderId);
+      console.log('Starting receiving for order:', orderId);
+      
       const result = await roleBasedService.updateOrderStatus(orderId, 'receiving');
+      console.log('Update result:', result);
+      
       if (result.success) {
         toast.success('Order receiving started');
-        fetchOrders();
+        addNotification({
+          type: 'success',
+          message: `Started receiving order #${orderId}`
+        });
+        await fetchActiveOrders(); // Refresh the orders list
       } else {
         toast.error(result.error || 'Failed to start receiving');
+        console.error('Failed to start receiving:', result.error);
       }
     } catch (error) {
       toast.error('Failed to start receiving');
+      console.error('Error starting receiving:', error);
     } finally {
       setProcessingOrder(null);
     }
@@ -58,161 +137,201 @@ const ReceivingClerkDashboard = () => {
   const handleCompleteReceiving = async (orderId) => {
     try {
       setProcessingOrder(orderId);
+      console.log('Completing receiving for order:', orderId);
+      
       const result = await roleBasedService.updateOrderStatus(orderId, 'picking');
+      console.log('Update result:', result);
+      
       if (result.success) {
-        toast.success('Order moved to picking');
-        fetchOrders();
+        toast.success('Order receiving completed - moved to picking stage');
+        addNotification({
+          type: 'success',
+          message: `Completed receiving order #${orderId}`
+        });
+        await fetchActiveOrders(); // Refresh the orders list
       } else {
         toast.error(result.error || 'Failed to complete receiving');
+        console.error('Failed to complete receiving:', result.error);
       }
     } catch (error) {
       toast.error('Failed to complete receiving');
+      console.error('Error completing receiving:', error);
     } finally {
       setProcessingOrder(null);
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'confirmed':
-        return 'bg-blue-100 text-blue-800';
-      case 'receiving':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const handleViewOrderDetails = (order) => {
+    setSelectedOrder(order);
+  };
+
+  const handleToggleHistory = () => {
+    setShowHistory(!showHistory);
+    if (!showHistory) {
+      fetchProcessedOrders();
     }
   };
+
+  const toggleAutoRefresh = () => {
+    setAutoRefresh(!autoRefresh);
+    addNotification({
+      type: 'info',
+      message: autoRefresh ? 'Auto-refresh disabled' : 'Auto-refresh enabled'
+    });
+  };
+
+  const filteredOrders = activeOrders.filter(order => 
+    order.orderID?.toString().includes(searchTerm) ||
+    order.customerID?.toString().includes(searchTerm) ||
+    order.items?.some(item => item.name?.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <span className="ml-2 text-gray-600">Loading receiving dashboard...</span>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="bg-white shadow">
-        <div className="px-4 py-6 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
+      {/* Header with User Profile and Controls */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="bg-blue-100 p-3 rounded-lg">
+              <User className="h-8 w-8 text-blue-600" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Receiving Clerk Dashboard</h1>
-              <p className="mt-2 text-sm text-gray-600">
-                Welcome back, {currentUser?.name}! Manage incoming orders.
+              <h1 className="text-2xl font-bold text-gray-900">Receiving Dashboard</h1>
+              <p className="text-gray-600">Welcome, {currentUser?.username || 'Receiving Clerk'}</p>
+              <p className="text-sm text-gray-500">
+                Last updated: {lastUpdate.toLocaleTimeString()}
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">{orders.length}</div>
-              <div className="text-sm text-gray-500">Orders Available</div>
-            </div>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={toggleAutoRefresh}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg border ${
+                autoRefresh 
+                  ? 'bg-green-50 text-green-700 border-green-200' 
+                  : 'bg-gray-50 text-gray-700 border-gray-200'
+              }`}
+            >
+              <RefreshCw className={`h-4 w-4 ${autoRefresh ? 'animate-spin' : ''}`} />
+              <span>{autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}</span>
+            </button>
+            
+            <button
+              onClick={handleToggleHistory}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200 hover:bg-blue-100"
+            >
+              <History className="h-4 w-4" />
+              <span>{showHistory ? 'Hide History' : 'Show History'}</span>
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Orders List */}
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            Orders Ready for Receiving
-          </h3>
-          
-          {orders.length === 0 ? (
-            <div className="text-center py-8">
-              <Package className="mx-auto h-12 w-12 text-gray-400" />
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No orders available</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                All orders have been processed or none are ready for receiving.
+      {/* Real-time Notifications */}
+      {notifications.length > 0 && (
+        <div className="space-y-2">
+          {notifications.map(notification => (
+            <div
+              key={notification.id}
+              className={`flex items-center space-x-3 p-3 rounded-lg border ${
+                notification.type === 'success' ? 'bg-green-50 border-green-200 text-green-800' :
+                notification.type === 'info' ? 'bg-blue-50 border-blue-200 text-blue-800' :
+                'bg-gray-50 border-gray-200 text-gray-800'
+              }`}
+            >
+              <Bell className="h-4 w-4" />
+              <span className="flex-1">{notification.message}</span>
+              <span className="text-xs opacity-75">
+                {notification.timestamp.toLocaleTimeString()}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Search and Filter */}
+      <div className="bg-white rounded-lg shadow p-4">
+        <div className="flex items-center space-x-4">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search orders by ID, customer, or items..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
+          <button
+            onClick={() => fetchActiveOrders()}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Stats */}
+      <OrderStats orders={filteredOrders} />
+
+      {/* Main Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Orders List */}
+        <div className="lg:col-span-2 space-y-4">
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-lg font-semibold text-gray-900">
+                {showHistory ? 'Processed Orders History' : 'Active Orders for Receiving'}
+              </h2>
+              <p className="text-sm text-gray-600">
+                {showHistory ? 
+                  `${processedOrders.length} orders processed by you` : 
+                  `${filteredOrders.length} orders ready for receiving`
+                }
               </p>
             </div>
-          ) : (
-            <div className="space-y-4">
-              {orders.map((order) => (
-                <div
+            
+            <div className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+              {(showHistory ? processedOrders : filteredOrders).map((order) => (
+                <OrderCard
                   key={order.orderID}
-                  className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex-shrink-0">
-                        <Package className="h-8 w-8 text-blue-600" />
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-medium text-gray-900">
-                          Order #{order.orderID}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          Customer: {order.customerID} | Items: {order.items?.length || 0}
-                        </p>
-                        <div className="flex items-center space-x-4 mt-2">
-                          <div className="flex items-center text-sm text-gray-500">
-                            <Calendar className="h-4 w-4 mr-1" />
-                            {new Date(order.order_date).toLocaleDateString()}
-                          </div>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.order_status)}`}>
-                            {order.order_status}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-3">
-                      {order.order_status === 'confirmed' && (
-                        <button
-                          onClick={() => handleStartReceiving(order.orderID)}
-                          disabled={processingOrder === order.orderID}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {processingOrder === order.orderID ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          ) : (
-                            <Clock className="h-4 w-4 mr-2" />
-                          )}
-                          Start Receiving
-                        </button>
-                      )}
-                      
-                      {order.order_status === 'receiving' && (
-                        <button
-                          onClick={() => handleCompleteReceiving(order.orderID)}
-                          disabled={processingOrder === order.orderID}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
-                        >
-                          {processingOrder === order.orderID ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          ) : (
-                            <CheckCircle className="h-4 w-4 mr-2" />
-                          )}
-                          Complete → Picking
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Order Items Preview */}
-                  {order.items && order.items.length > 0 && (
-                    <div className="mt-4 p-3 bg-gray-50 rounded-md">
-                      <h5 className="text-sm font-medium text-gray-700 mb-2">Items to Receive</h5>
-                      <div className="space-y-1">
-                        {order.items.slice(0, 3).map((item, index) => (
-                          <div key={index} className="text-sm text-gray-600">
-                            Item #{item.itemID} - Quantity: {item.quantity}
-                          </div>
-                        ))}
-                        {order.items.length > 3 && (
-                          <div className="text-sm text-gray-500">
-                            ... and {order.items.length - 3} more items
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  order={order}
+                  onViewDetails={handleViewOrderDetails}
+                  onStartReceiving={handleStartReceiving}
+                  onCompleteReceiving={handleCompleteReceiving}
+                  processingOrder={processingOrder}
+                  showHistory={showHistory}
+                />
               ))}
+              
+              {(showHistory ? processedOrders : filteredOrders).length === 0 && (
+                <div className="p-8 text-center text-gray-500">
+                  <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p>
+                    {showHistory ? 'No processed orders found' : 'No orders ready for receiving'}
+                  </p>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
+
+        {/* Order Details Sidebar */}
+        <OrderDetails 
+          order={selectedOrder} 
+          onClose={() => setSelectedOrder(null)}
+        />
       </div>
     </div>
   );
