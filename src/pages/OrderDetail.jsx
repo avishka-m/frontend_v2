@@ -12,6 +12,7 @@ import {
   ORDER_PRIORITY_COLORS
 } from '../services/orderService';
 import { masterDataService } from '../services/masterDataService';
+import { workerService } from '../services/workerService';
 import { 
   ArrowLeft, 
   Edit, 
@@ -26,7 +27,8 @@ import {
   AlertCircle,
   CheckCircle,
   FileText,
-  DollarSign
+  DollarSign,
+  UserCheck
 } from 'lucide-react';
 
 const OrderDetail = () => {
@@ -39,6 +41,8 @@ const OrderDetail = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState([]);
+  const [workers, setWorkers] = useState([]);
+  const [loadingWorkers, setLoadingWorkers] = useState(false);
   
   // Edit form state
   const [editForm, setEditForm] = useState({
@@ -54,6 +58,7 @@ const OrderDetail = () => {
   useEffect(() => {
     loadOrder();
     loadCustomers();
+    loadWorkers();
   }, [orderId]);
 
   const loadOrder = async () => {
@@ -99,6 +104,19 @@ const OrderDetail = () => {
       setCustomers(customersData);
     } catch (error) {
       console.error('Error loading customers:', error);
+    }
+  };
+
+  const loadWorkers = async () => {
+    try {
+      setLoadingWorkers(true);
+      const workersData = await workerService.getActiveWorkers();
+      setWorkers(workersData);
+    } catch (error) {
+      console.error('Error loading workers:', error);
+      // Don't show error notification for workers as it's not critical
+    } finally {
+      setLoadingWorkers(false);
     }
   };
 
@@ -220,6 +238,18 @@ const OrderDetail = () => {
   const formatDate = (dateString) => {
     if (!dateString) return 'Not set';
     return new Date(dateString).toLocaleString();
+  };
+
+  const getWorkerDisplayName = (workerID) => {
+    if (!workerID) return 'Not assigned';
+    const worker = workers.find(w => w.workerID === workerID);
+    return worker ? worker.name : workerID;
+  };
+
+  const getWorkerRole = (workerID) => {
+    if (!workerID) return '';
+    const worker = workers.find(w => w.workerID === workerID);
+    return worker ? worker.role_display : '';
   };
 
   const calculateTotal = () => {
@@ -569,7 +599,10 @@ const OrderDetail = () => {
 
           {/* Worker Assignment */}
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Worker Assignment</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+              <UserCheck className="w-5 h-5 mr-2" />
+              Worker Assignment
+            </h2>
             
             <div className="space-y-3">
               <div>
@@ -577,17 +610,60 @@ const OrderDetail = () => {
                   Assigned Worker
                 </label>
                 {isEditing ? (
-                  <input
-                    type="text"
-                    value={editForm.assigned_worker}
-                    onChange={(e) => handleInputChange('assigned_worker', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter worker ID or name..."
-                  />
+                  <div className="space-y-2">
+                    <select
+                      value={editForm.assigned_worker}
+                      onChange={(e) => handleInputChange('assigned_worker', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      disabled={loadingWorkers}
+                    >
+                      <option value="">Select a worker...</option>
+                      {workers.map(worker => (
+                        <option key={worker.id} value={worker.workerID}>
+                          {worker.name} ({worker.role_display})
+                        </option>
+                      ))}
+                    </select>
+                    {loadingWorkers && (
+                      <p className="text-sm text-gray-500 flex items-center">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500 mr-2"></div>
+                        Loading workers...
+                      </p>
+                    )}
+                  </div>
                 ) : (
-                  <p className="text-gray-900">{order.worker_name}</p>
+                  <div className="space-y-2">
+                    {order.assigned_worker ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
+                          {getWorkerDisplayName(order.assigned_worker)}
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          ({getWorkerRole(order.assigned_worker)})
+                        </span>
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic">No worker assigned</p>
+                    )}
+                  </div>
                 )}
               </div>
+              
+              {/* Worker Stats */}
+              {!isEditing && (
+                <div className="mt-4 p-3 bg-gray-50 rounded-md">
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Total Active Workers:</span>
+                      <span className="font-medium">{workers.length}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Available for Assignment:</span>
+                      <span className="font-medium">{workers.filter(w => !w.disabled).length}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
