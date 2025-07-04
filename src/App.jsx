@@ -55,6 +55,11 @@ import VehicleDetail from './pages/VehicleDetail';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
+// Workflow Components
+import WorkflowDashboard from './pages/WorkflowDashboard';
+import OrderWorkflowTracker from './pages/OrderWorkflowTracker';
+import WorkflowManagement from './pages/WorkflowManagement';
+
 function App() {
   return (
     <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
@@ -259,6 +264,23 @@ function App() {
                   <Route path="/analytics" element={
                     <RoleBasedRoute allowedRoles={['Manager']}>
                       <Analytics />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* Workflow routes - Manager, Picker, Packer, Driver */}
+                  <Route path="/workflow" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}>
+                      <WorkflowManagement />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/workflow/dashboard" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}>
+                      <WorkflowDashboard />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/workflow/order/:orderId" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}>
+                      <OrderWorkflowTracker />
                     </RoleBasedRoute>
                   } />
                   

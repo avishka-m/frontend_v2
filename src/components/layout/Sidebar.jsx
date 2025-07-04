@@ -16,12 +16,14 @@ import {
   MapPin,
   Archive,
   ClipboardCheck,
-  RotateCcw
+  RotateCcw,
+  Activity
 } from 'lucide-react';
 
 const ROLE_NAVIGATION = {
   Manager: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
     { path: '/customers', name: 'Customers', icon: Store },
@@ -38,6 +40,7 @@ const ROLE_NAVIGATION = {
   ],
   ReceivingClerk: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/receiving', name: 'Receiving', icon: ArrowLeftRight },
     { path: '/locations', name: 'Locations', icon: MapPin },
@@ -46,6 +49,7 @@ const ROLE_NAVIGATION = {
   ],
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/picking', name: 'Picking Tasks', icon: ClipboardCheck },
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
@@ -53,11 +57,13 @@ const ROLE_NAVIGATION = {
   ],
   Packer: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/packing', name: 'Packing Tasks', icon: Archive },
     { path: '/orders', name: 'Orders', icon: ShoppingCart }
   ],
   Driver: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/shipping', name: 'Shipping', icon: Truck },
     { path: '/vehicles', name: 'Vehicles', icon: Truck }
   ]
