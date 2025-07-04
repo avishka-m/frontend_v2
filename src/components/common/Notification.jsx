@@ -123,11 +123,11 @@ const NotificationItem = ({ notification, onClose }) => {
           </div>
           <div className="ml-3 w-0 flex-1">
             <p className={`text-base font-semibold ${textColors[type]} leading-5`}>
-              {message}
+              {typeof message === 'string' ? message : JSON.stringify(message)}
             </p>
             {description && (
               <p className={`mt-2 text-sm ${textColors[type]} opacity-85 leading-relaxed`}>
-                {description}
+                {typeof description === 'string' ? description : JSON.stringify(description)}
               </p>
             )}
           </div>

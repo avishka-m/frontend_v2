@@ -307,11 +307,14 @@ export const orderService = {
   },
 
   // Update order status
-  updateOrderStatus: async (orderId, newStatus) => {
+  updateOrderStatus: async (orderId, newStatus, workerId = null) => {
     try {
-      const response = await api.put(`/orders/${orderId}/status`, {
-        status: newStatus
-      });
+      const params = new URLSearchParams({ status: newStatus });
+      if (workerId) {
+        params.append('worker_id', workerId);
+      }
+      
+      const response = await api.put(`/orders/${orderId}/status?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Error updating order status:', error);

@@ -103,10 +103,26 @@ const Orders = () => {
       });
       loadOrders(); // Reload orders
     } catch (error) {
+      console.error('Error updating order status:', error);
+      
+      // Extract error message properly
+      let errorMessage = 'Unable to update order status.';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(err => 
+            typeof err === 'object' ? err.msg || err.message || 'Validation error' : err
+          ).join(', ');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Failed to update status',
-        description: error.message || 'Unable to update order status.'
+        description: errorMessage
       });
     }
   };
