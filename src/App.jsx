@@ -42,6 +42,8 @@ import Packing from './pages/Packing';
 import Shipping from './pages/Shipping';
 import Returns from './pages/Returns';
 import Vehicles from './pages/Vehicles';
+import CreateVehicle from './pages/CreateVehicle';
+import VehicleDetail from './pages/VehicleDetail';
 import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
@@ -177,6 +179,31 @@ function App() {
                   <Route path="/vehicles" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
                       <Vehicles />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/vehicles/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <CreateVehicle />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/vehicles/:vehicleId" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
+                      <VehicleDetail />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/vehicles/:vehicleId/edit" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <VehicleDetail />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/vehicles/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
+                      <CreateVehicle />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/vehicles/:id" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
+                      <VehicleDetail />
                     </RoleBasedRoute>
                   } />
                   

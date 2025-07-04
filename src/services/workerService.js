@@ -94,7 +94,7 @@ export const workerService = {
       if (params.limit) queryParams.append('limit', params.limit);
       if (params.role && params.role !== 'All') queryParams.append('role', params.role);
       
-      const response = await api.get(`/api/v1/workers?${queryParams.toString()}`);
+      const response = await api.get(`/workers?${queryParams.toString()}`);
       
       // Transform backend data to frontend format
       const transformedData = response.data.map(transformWorkerData);
@@ -113,7 +113,7 @@ export const workerService = {
     }
 
     try {
-      const response = await api.get(`/api/v1/workers/${id}`);
+      const response = await api.get(`/workers/${id}`);
       return transformWorkerData(response.data);
     } catch (error) {
       console.error(`Error fetching worker with ID ${id}:`, error.message);
@@ -125,7 +125,7 @@ export const workerService = {
   createWorker: async (workerData) => {
     try {
       const backendData = transformWorkerForBackend(workerData);
-      const response = await api.post('/api/v1/workers', backendData);
+      const response = await api.post('/workers', backendData);
       return transformWorkerData(response.data);
     } catch (error) {
       console.error('Error creating worker:', error);
@@ -152,7 +152,7 @@ export const workerService = {
         backendData.password = updateData.password;
       }
       
-      const response = await api.put(`/api/v1/workers/${id}`, backendData);
+      const response = await api.put(`/workers/${id}`, backendData);
       return transformWorkerData(response.data);
     } catch (error) {
       console.error(`Error updating worker with ID ${id}:`, error.message);
@@ -167,7 +167,7 @@ export const workerService = {
     }
 
     try {
-      const response = await api.delete(`/api/v1/workers/${id}`);
+      const response = await api.delete(`/workers/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error deactivating worker with ID ${id}:`, error.message);
@@ -182,7 +182,7 @@ export const workerService = {
     }
 
     try {
-      const response = await api.put(`/api/v1/workers/${id}`, { disabled });
+      const response = await api.put(`/workers/${id}`, { disabled });
       return transformWorkerData(response.data);
     } catch (error) {
       console.error(`Error toggling worker status with ID ${id}:`, error.message);
@@ -193,7 +193,7 @@ export const workerService = {
   // Get workers by role
   getWorkersByRole: async (role) => {
     try {
-      const response = await api.get(`/api/v1/workers?role=${role}`);
+      const response = await api.get(`/workers?role=${role}`);
       return response.data.map(transformWorkerData);
     } catch (error) {
       console.error(`Error fetching workers by role ${role}:`, error.message);
