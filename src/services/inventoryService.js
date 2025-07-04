@@ -19,11 +19,13 @@ export const inventoryService = {
         id: item.itemID,
         itemID: item.itemID,
         name: item.name,
+        itemName: item.name, // Add compatibility field
         category: item.category,
         size: item.size,
         storage_type: item.storage_type,
         quantity: item.stock_level,
         stock_level: item.stock_level,
+        current_stock: item.stock_level, // Add compatibility field
         reorderLevel: item.min_stock_level,
         min_stock_level: item.min_stock_level,
         maxStockLevel: item.max_stock_level,
@@ -39,6 +41,7 @@ export const inventoryService = {
         supplier: `Supplier ${item.supplierID}`,
         location: `Location ${item.locationID}`,
         unit_price: 0, // Backend doesn't have this field
+        price: 0, // Add compatibility field
         last_updated: item.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0]
       }));
       
@@ -64,11 +67,13 @@ export const inventoryService = {
         id: item.itemID,
         itemID: item.itemID,
         name: item.name,
+        itemName: item.name, // Add compatibility field
         category: item.category,
         size: item.size,
         storage_type: item.storage_type,
         quantity: item.stock_level,
         stock_level: item.stock_level,
+        current_stock: item.stock_level, // Add compatibility field
         reorderLevel: item.min_stock_level,
         min_stock_level: item.min_stock_level,
         maxStockLevel: item.max_stock_level,
@@ -84,6 +89,7 @@ export const inventoryService = {
         supplier: `Supplier ${item.supplierID}`,
         location: `Location ${item.locationID}`,
         unit_price: 0,
+        price: 0, // Add compatibility field
         last_updated: item.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0]
       };
     } catch (error) {
@@ -389,6 +395,11 @@ export const inventoryService = {
       console.error('Error importing inventory:', error);
       throw new Error('Import functionality may not be available in the backend.');
     }
+  },
+
+  // Alias for getInventory to maintain compatibility with CreateOrder component
+  getItems: async (params = {}) => {
+    return await inventoryService.getInventory(params);
   }
 };
 

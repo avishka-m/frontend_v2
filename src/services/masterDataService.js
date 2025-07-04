@@ -116,3 +116,70 @@ export const categoryService = {
     }
   }
 };
+
+export const customerService = {
+  // Get all customers
+  getCustomers: async () => {
+    try {
+      const response = await api.get('/api/v1/customers');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      // Return mock data if API fails
+      return [
+        { customerID: 1, name: 'John Smith', email: 'john.smith@email.com', phone: '+1-555-0101' },
+        { customerID: 2, name: 'Jane Doe', email: 'jane.doe@email.com', phone: '+1-555-0102' },
+        { customerID: 3, name: 'Bob Johnson', email: 'bob.johnson@email.com', phone: '+1-555-0103' },
+        { customerID: 4, name: 'Alice Brown', email: 'alice.brown@email.com', phone: '+1-555-0104' },
+        { customerID: 5, name: 'Charlie Wilson', email: 'charlie.wilson@email.com', phone: '+1-555-0105' }
+      ];
+    }
+  },
+
+  // Get a specific customer by ID
+  getCustomer: async (id) => {
+    try {
+      const response = await api.get(`/api/v1/customers/${id}`);
+      return response.data;
+    } catch (error) {
+      console.error(`Error fetching customer ${id}:`, error);
+      throw error;
+    }
+  },
+
+  // Create a new customer
+  createCustomer: async (customer) => {
+    try {
+      const response = await api.post('/api/v1/customers', customer);
+      return response.data;
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      throw error;
+    }
+  }
+};
+
+// Main export combining all services
+export const masterDataService = {
+  // Location methods
+  getLocations: locationService.getLocations,
+  getLocation: locationService.getLocation,
+  createLocation: locationService.createLocation,
+  updateLocation: locationService.updateLocation,
+  deleteLocation: locationService.deleteLocation,
+  
+  // Supplier methods
+  getSuppliers: supplierService.getSuppliers,
+  getSupplier: supplierService.getSupplier,
+  createSupplier: supplierService.createSupplier,
+  updateSupplier: supplierService.updateSupplier,
+  deleteSupplier: supplierService.deleteSupplier,
+  
+  // Category methods
+  getCategories: categoryService.getCategories,
+  
+  // Customer methods
+  getCustomers: customerService.getCustomers,
+  getCustomer: customerService.getCustomer,
+  createCustomer: customerService.createCustomer
+};

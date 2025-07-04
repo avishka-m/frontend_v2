@@ -20,8 +20,8 @@ import AddInventoryItem from './components/inventory/AddInventoryItem';
 import EditInventoryItem from './components/inventory/EditInventoryItem';
 
 // Order Components
-import OrderDetails from './components/orders/OrderDetails';
-import CreateOrder from './components/orders/CreateOrder';
+import OrderDetail from './pages/OrderDetail';
+import CreateOrder from './pages/CreateOrder';
 
 // Common Components
 import UserProfile from './components/common/UserProfile';
@@ -89,7 +89,7 @@ function App() {
                   } />
                   <Route path="/orders/:id" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk', 'Picker', 'Packer']}>
-                      <OrderDetails />
+                      <OrderDetail />
                     </RoleBasedRoute>
                   } />
                   
