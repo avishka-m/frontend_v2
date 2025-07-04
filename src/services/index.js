@@ -7,3 +7,4 @@ export * from './locationService';
 export * from './warehouseService';
 export * from './chatbotService';
 export * from './dashboardService';
+export * from './masterDataService';
