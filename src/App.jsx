@@ -37,6 +37,8 @@ import WorkerDetail from './pages/WorkerDetail';
 import CreateWorker from './pages/CreateWorker';
 import Locations from './pages/Locations';
 import Receiving from './pages/Receiving';
+import CreateReceiving from './pages/CreateReceiving';
+import ReceivingDetail from './pages/ReceivingDetail';
 import Picking from './pages/Picking';
 import Packing from './pages/Packing';
 import CreatePacking from './pages/CreatePacking';
@@ -150,6 +152,16 @@ function App() {
                   <Route path="/receiving" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
                       <Receiving />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/receiving/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
+                      <CreateReceiving />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/receiving/:id" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
+                      <ReceivingDetail />
                     </RoleBasedRoute>
                   } />
                   

@@ -1,193 +1,308 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { 
-  ArrowPathIcon,
-  PlusIcon,
-  TruckIcon,
-  ClipboardDocumentCheckIcon, // Replaced ClipboardCheckIcon with ClipboardDocumentCheckIcon
-  ArchiveBoxIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline';
+  Plus, 
+  Search, 
+  Filter, 
+  Package, 
+  User, 
+  Calendar, 
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  TrendingUp,
+  TrendingDown,
+  Activity,
+  Truck,
+  Eye,
+  Edit,
+  Play,
+  RefreshCw
+} from 'lucide-react';
+import receivingService from '../services/receivingService';
 
 const Receiving = () => {
+  const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [receivingOrders, setReceivingOrders] = useState([]);
+  const [receivings, setReceivings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [statusFilter, setStatusFilter] = useState('all');
-
-  // Status badge component
-  const StatusBadge = ({ status }) => {
-    let classes = "px-2 py-1 text-xs font-medium rounded-full ";
-    
-    switch (status) {
-      case 'scheduled':
-        classes += "bg-blue-100 text-blue-800";
-        break;
-      case 'in_progress':
-        classes += "bg-yellow-100 text-yellow-800";
-        break;
-      case 'completed':
-        classes += "bg-green-100 text-green-800";
-        break;
-      case 'issue':
-        classes += "bg-red-100 text-red-800";
-        break;
-      default:
-        classes += "bg-gray-100 text-gray-800";
-    }
-    
-    return <span className={classes}>{status.replace('_', ' ')}</span>;
-  };
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [stats, setStats] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
-    const fetchReceivingOrders = async () => {
-      try {
-        setLoading(true);
-        // In a real application, this would be an API call
-        // For now, we'll just simulate a network delay and use mock data
-        await new Promise(resolve => setTimeout(resolve, 800));
-        
-        // Mock receiving orders data
-        const mockReceivingOrders = [
-          { 
-            id: 1, 
-            poNumber: 'PO-10045', 
-            supplier: 'Global Electronics Ltd.', 
-            scheduledDate: '2025-05-02T10:00:00',
-            items: 12,
-            status: 'scheduled',
-            dock: 'Dock A'
-          },
-          { 
-            id: 2, 
-            poNumber: 'PO-10046', 
-            supplier: 'Premium Office Supplies', 
-            scheduledDate: '2025-05-01T14:30:00',
-            items: 8,
-            status: 'in_progress',
-            dock: 'Dock B'
-          },
-          { 
-            id: 3, 
-            poNumber: 'PO-10047', 
-            supplier: 'Tech Components Inc.', 
-            scheduledDate: '2025-05-01T11:00:00',
-            items: 5,
-            status: 'completed',
-            dock: 'Dock C'
-          },
-          { 
-            id: 4, 
-            poNumber: 'PO-10048', 
-            supplier: 'Industrial Parts Co.', 
-            scheduledDate: '2025-05-03T09:30:00',
-            items: 15,
-            status: 'scheduled',
-            dock: 'Dock A'
-          },
-          { 
-            id: 5, 
-            poNumber: 'PO-10049', 
-            supplier: 'Central Distribution', 
-            scheduledDate: '2025-05-01T16:00:00',
-            items: 7,
-            status: 'issue',
-            dock: 'Dock D',
-            issue: 'Missing 2 items'
-          },
-        ];
-        
-        setReceivingOrders(mockReceivingOrders);
-      } catch (err) {
-        console.error('Error fetching receiving orders:', err);
-        setError('Failed to load receiving orders. Please try again later.');
-      } finally {
-        setLoading(false);
+    fetchReceivingRecords();
+    fetchStats();
+  }, [statusFilter]);
+
+  const fetchReceivingRecords = async () => {
+    try {
+      setLoading(true);
+      const filters = {};
+      if (statusFilter) filters.status = statusFilter;
+      
+      const result = await receivingService.getAllReceivings(filters);
+      
+      if (result.success) {
+        setReceivings(result.data);
+        setError(null);
+      } else {
+        setError(result.error);
       }
+    } catch (err) {
+      setError('Failed to fetch receiving records');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      const result = await receivingService.getReceivingStats();
+      if (result.success) {
+        setStats(result.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchReceivingRecords();
+    await fetchStats();
+    setRefreshing(false);
+  };
+
+  const handleStatusChange = (status) => {
+    setStatusFilter(status);
+  };
+
+  const handleProcess = async (receivingId) => {
+    try {
+      const result = await receivingService.processReceiving(receivingId);
+      if (result.success) {
+        alert('Receiving processed successfully!');
+        fetchReceivingRecords();
+      } else {
+        alert('Failed to process receiving: ' + result.error);
+      }
+    } catch (err) {
+      alert('Failed to process receiving');
+    }
+  };
+
+  const getStatusIcon = (status) => {
+    switch (status) {
+      case 'pending':
+        return <Clock className="w-4 h-4 text-yellow-500" />;
+      case 'processing':
+        return <Play className="w-4 h-4 text-blue-500" />;
+      case 'completed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'cancelled':
+        return <AlertCircle className="w-4 h-4 text-red-500" />;
+      default:
+        return <Package className="w-4 h-4 text-gray-500" />;
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const colorMap = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      processing: 'bg-blue-100 text-blue-800',
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-red-100 text-red-800'
     };
-
-    fetchReceivingOrders();
-  }, []);
-
-  // Filter orders based on status
-  const filteredOrders = receivingOrders.filter(order => {
-    if (statusFilter === 'all') return true;
-    return order.status === statusFilter;
-  });
-
-  // Update order status
-  const updateOrderStatus = (orderId, newStatus) => {
-    setReceivingOrders(prevOrders => 
-      prevOrders.map(order => 
-        order.id === orderId 
-          ? {...order, status: newStatus} 
-          : order
-      )
+    
+    return (
+      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorMap[status] || 'bg-gray-100 text-gray-800'}`}>
+        {getStatusIcon(status)}
+        <span className="ml-1">{receivingService.getStatusDisplay(status)}</span>
+      </span>
     );
   };
 
+  const canCreateReceiving = () => {
+    return receivingService.canPerformAction('create', null, currentUser);
+  };
+
+  const canProcessReceiving = (receiving) => {
+    return receivingService.canPerformAction('process', receiving, currentUser);
+  };
+
+  const canUpdateReceiving = (receiving) => {
+    return receivingService.canPerformAction('update', receiving, currentUser);
+  };
+
+  const filteredReceivings = receivings.filter(receiving => {
+    const matchesSearch = !searchTerm || 
+      receiving.receivingID.toString().includes(searchTerm) ||
+      receiving.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      receiving.supplierID.toString().includes(searchTerm);
+    
+    return matchesSearch;
+  });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between">
+      {/* Header */}
+      <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Receiving</h1>
-          <p className="text-gray-600 mt-1">Manage incoming inventory and purchase orders</p>
+          <h1 className="text-2xl font-bold text-gray-900">Receiving Management</h1>
+          <p className="mt-2 text-sm text-gray-600">
+            Track and manage incoming shipments and deliveries
+          </p>
         </div>
-        <div className="mt-4 md:mt-0 flex space-x-3">
+        <div className="flex items-center space-x-3">
           <button
-            onClick={() => setLoading(true)}
-            className="btn btn-icon btn-secondary"
-            disabled={loading}
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >
-            <ArrowPathIcon className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            Refresh
           </button>
-          <button className="btn btn-primary">
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Schedule Delivery
-          </button>
+          {canCreateReceiving() && (
+            <button
+              onClick={() => navigate('/receiving/create')}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              New Receiving
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-2">
-        <button 
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === 'all' ? 'bg-primary-100 text-primary-700' : 'bg-white text-gray-700 border border-gray-300'}`}
-          onClick={() => setStatusFilter('all')}
-        >
-          All Orders
-        </button>
-        <button 
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === 'scheduled' ? 'bg-blue-100 text-blue-700' : 'bg-white text-gray-700 border border-gray-300'}`}
-          onClick={() => setStatusFilter('scheduled')}
-        >
-          Scheduled
-        </button>
-        <button 
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === 'in_progress' ? 'bg-yellow-100 text-yellow-700' : 'bg-white text-gray-700 border border-gray-300'}`}
-          onClick={() => setStatusFilter('in_progress')}
-        >
-          In Progress
-        </button>
-        <button 
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === 'completed' ? 'bg-green-100 text-green-700' : 'bg-white text-gray-700 border border-gray-300'}`}
-          onClick={() => setStatusFilter('completed')}
-        >
-          Completed
-        </button>
-        <button 
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${statusFilter === 'issue' ? 'bg-red-100 text-red-700' : 'bg-white text-gray-700 border border-gray-300'}`}
-          onClick={() => setStatusFilter('issue')}
-        >
-          Issues
-        </button>
+      {/* Statistics Cards */}
+      {stats && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Package className="h-6 w-6 text-gray-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Total Receiving</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.total_receiving}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Clock className="h-6 w-6 text-yellow-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.pending_receiving}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <Play className="h-6 w-6 text-blue-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Processing</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.processing_receiving}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white overflow-hidden shadow rounded-lg">
+            <div className="p-5">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <CheckCircle className="h-6 w-6 text-green-400" />
+                </div>
+                <div className="ml-5 w-0 flex-1">
+                  <dl>
+                    <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
+                    <dd className="text-lg font-medium text-gray-900">{stats.completed_receiving}</dd>
+                  </dl>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters and Search */}
+      <div className="bg-white shadow rounded-lg">
+        <div className="px-4 py-5 sm:p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Search className="h-5 w-5 text-gray-400" />
+              </div>
+              <input
+                type="text"
+                placeholder="Search by ID, reference, or supplier..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <Filter className="h-5 w-5 text-gray-400" />
+              </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => handleStatusChange(e.target.value)}
+                className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            
+            <div className="text-sm text-gray-500 self-center">
+              {filteredReceivings.length} of {receivings.length} receiving records
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Error display */}
+      {/* Error Message */}
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+            </div>
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
             </div>
@@ -195,158 +310,123 @@ const Receiving = () => {
         </div>
       )}
 
-      {/* Content */}
-      <div className="card overflow-hidden">
-        {loading ? (
-          <div className="p-4">
-            <div className="animate-pulse space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-16 bg-gray-200 rounded"></div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    PO Number
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Supplier
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Scheduled Date
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Items
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Dock
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
-                  </th>
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-500">
-                      No receiving orders found matching your filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredOrders.map((order) => (
-                    <tr key={order.id} className={`hover:bg-gray-50 ${order.status === 'issue' ? 'bg-red-50' : ''}`}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{order.poNumber}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{order.supplier}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">
-                          {new Date(order.scheduledDate).toLocaleString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {order.items}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        {order.dock}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <StatusBadge status={order.status} />
-                        {order.issue && (
-                          <div className="mt-1 flex items-center text-xs text-red-600">
-                            <ExclamationTriangleIcon className="h-3 w-3 mr-1" />
-                            {order.issue}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        {order.status === 'scheduled' && (
-                          <button 
-                            className="text-blue-600 hover:text-blue-900 mr-3"
-                            onClick={() => updateOrderStatus(order.id, 'in_progress')}
-                          >
-                            Start Receiving
-                          </button>
-                        )}
-                        {order.status === 'in_progress' && (
-                          <>
-                            <button 
-                              className="text-green-600 hover:text-green-900 mr-3"
-                              onClick={() => updateOrderStatus(order.id, 'completed')}
-                            >
-                              Complete
-                            </button>
-                            <button 
-                              className="text-red-600 hover:text-red-900 mr-3"
-                              onClick={() => updateOrderStatus(order.id, 'issue')}
-                            >
-                              Report Issue
-                            </button>
-                          </>
-                        )}
-                        <button className="text-primary-600 hover:text-primary-900">
-                          View Details
+      {/* Receiving List */}
+      <div className="bg-white shadow rounded-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  ID
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Reference
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Supplier
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Worker
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Items
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Received Date
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredReceivings.map((receiving) => (
+                <tr key={receiving.receivingID} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    #{receiving.receivingID}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {receiving.reference_number || 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <Truck className="w-4 h-4 mr-2 text-gray-400" />
+                      Supplier #{receiving.supplierID}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <User className="w-4 h-4 mr-2 text-gray-400" />
+                      Worker #{receiving.workerID}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <Package className="w-4 h-4 mr-2 text-gray-400" />
+                      <span>{receiving.items_count} items</span>
+                      {receiving.has_discrepancy && (
+                        <AlertCircle className="w-4 h-4 ml-2 text-orange-500" title="Has discrepancy" />
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    {getStatusBadge(receiving.status)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                      {receiving.received_date_formatted}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <div className="flex items-center space-x-2">
+                      <Link
+                        to={`/receiving/${receiving.receivingID}`}
+                        className="text-blue-600 hover:text-blue-900"
+                        title="View Details"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Link>
+                      
+                      {canUpdateReceiving(receiving) && (
+                        <Link
+                          to={`/receiving/${receiving.receivingID}/edit`}
+                          className="text-gray-600 hover:text-gray-900"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Link>
+                      )}
+                      
+                      {canProcessReceiving(receiving) && receiving.status !== 'completed' && (
+                        <button
+                          onClick={() => handleProcess(receiving.receivingID)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Process Receiving"
+                        >
+                          <Play className="w-4 h-4" />
                         </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        
+        {filteredReceivings.length === 0 && (
+          <div className="text-center py-8">
+            <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+            <h3 className="text-sm font-medium text-gray-900 mb-2">No receiving records found</h3>
+            <p className="text-sm text-gray-500">
+              {searchTerm || statusFilter ? 'Try adjusting your filters' : 'Get started by creating a new receiving record'}
+            </p>
           </div>
         )}
-      </div>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-        <div className="card p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-              <TruckIcon className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-500">Scheduled Today</div>
-              <div className="text-2xl font-semibold">3</div>
-            </div>
-          </div>
-        </div>
-        <div className="card p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
-              <ClipboardDocumentCheckIcon className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-500">In Progress</div>
-              <div className="text-2xl font-semibold">1</div>
-            </div>
-          </div>
-        </div>
-        <div className="card p-6">
-          <div className="flex items-center">
-            <div className="p-3 rounded-full bg-red-100 text-red-600 mr-4">
-              <ExclamationTriangleIcon className="h-6 w-6" />
-            </div>
-            <div>
-              <div className="text-sm font-medium text-gray-500">Issues</div>
-              <div className="text-2xl font-semibold">1</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
