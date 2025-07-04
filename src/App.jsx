@@ -30,7 +30,11 @@ import ChangePassword from './components/common/ChangePassword';
 // Import placeholder components for new routes
 // These will need to be created separately
 import Customers from './pages/Customers';
+import CreateCustomer from './pages/CreateCustomer';
+import CustomerDetail from './pages/CustomerDetail';
 import Workers from './pages/Workers';
+import WorkerDetail from './pages/WorkerDetail';
+import CreateWorker from './pages/CreateWorker';
 import Locations from './pages/Locations';
 import Receiving from './pages/Receiving';
 import Picking from './pages/Picking';
@@ -99,11 +103,31 @@ function App() {
                       <Customers />
                     </RoleBasedRoute>
                   } />
+                  <Route path="/customers/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <CreateCustomer />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/customers/:id/edit" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <CustomerDetail />
+                    </RoleBasedRoute>
+                  } />
                   
                   {/* Workers routes - Manager only */}
                   <Route path="/workers" element={
                     <RoleBasedRoute allowedRoles={['Manager']}>
                       <Workers />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/workers/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <CreateWorker />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/workers/:id" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <WorkerDetail />
                     </RoleBasedRoute>
                   } />
                   
