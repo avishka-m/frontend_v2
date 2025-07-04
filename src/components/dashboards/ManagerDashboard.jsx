@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { 
   BarChart3, 
@@ -13,7 +13,7 @@ import {
   FileText,
   Settings
 } from 'lucide-react';
-import roleBasedService from '../services/roleBasedService';
+import roleBasedService from '../../services/roleBasedService';
 
 const ManagerDashboard = () => {
   const { currentUser } = useAuth();
@@ -22,7 +22,11 @@ const ManagerDashboard = () => {
     totalOrders: 0,
     pendingOrders: 0,
     inProgressOrders: 0,
-    completedOrders: 0
+    completedOrders: 0,
+    cancelledOrders: 0,
+    averageProcessingTime: 0,
+    ordersToday: 0,
+    criticalOrders: 0
   });
   const [recentOrders, setRecentOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,26 +38,27 @@ const ManagerDashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const result = await roleBasedService.getAllOrders();
+      const result = await roleBasedService.getManagerStats();
+      
       if (result.success) {
-        const orders = result.data;
-        
-        // Calculate statistics
-        const totalOrders = orders.length;
-        const pendingOrders = orders.filter(o => ['pending', 'confirmed'].includes(o.order_status)).length;
-        const inProgressOrders = orders.filter(o => ['receiving', 'picking', 'packing', 'shipping'].includes(o.order_status)).length;
-        const completedOrders = orders.filter(o => ['delivered'].includes(o.order_status)).length;
+        const data = result.data;
         
         setStats({
-          totalOrders,
-          pendingOrders,
-          inProgressOrders,
-          completedOrders
+          totalOrders: data.totalOrders,
+          pendingOrders: data.pendingOrders,
+          inProgressOrders: data.inProgressOrders,
+          completedOrders: data.completedOrders,
+          cancelledOrders: data.cancelledOrders,
+          ordersToday: data.ordersToday,
+          criticalOrders: data.criticalOrders,
+          averageProcessingTime: data.averageProcessingTime
         });
         
-        // Set recent orders (last 10)
-        setRecentOrders(orders.slice(0, 10));
+        setRecentOrders(data.recentOrders);
+      } else {
+        console.error('Failed to fetch manager stats:', result.error);
       }
+      
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
     } finally {
@@ -145,22 +150,6 @@ const ManagerDashboard = () => {
           <div className="p-5">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <Clock className="h-6 w-6 text-blue-400" />
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">Pending</dt>
-                  <dd className="text-lg font-medium text-gray-900">{stats.pendingOrders}</dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
                 <TrendingUp className="h-6 w-6 text-yellow-400" />
               </div>
               <div className="ml-5 w-0 flex-1">
@@ -183,6 +172,73 @@ const ManagerDashboard = () => {
                 <dl>
                   <dt className="text-sm font-medium text-gray-500 truncate">Completed</dt>
                   <dd className="text-lg font-medium text-gray-900">{stats.completedOrders}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-6 w-6 text-red-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Critical Orders</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.criticalOrders}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Secondary Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <Clock className="h-6 w-6 text-blue-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Pending Orders</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.pendingOrders}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <TrendingUp className="h-6 w-6 text-green-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Orders Today</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.ordersToday}</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white overflow-hidden shadow rounded-lg">
+          <div className="p-5">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <AlertCircle className="h-6 w-6 text-gray-400" />
+              </div>
+              <div className="ml-5 w-0 flex-1">
+                <dl>
+                  <dt className="text-sm font-medium text-gray-500 truncate">Cancelled</dt>
+                  <dd className="text-lg font-medium text-gray-900">{stats.cancelledOrders}</dd>
                 </dl>
               </div>
             </div>

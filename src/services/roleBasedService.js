@@ -182,6 +182,84 @@ class RoleBasedService {
     }
   }
 
+  // Get manager statistics
+  async getManagerStats() {
+    try {
+      const orders = await this.getAllOrders();
+      
+      // Handle the response format
+      let orderList = [];
+      if (Array.isArray(orders)) {
+        orderList = orders;
+      } else if (orders.success && Array.isArray(orders.data)) {
+        orderList = orders.data;
+      } else {
+        return { success: false, error: 'Invalid response format' };
+      }
+
+      // Calculate comprehensive statistics
+      const totalOrders = orderList.length;
+      const pendingOrders = orderList.filter(o => ['pending', 'confirmed'].includes(o.order_status)).length;
+      const inProgressOrders = orderList.filter(o => ['receiving', 'picking', 'packing', 'shipping'].includes(o.order_status)).length;
+      const completedOrders = orderList.filter(o => ['delivered'].includes(o.order_status)).length;
+      const cancelledOrders = orderList.filter(o => ['cancelled'].includes(o.order_status)).length;
+      
+      // Calculate orders created today
+      const today = new Date();
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const ordersToday = orderList.filter(o => {
+        const orderDate = new Date(o.order_date);
+        return orderDate >= todayStart;
+      }).length;
+      
+      // Calculate critical orders (high priority or overdue)
+      const criticalOrders = orderList.filter(o => {
+        const isHighPriority = o.priority === 'high' || o.priority === 1;
+        const isOverdue = new Date(o.order_date) < new Date(Date.now() - 7 * 24 * 60 * 60 * 1000); // 7 days ago
+        return (isHighPriority || isOverdue) && !['delivered', 'cancelled'].includes(o.order_status);
+      }).length;
+
+      // Calculate orders by status for detailed breakdown
+      const statusBreakdown = {
+        pending: orderList.filter(o => o.order_status === 'pending').length,
+        confirmed: orderList.filter(o => o.order_status === 'confirmed').length,
+        receiving: orderList.filter(o => o.order_status === 'receiving').length,
+        picking: orderList.filter(o => o.order_status === 'picking').length,
+        packing: orderList.filter(o => o.order_status === 'packing').length,
+        shipping: orderList.filter(o => o.order_status === 'shipping').length,
+        shipped: orderList.filter(o => o.order_status === 'shipped').length,
+        delivered: orderList.filter(o => o.order_status === 'delivered').length,
+        cancelled: orderList.filter(o => o.order_status === 'cancelled').length
+      };
+
+      // Get recent orders (last 10, sorted by date)
+      const sortedOrders = orderList.sort((a, b) => new Date(b.order_date) - new Date(a.order_date));
+      const recentOrders = sortedOrders.slice(0, 10);
+
+      return {
+        success: true,
+        data: {
+          totalOrders,
+          pendingOrders,
+          inProgressOrders,
+          completedOrders,
+          cancelledOrders,
+          ordersToday,
+          criticalOrders,
+          statusBreakdown,
+          recentOrders,
+          averageProcessingTime: 0 // Could calculate this if we have timestamps
+        }
+      };
+    } catch (error) {
+      console.error('Error getting manager statistics:', error);
+      return { 
+        success: false, 
+        error: error.message || 'Failed to get manager statistics' 
+      };
+    }
+  }
+
   // Get status color for UI
   getStatusColor(status) {
     switch (status) {

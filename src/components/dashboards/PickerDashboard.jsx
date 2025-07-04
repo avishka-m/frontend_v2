@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '../../hooks/useAuth';
 import { 
   ShoppingCart, 
   CheckCircle, 
@@ -10,7 +10,7 @@ import {
   Calendar,
   User
 } from 'lucide-react';
-import roleBasedService from '../services/roleBasedService';
+import roleBasedService from '../../services/roleBasedService';
 import { toast } from 'react-hot-toast';
 
 const PickerDashboard = () => {
