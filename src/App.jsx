@@ -39,8 +39,14 @@ import Locations from './pages/Locations';
 import Receiving from './pages/Receiving';
 import Picking from './pages/Picking';
 import Packing from './pages/Packing';
+import CreatePacking from './pages/CreatePacking';
+import PackingDetail from './pages/PackingDetail';
 import Shipping from './pages/Shipping';
+import CreateShipping from './pages/CreateShipping';
+import ShippingDetail from './pages/ShippingDetail';
 import Returns from './pages/Returns';
+import CreateReturn from './pages/CreateReturn';
+import ReturnDetail from './pages/ReturnDetail';
 import Vehicles from './pages/Vehicles';
 import CreateVehicle from './pages/CreateVehicle';
 import VehicleDetail from './pages/VehicleDetail';
@@ -160,6 +166,16 @@ function App() {
                       <Packing />
                     </RoleBasedRoute>
                   } />
+                  <Route path="/packing/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <CreatePacking />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/packing/:id" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Packer']}>
+                      <PackingDetail />
+                    </RoleBasedRoute>
+                  } />
                   
                   {/* Shipping routes - Manager, Driver */}
                   <Route path="/shipping" element={
@@ -167,11 +183,41 @@ function App() {
                       <Shipping />
                     </RoleBasedRoute>
                   } />
+                  <Route path="/shipping/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <CreateShipping />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/shipping/:shippingId" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
+                      <ShippingDetail />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/shipping/:shippingId/edit" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
+                      <ShippingDetail />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/shipping/:shippingId/tracking" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
+                      <ShippingDetail />
+                    </RoleBasedRoute>
+                  } />
                   
                   {/* Returns routes - Manager, ReceivingClerk */}
                   <Route path="/returns" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
                       <Returns />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/returns/create" element={
+                    <RoleBasedRoute allowedRoles={['Manager']}>
+                      <CreateReturn />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/returns/:returnId" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
+                      <ReturnDetail />
                     </RoleBasedRoute>
                   } />
                   
@@ -193,16 +239,6 @@ function App() {
                   } />
                   <Route path="/vehicles/:vehicleId/edit" element={
                     <RoleBasedRoute allowedRoles={['Manager']}>
-                      <VehicleDetail />
-                    </RoleBasedRoute>
-                  } />
-                  <Route path="/vehicles/create" element={
-                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
-                      <CreateVehicle />
-                    </RoleBasedRoute>
-                  } />
-                  <Route path="/vehicles/:id" element={
-                    <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
                       <VehicleDetail />
                     </RoleBasedRoute>
                   } />
