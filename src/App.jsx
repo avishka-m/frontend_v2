@@ -10,7 +10,7 @@ import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Pages
 import Login from './pages/Login';
-// import Dashboard from './pages/Dashboard';
+import RoleBasedDashboard from './pages/RoleBasedDashboard';
 import Inventory from './pages/Inventory';
 import Orders from './pages/Orders';
 import NotFound from './pages/NotFound';
@@ -74,8 +74,8 @@ function App() {
                 
                 {/* Protected routes - within layout */}
                 <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-                  {/* Dashboard - redirect to inventory for now */}
-                  <Route path="/dashboard" element={<Navigate to="/inventory" replace />} />
+                  {/* Dashboard - role-based routing */}
+                  <Route path="/dashboard" element={<RoleBasedDashboard />} />
                   <Route path="/" element={<Navigate to="/dashboard" replace />} />
                   
                   {/* Inventory routes - Manager, ReceivingClerk, Picker */}

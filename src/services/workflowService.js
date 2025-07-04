@@ -546,6 +546,152 @@ class WorkflowService {
       errors: errors
     };
   }
+
+  calculateWorkflowStatus(order, picking, packing, shipping) {
+    const status = {
+      current_stage: 'pending',
+      progress_percentage: 0,
+      stages: {
+        picking: { status: 'not_started', completed: false },
+        packing: { status: 'not_started', completed: false },
+        shipping: { status: 'not_started', completed: false }
+      },
+      timeline: []
+    };
+
+    // Calculate picking status
+    if (picking) {
+      if (picking.status === 'completed') {
+        status.stages.picking.status = 'completed';
+        status.stages.picking.completed = true;
+        status.current_stage = 'picking';
+        status.progress_percentage = 33;
+      } else if (picking.status === 'in_progress') {
+        status.stages.picking.status = 'in_progress';
+        status.current_stage = 'picking';
+        status.progress_percentage = 25;
+      } else if (picking.status === 'pending') {
+        status.stages.picking.status = 'pending';
+        status.current_stage = 'picking';
+        status.progress_percentage = 10;
+      }
+    }
+
+    // Calculate packing status
+    if (packing) {
+      if (packing.status === 'completed') {
+        status.stages.packing.status = 'completed';
+        status.stages.packing.completed = true;
+        status.current_stage = 'packing';
+        status.progress_percentage = 66;
+      } else if (packing.status === 'in_progress') {
+        status.stages.packing.status = 'in_progress';
+        status.current_stage = 'packing';
+        status.progress_percentage = 50;
+      } else if (packing.status === 'pending') {
+        status.stages.packing.status = 'pending';
+        if (status.stages.picking.completed) {
+          status.current_stage = 'packing';
+          status.progress_percentage = 40;
+        }
+      }
+    }
+
+    // Calculate shipping status
+    if (shipping) {
+      if (shipping.status === 'delivered') {
+        status.stages.shipping.status = 'delivered';
+        status.stages.shipping.completed = true;
+        status.current_stage = 'shipping';
+        status.progress_percentage = 100;
+      } else if (shipping.status === 'in_transit') {
+        status.stages.shipping.status = 'in_transit';
+        status.current_stage = 'shipping';
+        status.progress_percentage = 90;
+      } else if (shipping.status === 'pending') {
+        status.stages.shipping.status = 'pending';
+        if (status.stages.packing.completed) {
+          status.current_stage = 'shipping';
+          status.progress_percentage = 75;
+        }
+      }
+    }
+
+    // Build timeline
+    const timeline = [];
+    
+    if (order && order.order_date) {
+      timeline.push({
+        stage: 'order_created',
+        timestamp: order.order_date,
+        status: 'completed',
+        description: `Order ${order.orderID} created`
+      });
+    }
+
+    if (picking) {
+      if (picking.start_time) {
+        timeline.push({
+          stage: 'picking',
+          timestamp: picking.start_time,
+          status: 'started',
+          description: 'Picking started'
+        });
+      }
+      if (picking.complete_time) {
+        timeline.push({
+          stage: 'picking',
+          timestamp: picking.complete_time,
+          status: 'completed',
+          description: 'Picking completed'
+        });
+      }
+    }
+
+    if (packing) {
+      if (packing.start_time) {
+        timeline.push({
+          stage: 'packing',
+          timestamp: packing.start_time,
+          status: 'started',
+          description: 'Packing started'
+        });
+      }
+      if (packing.complete_time) {
+        timeline.push({
+          stage: 'packing',
+          timestamp: packing.complete_time,
+          status: 'completed',
+          description: 'Packing completed'
+        });
+      }
+    }
+
+    if (shipping) {
+      if (shipping.departure_time) {
+        timeline.push({
+          stage: 'shipping',
+          timestamp: shipping.departure_time,
+          status: 'shipped',
+          description: 'Order shipped'
+        });
+      }
+      if (shipping.actual_delivery) {
+        timeline.push({
+          stage: 'shipping',
+          timestamp: shipping.actual_delivery,
+          status: 'delivered',
+          description: 'Order delivered'
+        });
+      }
+    }
+
+    // Sort timeline by timestamp
+    timeline.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    status.timeline = timeline;
+
+    return status;
+  }
 }
 
 const workflowService = new WorkflowService();

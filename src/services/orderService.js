@@ -1,15 +1,15 @@
 import { api } from './apiConfig';
 
-// Order status constants
+// Order status constants - matching backend valid statuses
 export const ORDER_STATUS = {
   PENDING: 'pending',
-  PROCESSING: 'processing',
+  CONFIRMED: 'confirmed',
+  RECEIVING: 'receiving',
   PICKING: 'picking',
   PACKING: 'packing',
-  READY_FOR_SHIPPING: 'ready_for_shipping',
+  SHIPPING: 'shipping',
   SHIPPED: 'shipped',
   DELIVERED: 'delivered',
-  RETURNED: 'returned',
   CANCELLED: 'cancelled'
 };
 
@@ -20,16 +20,16 @@ export const ORDER_PRIORITY = {
   LOW: 3
 };
 
-// Order status display names
+// Order status display names - matching backend valid statuses
 export const ORDER_STATUS_DISPLAY = {
   [ORDER_STATUS.PENDING]: 'Pending',
-  [ORDER_STATUS.PROCESSING]: 'Processing',
+  [ORDER_STATUS.CONFIRMED]: 'Confirmed',
+  [ORDER_STATUS.RECEIVING]: 'Receiving',
   [ORDER_STATUS.PICKING]: 'Picking',
   [ORDER_STATUS.PACKING]: 'Packing',
-  [ORDER_STATUS.READY_FOR_SHIPPING]: 'Ready for Shipping',
+  [ORDER_STATUS.SHIPPING]: 'Shipping',
   [ORDER_STATUS.SHIPPED]: 'Shipped',
   [ORDER_STATUS.DELIVERED]: 'Delivered',
-  [ORDER_STATUS.RETURNED]: 'Returned',
   [ORDER_STATUS.CANCELLED]: 'Cancelled'
 };
 
@@ -40,16 +40,16 @@ export const ORDER_PRIORITY_DISPLAY = {
   [ORDER_PRIORITY.LOW]: 'Low'
 };
 
-// Order status colors for UI
+// Order status colors for UI - matching backend valid statuses
 export const ORDER_STATUS_COLORS = {
   [ORDER_STATUS.PENDING]: 'bg-yellow-100 text-yellow-800',
-  [ORDER_STATUS.PROCESSING]: 'bg-blue-100 text-blue-800',
-  [ORDER_STATUS.PICKING]: 'bg-purple-100 text-purple-800',
-  [ORDER_STATUS.PACKING]: 'bg-indigo-100 text-indigo-800',
-  [ORDER_STATUS.READY_FOR_SHIPPING]: 'bg-orange-100 text-orange-800',
-  [ORDER_STATUS.SHIPPED]: 'bg-cyan-100 text-cyan-800',
+  [ORDER_STATUS.CONFIRMED]: 'bg-blue-100 text-blue-800',
+  [ORDER_STATUS.RECEIVING]: 'bg-purple-100 text-purple-800',
+  [ORDER_STATUS.PICKING]: 'bg-indigo-100 text-indigo-800',
+  [ORDER_STATUS.PACKING]: 'bg-orange-100 text-orange-800',
+  [ORDER_STATUS.SHIPPING]: 'bg-cyan-100 text-cyan-800',
+  [ORDER_STATUS.SHIPPED]: 'bg-teal-100 text-teal-800',
   [ORDER_STATUS.DELIVERED]: 'bg-green-100 text-green-800',
-  [ORDER_STATUS.RETURNED]: 'bg-gray-100 text-gray-800',
   [ORDER_STATUS.CANCELLED]: 'bg-red-100 text-red-800'
 };
 
@@ -273,9 +273,11 @@ export const orderService = {
       const stats = {
         total: orders.length,
         pending: orders.filter(o => o.order_status === ORDER_STATUS.PENDING).length,
-        processing: orders.filter(o => o.order_status === ORDER_STATUS.PROCESSING).length,
+        confirmed: orders.filter(o => o.order_status === ORDER_STATUS.CONFIRMED).length,
+        receiving: orders.filter(o => o.order_status === ORDER_STATUS.RECEIVING).length,
         picking: orders.filter(o => o.order_status === ORDER_STATUS.PICKING).length,
         packing: orders.filter(o => o.order_status === ORDER_STATUS.PACKING).length,
+        shipping: orders.filter(o => o.order_status === ORDER_STATUS.SHIPPING).length,
         shipped: orders.filter(o => o.order_status === ORDER_STATUS.SHIPPED).length,
         delivered: orders.filter(o => o.order_status === ORDER_STATUS.DELIVERED).length,
         cancelled: orders.filter(o => o.order_status === ORDER_STATUS.CANCELLED).length,
@@ -307,11 +309,14 @@ export const orderService = {
   },
 
   // Update order status
-  updateOrderStatus: async (orderId, newStatus) => {
+  updateOrderStatus: async (orderId, newStatus, workerId = null) => {
     try {
-      const response = await api.put(`/orders/${orderId}/status`, {
-        status: newStatus
-      });
+      const params = new URLSearchParams({ status: newStatus });
+      if (workerId) {
+        params.append('worker_id', workerId);
+      }
+      
+      const response = await api.put(`/orders/${orderId}/status?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Error updating order status:', error);

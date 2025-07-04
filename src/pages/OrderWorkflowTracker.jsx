@@ -226,10 +226,10 @@ const OrderWorkflowTracker = () => {
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-6">Workflow Stages</h3>
           
           <div className="space-y-6">
-            {workflow_status?.stages?.map((stage, index) => (
-              <div key={index} className="relative">
+            {workflow_status?.workflow_stages && Object.entries(workflow_status.workflow_stages).map(([stageName, stage], index) => (
+              <div key={stageName} className="relative">
                 {/* Connection Line */}
-                {index < workflow_status.stages.length - 1 && (
+                {index < Object.keys(workflow_status.workflow_stages).length - 1 && (
                   <div className="absolute left-4 top-12 w-0.5 h-16 bg-gray-300"></div>
                 )}
                 
@@ -240,64 +240,57 @@ const OrderWorkflowTracker = () => {
                   
                   <div className="ml-4 flex-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-lg font-medium text-gray-900">{stage.name}</h4>
+                      <h4 className="text-lg font-medium text-gray-900 capitalize">{stageName}</h4>
                       <div className="flex items-center space-x-2">
-                        {stage.status === 'in_progress' && canPerformAction(stage) && (
-                          <button
-                            onClick={() => handleStageAction(stage)}
-                            className="inline-flex items-center px-3 py-1 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                          >
-                            <Play className="w-4 h-4 mr-1" />
-                            Continue
-                          </button>
-                        )}
-                        {stage.status === 'pending' && canPerformAction(stage) && stage.details && (
-                          <button
-                            onClick={() => handleStageAction(stage)}
-                            className="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                          >
-                            <Play className="w-4 h-4 mr-1" />
-                            Start
-                          </button>
-                        )}
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          stage.status === 'completed' || stage.status === 'delivered' ? 'bg-green-100 text-green-800' :
+                          stage.status === 'in_progress' || stage.status === 'in_transit' ? 'bg-yellow-100 text-yellow-800' :
+                          stage.status === 'pending' ? 'bg-gray-100 text-gray-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {stage.status.replace('_', ' ')}
+                        </span>
                       </div>
                     </div>
                     
-                    <p className="text-sm text-gray-600 mt-1">{stage.description}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {stage.total_count > 0 
+                        ? `${stage.completed_count} of ${stage.total_count} ${stageName} tasks completed`
+                        : `No ${stageName} tasks for this order`
+                      }
+                    </p>
                     
-                    {stage.timestamp && (
-                      <div className="flex items-center mt-2 text-sm text-gray-500">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        {formatDate(stage.timestamp)}
+                    {/* Stage Progress */}
+                    {stage.total_count > 0 && (
+                      <div className="mt-3">
+                        <div className="flex justify-between text-sm text-gray-600 mb-1">
+                          <span>Progress</span>
+                          <span>{Math.round((stage.completed_count / stage.total_count) * 100)}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full" 
+                            style={{ width: `${(stage.completed_count / stage.total_count) * 100}%` }}
+                          ></div>
+                        </div>
                       </div>
                     )}
                     
-                    {/* Stage Details */}
-                    {stage.details && (
-                      <div className="mt-3 p-3 bg-white rounded-md border">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                          {stage.details.workerID && (
-                            <div>
-                              <span className="font-medium text-gray-500">Worker ID:</span>
-                              <span className="ml-1 text-gray-900">#{stage.details.workerID}</span>
+                    {/* Stage Records */}
+                    {stage.records && stage.records.length > 0 && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-md">
+                        <h5 className="text-sm font-medium text-gray-700 mb-2">Records ({stage.records.length})</h5>
+                        <div className="space-y-1">
+                          {stage.records.slice(0, 3).map((record, recordIndex) => (
+                            <div key={recordIndex} className="text-xs text-gray-600">
+                              ID: {record.pickingID || record.packingID || record.shippingID || record.returnID} - 
+                              Status: {record.status} - 
+                              Updated: {record.updated_at ? new Date(record.updated_at).toLocaleDateString() : 'N/A'}
                             </div>
-                          )}
-                          {stage.details.status && (
-                            <div>
-                              <span className="font-medium text-gray-500">Status:</span>
-                              <span className="ml-1 text-gray-900">{stage.details.status}</span>
-                            </div>
-                          )}
-                          {stage.details.vehicleID && (
-                            <div>
-                              <span className="font-medium text-gray-500">Vehicle:</span>
-                              <span className="ml-1 text-gray-900">#{stage.details.vehicleID}</span>
-                            </div>
-                          )}
-                          {stage.details.tracking_number && (
-                            <div>
-                              <span className="font-medium text-gray-500">Tracking:</span>
-                              <span className="ml-1 text-gray-900">{stage.details.tracking_number}</span>
+                          ))}
+                          {stage.records.length > 3 && (
+                            <div className="text-xs text-gray-500">
+                              ... and {stage.records.length - 3} more records
                             </div>
                           )}
                         </div>

@@ -103,10 +103,26 @@ const Orders = () => {
       });
       loadOrders(); // Reload orders
     } catch (error) {
+      console.error('Error updating order status:', error);
+      
+      // Extract error message properly
+      let errorMessage = 'Unable to update order status.';
+      if (error.response?.data?.detail) {
+        if (Array.isArray(error.response.data.detail)) {
+          errorMessage = error.response.data.detail.map(err => 
+            typeof err === 'object' ? err.msg || err.message || 'Validation error' : err
+          ).join(', ');
+        } else {
+          errorMessage = error.response.data.detail;
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Failed to update status',
-        description: error.message || 'Unable to update order status.'
+        description: errorMessage
       });
     }
   };
@@ -178,8 +194,8 @@ const Orders = () => {
                 <Package className="w-6 h-6 text-purple-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Processing</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.processing + stats.picking + stats.packing}</p>
+                <p className="text-sm font-medium text-gray-600">In Progress</p>
+                <p className="text-2xl font-bold text-gray-900">{(stats.receiving || 0) + (stats.picking || 0) + (stats.packing || 0) + (stats.shipping || 0)}</p>
               </div>
             </div>
           </div>
