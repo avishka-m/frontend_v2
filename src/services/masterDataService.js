@@ -4,7 +4,7 @@ export const locationService = {
   // Get all locations
   getLocations: async () => {
     try {
-      const response = await api.get('/api/v1/location');
+      const response = await api.get('/location');
       return response.data;
     } catch (error) {
       console.error('Error fetching locations:', error);
@@ -25,7 +25,7 @@ export const locationService = {
   // Get a specific location by ID
   getLocation: async (id) => {
     try {
-      const response = await api.get(`/api/v1/location/${id}`);
+      const response = await api.get(`/location/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching location ${id}:`, error);
@@ -36,7 +36,7 @@ export const locationService = {
   // Create a new location
   createLocation: async (location) => {
     try {
-      const response = await api.post('/api/v1/location', location);
+      const response = await api.post('/location', location);
       return response.data;
     } catch (error) {
       console.error('Error creating location:', error);
@@ -47,7 +47,7 @@ export const locationService = {
   // Update a location
   updateLocation: async (id, location) => {
     try {
-      const response = await api.put(`/api/v1/location/${id}`, location);
+      const response = await api.put(`/location/${id}`, location);
       return response.data;
     } catch (error) {
       console.error(`Error updating location ${id}:`, error);
@@ -58,7 +58,7 @@ export const locationService = {
   // Delete a location
   deleteLocation: async (id) => {
     try {
-      const response = await api.delete(`/api/v1/location/${id}`);
+      const response = await api.delete(`/location/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error deleting location ${id}:`, error);
@@ -71,7 +71,7 @@ export const supplierService = {
   // Get all suppliers
   getSuppliers: async () => {
     try {
-      const response = await api.get('/api/v1/customers'); // Using customers endpoint as suppliers
+      const response = await api.get('/customers'); // Using customers endpoint as suppliers
       return response.data;
     } catch (error) {
       console.error('Error fetching suppliers:', error);
@@ -89,7 +89,7 @@ export const supplierService = {
   // Get a specific supplier by ID
   getSupplier: async (id) => {
     try {
-      const response = await api.get(`/api/v1/customers/${id}`);
+      const response = await api.get(`/customers/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching supplier ${id}:`, error);
@@ -103,7 +103,7 @@ export const categoryService = {
   getCategories: async () => {
     try {
       // This could be a dedicated endpoint, or we could fetch from inventory items
-      const response = await api.get('/api/v1/inventory');
+      const response = await api.get('/inventory');
       const items = response.data;
       
       // Extract unique categories
@@ -121,7 +121,7 @@ export const customerService = {
   // Get all customers
   getCustomers: async () => {
     try {
-      const response = await api.get('/api/v1/customers');
+      const response = await api.get('/customers');
       return response.data;
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -139,7 +139,7 @@ export const customerService = {
   // Get a specific customer by ID
   getCustomer: async (id) => {
     try {
-      const response = await api.get(`/api/v1/customers/${id}`);
+      const response = await api.get(`/customers/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching customer ${id}:`, error);
@@ -150,7 +150,7 @@ export const customerService = {
   // Create a new customer
   createCustomer: async (customer) => {
     try {
-      const response = await api.post('/api/v1/customers', customer);
+      const response = await api.post('/customers', customer);
       return response.data;
     } catch (error) {
       console.error('Error creating customer:', error);

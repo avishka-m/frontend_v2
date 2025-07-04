@@ -72,7 +72,7 @@ export const orderService = {
       if (params.status) queryParams.append('status', params.status);
       if (params.customer_id) queryParams.append('customer_id', params.customer_id);
 
-      const response = await api.get(`/api/v1/orders?${queryParams.toString()}`);
+      const response = await api.get(`/orders?${queryParams.toString()}`);
       
       // Transform backend data to frontend format for compatibility
       const transformedData = response.data.map(order => ({
@@ -117,7 +117,7 @@ export const orderService = {
     }
 
     try {
-      const response = await api.get(`/api/v1/orders/${id}`);
+      const response = await api.get(`/orders/${id}`);
       
       // Transform backend data to frontend format
       const order = response.data;
@@ -171,7 +171,7 @@ export const orderService = {
         }))
       };
 
-      const response = await api.post('/api/v1/orders', backendData);
+      const response = await api.post('/orders', backendData);
       
       // Transform response back to frontend format
       const createdOrder = response.data;
@@ -217,7 +217,7 @@ export const orderService = {
         notes: order.notes
       };
 
-      const response = await api.put(`/api/v1/orders/${id}`, backendData);
+      const response = await api.put(`/orders/${id}`, backendData);
       
       // Transform response back to frontend format
       const updatedOrder = response.data;
@@ -256,7 +256,7 @@ export const orderService = {
   // Delete an order
   deleteOrder: async (id) => {
     try {
-      const response = await api.delete(`/api/v1/orders/${id}`);
+      const response = await api.delete(`/orders/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -267,7 +267,7 @@ export const orderService = {
   // Get order statistics
   getOrderStats: async () => {
     try {
-      const response = await api.get('/api/v1/orders?limit=1000'); // Get all orders for stats
+      const response = await api.get('/orders?limit=1000'); // Get all orders for stats
       const orders = response.data;
       
       const stats = {
@@ -296,7 +296,7 @@ export const orderService = {
   // Assign worker to order
   assignWorker: async (orderId, workerId) => {
     try {
-      const response = await api.put(`/api/v1/orders/${orderId}/assign-worker`, {
+      const response = await api.put(`/orders/${orderId}/assign-worker`, {
         worker_id: workerId
       });
       return response.data;
@@ -309,7 +309,7 @@ export const orderService = {
   // Update order status
   updateOrderStatus: async (orderId, newStatus) => {
     try {
-      const response = await api.put(`/api/v1/orders/${orderId}/status`, {
+      const response = await api.put(`/orders/${orderId}/status`, {
         status: newStatus
       });
       return response.data;

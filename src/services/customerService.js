@@ -74,7 +74,7 @@ export const customerService = {
       if (params.limit) queryParams.append('limit', params.limit);
       if (params.name) queryParams.append('name', params.name);
       
-      const response = await api.get(`/api/v1/customers?${queryParams.toString()}`);
+      const response = await api.get(`/customers?${queryParams.toString()}`);
       
       // Transform backend data to frontend format
       const transformedData = response.data.map(transformCustomerData);
@@ -93,7 +93,7 @@ export const customerService = {
     }
 
     try {
-      const response = await api.get(`/api/v1/customers/${id}`);
+      const response = await api.get(`/customers/${id}`);
       return transformCustomerData(response.data);
     } catch (error) {
       console.error(`Error fetching customer with ID ${id}:`, error.message);
@@ -105,7 +105,7 @@ export const customerService = {
   createCustomer: async (customerData) => {
     try {
       const backendData = transformCustomerForBackend(customerData);
-      const response = await api.post('/api/v1/customers', backendData);
+      const response = await api.post('/customers', backendData);
       return transformCustomerData(response.data);
     } catch (error) {
       console.error('Error creating customer:', error);
@@ -128,7 +128,7 @@ export const customerService = {
       if (updateData.phone !== undefined) backendData.phone = updateData.phone || null;
       if (updateData.address !== undefined) backendData.address = updateData.address || null;
       
-      const response = await api.put(`/api/v1/customers/${id}`, backendData);
+      const response = await api.put(`/customers/${id}`, backendData);
       return transformCustomerData(response.data);
     } catch (error) {
       console.error(`Error updating customer with ID ${id}:`, error.message);
@@ -143,7 +143,7 @@ export const customerService = {
     }
 
     try {
-      const response = await api.delete(`/api/v1/customers/${id}`);
+      const response = await api.delete(`/customers/${id}`);
       return response.data;
     } catch (error) {
       console.error(`Error deleting customer with ID ${id}:`, error.message);
@@ -165,7 +165,7 @@ export const customerService = {
       if (params.limit) queryParams.append('limit', params.limit);
       if (params.status) queryParams.append('status', params.status);
       
-      const response = await api.get(`/api/v1/customers/${customerId}/orders?${queryParams.toString()}`);
+      const response = await api.get(`/customers/${customerId}/orders?${queryParams.toString()}`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching orders for customer ${customerId}:`, error.message);
@@ -176,7 +176,7 @@ export const customerService = {
   // Search customers by name
   searchCustomers: async (searchTerm) => {
     try {
-      const response = await api.get(`/api/v1/customers?name=${encodeURIComponent(searchTerm)}`);
+      const response = await api.get(`/customers?name=${encodeURIComponent(searchTerm)}`);
       return response.data.map(transformCustomerData);
     } catch (error) {
       console.error(`Error searching customers with term "${searchTerm}":`, error.message);

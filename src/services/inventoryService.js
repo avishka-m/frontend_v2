@@ -12,7 +12,7 @@ export const inventoryService = {
       if (params.category && params.category !== 'All') queryParams.append('category', params.category);
       if (params.low_stock) queryParams.append('low_stock', params.low_stock);
 
-      const response = await api.get(`/api/v1/inventory?${queryParams.toString()}`);
+      const response = await api.get(`/inventory?${queryParams.toString()}`);
       
       // Transform backend data to frontend format for compatibility
       const transformedData = response.data.map(item => ({
@@ -59,7 +59,7 @@ export const inventoryService = {
     }
 
     try {
-      const response = await api.get(`/api/v1/inventory/${id}`);
+      const response = await api.get(`/inventory/${id}`);
       
       // Transform backend data to frontend format
       const item = response.data;
@@ -114,7 +114,7 @@ export const inventoryService = {
         locationID: item.locationID || 1
       };
 
-      const response = await api.post('/api/v1/inventory', backendData);
+      const response = await api.post('/inventory', backendData);
       
       // Transform response back to frontend format
       const createdItem = response.data;
@@ -163,7 +163,7 @@ export const inventoryService = {
         locationID: item.locationID
       };
 
-      const response = await api.put(`/api/v1/inventory/${id}`, backendData);
+      const response = await api.put(`/inventory/${id}`, backendData);
       
       // Transform response back to frontend format
       const updatedItem = response.data;
@@ -201,7 +201,7 @@ export const inventoryService = {
   // Delete an inventory item
   deleteInventoryItem: async (id) => {
     try {
-      const response = await api.delete(`/api/v1/inventory/${id}`);
+      const response = await api.delete(`/inventory/${id}`);
       return response.data;
     } catch (error) {
       console.error('Error deleting inventory item:', error);
@@ -255,7 +255,7 @@ export const inventoryService = {
   // Get low stock items
   getLowStockItems: async () => {
     try {
-      const response = await api.get('/api/v1/inventory/low-stock');
+      const response = await api.get('/inventory/low-stock');
       return response.data.map(item => ({
         id: item.itemID,
         itemID: item.itemID,
@@ -279,7 +279,7 @@ export const inventoryService = {
   // Update stock level of an item
   updateStockLevel: async (itemId, quantityChange, reason = 'Manual adjustment') => {
     try {
-      const response = await api.post(`/api/v1/inventory/${itemId}/stock?quantity_change=${quantityChange}&reason=${encodeURIComponent(reason)}`);
+      const response = await api.post(`/inventory/${itemId}/stock?quantity_change=${quantityChange}&reason=${encodeURIComponent(reason)}`);
       return response.data;
     } catch (error) {
       console.error('Error updating stock level:', error);
@@ -290,7 +290,7 @@ export const inventoryService = {
   // Transfer inventory between locations
   transferInventory: async (itemId, sourceLocationId, destinationLocationId, quantity) => {
     try {
-      const response = await api.post('/api/v1/inventory/transfer', null, {
+      const response = await api.post('/inventory/transfer', null, {
         params: {
           item_id: itemId,
           source_location_id: sourceLocationId,
@@ -308,7 +308,7 @@ export const inventoryService = {
   // Get inventory anomalies
   getInventoryAnomalies: async () => {
     try {
-      const response = await api.get('/api/v1/inventory/anomalies');
+      const response = await api.get('/inventory/anomalies');
       return response.data;
     } catch (error) {
       console.error('Error fetching inventory anomalies:', error);
@@ -342,7 +342,7 @@ export const inventoryService = {
   // These are kept for frontend compatibility but will likely fail
   exportInventory: async (format = 'csv') => {
     try {
-      const response = await api.get(`/api/v1/inventory/export?format=${format}`, {
+      const response = await api.get(`/inventory/export?format=${format}`, {
         responseType: 'blob'
       });
       return response.data;
@@ -385,7 +385,7 @@ export const inventoryService = {
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await api.post('/api/v1/inventory/import', formData, {
+      const response = await api.post('/inventory/import', formData, {
         headers: {
           'Content-Type': 'multipart/form-data'
         }

@@ -11,7 +11,7 @@ export const authService = {
       formData.append('password', password);
 
       console.log('AuthService: Sending login request to backend...');
-      const response = await api.post('/api/v1/auth/token', formData, {
+      const response = await api.post('/auth/token', formData, {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -71,7 +71,7 @@ export const authService = {
       }
 
       // Real API implementation - get user profile from backend
-      const response = await api.get('/api/v1/auth/me');
+      const response = await api.get('/auth/me');
       
       // Parse the name into first and last name
       const fullName = response.data.name || '';
