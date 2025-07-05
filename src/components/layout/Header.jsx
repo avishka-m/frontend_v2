@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { useChatbot } from '../../hooks/useChatbot';
+import NotificationDropdown from '../common/NotificationDropdown';
 import {
-  Bell,
   MessageCircle,
   Search,
   ChevronDown,
@@ -57,15 +57,7 @@ const Header = () => {
           <MessageCircle className="w-6 h-6" />
         </button>
 
-        <button
-          className="p-2 rounded-full text-gray-700 hover:bg-gray-100 relative"
-          aria-label="Notifications"
-        >
-          <Bell className="w-6 h-6" />
-          <span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center h-4 w-4 rounded-full bg-red-500 text-white text-xs">
-            3
-          </span>
-        </button>
+        <NotificationDropdown />
 
         <div className="relative">
           <button

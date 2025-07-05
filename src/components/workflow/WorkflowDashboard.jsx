@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../context/NotificationContext';
 import useOrderWebSocket from '../../hooks/useOrderWebSocket';
 import workflowOrderService from '../../services/workflowOrderService';
 import OrderCard from './OrderCard';
@@ -29,6 +30,7 @@ const WorkflowDashboard = ({
   gradientColors = "from-blue-500 to-purple-600"
 }) => {
   const { currentUser } = useAuth();
+  const { addNotification } = useNotifications();
   const userRole = currentUser?.role || role;
   const workerId = currentUser?.workerID || currentUser?.id || currentUser?.username;
   
@@ -202,6 +204,30 @@ const WorkflowDashboard = ({
     return `Order #${orderId} updated`;
   }, [getRoleStatuses]);
 
+  // Helper: Add notification to both toast and notification center
+  const addOrderNotification = useCallback((updateData) => {
+    if (!isOrderUpdateRelevant(updateData)) return;
+    
+    const message = getRoleNotificationMessage(updateData);
+    const { orderId, newStatus, updateType } = updateData;
+    
+    // Add to toast (immediate feedback)
+    toast.success(message);
+    
+    // Add to notification center (persistent)
+    addNotification({
+      title: 'Order Update',
+      message: message,
+      type: 'success',
+      role: userRole,
+      orderId: orderId,
+      status: newStatus,
+      updateType: updateType,
+      duration: 8000, // 8 seconds
+      autoHide: true
+    });
+  }, [isOrderUpdateRelevant, getRoleNotificationMessage, addNotification, userRole]);
+
   // Handle targeted order updates from WebSocket
   const handleOrderUpdate = useCallback((updateData) => {
     console.log('🔄 Handling targeted order update:', updateData);
@@ -261,10 +287,8 @@ const WorkflowDashboard = ({
             return newOrders;
           });
           
-          // Only show notification if relevant to current role
-          if (isOrderUpdateRelevant(updateData)) {
-            toast.success(getRoleNotificationMessage(updateData));
-          }
+          // Add notification to both toast and notification center
+          addOrderNotification(updateData);
         } else if (isAssignedToMe) {
           setWorkingOrders(prev => {
             const newOrders = [...prev, updatedOrder];
@@ -272,10 +296,8 @@ const WorkflowDashboard = ({
             return newOrders;
           });
           
-          // Only show notification if relevant to current role
-          if (isOrderUpdateRelevant(updateData)) {
-            toast.success(`Order #${orderId} assigned to you - now in Working tab`);
-          }
+          // Add notification to both toast and notification center
+          addOrderNotification(updateData);
         } else if (!assignedWorker) {
           setAvailableOrders(prev => {
             const newOrders = [...prev, updatedOrder];
@@ -283,10 +305,8 @@ const WorkflowDashboard = ({
             return newOrders;
           });
           
-          // Only show notification if relevant to current role
-          if (isOrderUpdateRelevant(updateData)) {
-            toast.success(getRoleNotificationMessage(updateData));
-          }
+          // Add notification to both toast and notification center
+          addOrderNotification(updateData);
         } else {
           console.log(`➡️ Order #${orderId} assigned to someone else (${assignedWorker})`);
         }
@@ -299,10 +319,8 @@ const WorkflowDashboard = ({
             return newOrders;
           });
           
-          // Only show notification if relevant to current role
-          if (isOrderUpdateRelevant(updateData)) {
-            toast.success(getRoleNotificationMessage(updateData));
-          }
+          // Add notification to both toast and notification center
+          addOrderNotification(updateData);
         }
       }
     } else if (updateData.updateType === 'assignment') {
@@ -328,10 +346,8 @@ const WorkflowDashboard = ({
           ));
           setWorkingOrders(prev => [...prev, { ...orderToMove, assigned_worker: assignedWorkerId }]);
           
-          // Only show notification if relevant to current role
-          if (isOrderUpdateRelevant(updateData)) {
-            toast.success(getRoleNotificationMessage(updateData));
-          }
+          // Add notification to both toast and notification center
+          addOrderNotification(updateData);
           
           console.log(`✅ Moved Order #${orderId} from Available to Working`);
         } else {
@@ -339,7 +355,7 @@ const WorkflowDashboard = ({
         }
       }
     }
-  }, [userRole, workerId, getRoleStatuses, availableOrders, isOrderUpdateRelevant, getRoleNotificationMessage]);
+  }, [userRole, workerId, getRoleStatuses, availableOrders, addOrderNotification]);
 
   // Setup WebSocket listener
   useEffect(() => {

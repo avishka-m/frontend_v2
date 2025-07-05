@@ -1,6 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 import { authService } from '../services';
-import { useNotification } from './NotificationContext';
+import { useNotifications } from './NotificationContext';
 
 // Create the auth context
 const AuthContext = createContext();
@@ -11,7 +11,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [authenticated, setAuthenticated] = useState(false);
-  const { addNotification } = useNotification();
+  const { addNotification } = useNotifications();
 
   // Attempt to load user from local storage on mount
   useEffect(() => {

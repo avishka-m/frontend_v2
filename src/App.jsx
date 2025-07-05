@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { ChatbotProvider } from './context/ChatbotContext';
-import NotificationProvider from './context/NotificationContext';
+import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
