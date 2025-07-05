@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
+import useWebSocket from '../../hooks/useWebSocket';
 import { 
   User,
   Package,
@@ -11,7 +12,9 @@ import {
   Clock,
   DollarSign,
   X,
-  AlertCircle
+  AlertCircle,
+  Wifi,
+  WifiOff
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import orderService from '../../services/orderService';
@@ -27,18 +30,8 @@ const ReceivingClerkDashboard = () => {
   const [processingOrder, setProcessingOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    fetchOrders();
-    
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchOrders();
-    }, 30000);
-    
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchOrders = async () => {
+  // Define fetchOrders function first
+  const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -67,7 +60,48 @@ const ReceivingClerkDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // WebSocket connection for real-time updates
+  const { 
+    connectionStatus, 
+    lastMessage, 
+    connectionError, 
+    isConnected 
+  } = useWebSocket({
+    autoConnect: true,
+    onMessage: handleWebSocketMessage,
+    onConnect: () => {
+      console.log('WebSocket connected for receiving clerk dashboard');
+    },
+    onDisconnect: () => {
+      console.log('WebSocket disconnected');
+    },
+    onError: (error) => {
+      console.error('WebSocket error:', error);
+    }
+  });
+
+  // Handle WebSocket messages
+  const handleWebSocketMessage = useCallback((message) => {
+    console.log('Received WebSocket message:', message);
+    
+    if (message.type === 'order_update') {
+      // Refresh orders when an order update is received
+      fetchOrders();
+      
+      // Show notification for relevant order updates
+      const { order_id, order_status } = message.data;
+      toast.success(`Order #${order_id} status updated to ${order_status}`);
+    }
+  }, [fetchOrders]);
+
+  useEffect(() => {
+    // Initial fetch
+    fetchOrders();
+    
+    // No need for setInterval polling anymore - WebSocket handles real-time updates
+  }, [fetchOrders]);
 
   const handleStartReceiving = async (orderId) => {
     try {
@@ -190,9 +224,18 @@ const ReceivingClerkDashboard = () => {
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 text-sm text-gray-500">
-            <div className="animate-pulse w-2 h-2 bg-green-400 rounded-full"></div>
-            <span>Auto-refreshing every 30s</span>
+          <div className="flex items-center space-x-2 text-sm">
+            {isConnected ? (
+              <div className="flex items-center space-x-2 text-green-600">
+                <Wifi className="w-4 h-4" />
+                <span>Real-time updates active</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2 text-amber-600">
+                <WifiOff className="w-4 h-4" />
+                <span>Connecting to real-time updates...</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

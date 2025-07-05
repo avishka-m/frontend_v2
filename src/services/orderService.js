@@ -76,12 +76,12 @@ const orderService = {
       
       // Transform backend data to frontend format for compatibility
       const transformedData = response.data.map(order => ({
-        id: order.order_id,
-        order_id: order.order_id,
-        orderID: order.order_id,  // Keep for compatibility
-        customer_id: order.customer_id,
-        customerID: order.customer_id,  // Keep for compatibility
-        customer_name: order.customer_name,
+        id: order.orderID || order.order_id,
+        order_id: order.orderID || order.order_id,
+        orderID: order.orderID || order.order_id,  // Keep for compatibility
+        customer_id: order.customerID || order.customer_id,
+        customerID: order.customerID || order.customer_id,  // Keep for compatibility
+        customer_name: order.customer_name || `Customer ${order.customerID || order.customer_id}`,
         order_date: order.order_date,
         shipping_address: order.shipping_address,
         order_status: order.order_status,
@@ -102,7 +102,7 @@ const orderService = {
         items_count: order.items ? order.items.length : 0,
         items_total_quantity: order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0,
         is_fulfilled: order.items ? order.items.every(item => item.fulfilled_quantity >= item.quantity) : false,
-        customer_name: `Customer ${order.customerID}`, // Would come from customer service in real app
+        customer_name: order.customer_name || `Customer ${order.customerID || order.customer_id}`, // Would come from customer service in real app
         worker_name: order.assigned_worker ? `Worker ${order.assigned_worker}` : 'Unassigned'
       }));
       
@@ -125,9 +125,12 @@ const orderService = {
       // Transform backend data to frontend format
       const order = response.data;
       return {
-        id: order.orderID,
-        orderID: order.orderID,
-        customerID: order.customerID,
+        id: order.orderID || order.order_id,
+        order_id: order.orderID || order.order_id,
+        orderID: order.orderID || order.order_id,  // Keep for compatibility
+        customer_id: order.customerID || order.customer_id,
+        customerID: order.customerID || order.customer_id,  // Keep for compatibility
+        customer_name: order.customer_name || `Customer ${order.customerID || order.customer_id}`,
         order_date: order.order_date,
         shipping_address: order.shipping_address,
         order_status: order.order_status,
@@ -148,7 +151,7 @@ const orderService = {
         items_count: order.items ? order.items.length : 0,
         items_total_quantity: order.items ? order.items.reduce((sum, item) => sum + item.quantity, 0) : 0,
         is_fulfilled: order.items ? order.items.every(item => item.fulfilled_quantity >= item.quantity) : false,
-        customer_name: `Customer ${order.customerID}`, // Would come from customer service in real app
+        customer_name: order.customer_name || `Customer ${order.customer_id}`, // Would come from customer service in real app
         worker_name: order.assigned_worker ? `Worker ${order.assigned_worker}` : 'Unassigned'
       };
     } catch (error) {
@@ -162,13 +165,13 @@ const orderService = {
     try {
       // Transform frontend data to backend format
       const backendData = {
-        customerID: order.customerID,
+        customer_id: order.customer_id || order.customerID,
         shipping_address: order.shipping_address,
         order_status: order.order_status || ORDER_STATUS.PENDING,
         priority: order.priority || ORDER_PRIORITY.LOW,
         notes: order.notes || '',
         items: order.items.map(item => ({
-          itemID: item.itemID,
+          item_id: item.item_id || item.itemID,
           quantity: item.quantity,
           price: item.price || 0
         }))
@@ -179,9 +182,12 @@ const orderService = {
       // Transform response back to frontend format
       const createdOrder = response.data;
       return {
-        id: createdOrder.orderID,
-        orderID: createdOrder.orderID,
-        customerID: createdOrder.customerID,
+        id: createdOrder.order_id,
+        order_id: createdOrder.order_id,
+        orderID: createdOrder.order_id,  // Keep for compatibility
+        customer_id: createdOrder.customer_id,
+        customerID: createdOrder.customer_id,  // Keep for compatibility
+        customer_name: createdOrder.customer_name,
         order_date: createdOrder.order_date,
         shipping_address: createdOrder.shipping_address,
         order_status: createdOrder.order_status,
@@ -200,7 +206,7 @@ const orderService = {
         order_date_formatted: createdOrder.order_date ? new Date(createdOrder.order_date).toLocaleDateString() : '',
         items_count: createdOrder.items ? createdOrder.items.length : 0,
         items_total_quantity: createdOrder.items ? createdOrder.items.reduce((sum, item) => sum + item.quantity, 0) : 0,
-        customer_name: `Customer ${createdOrder.customerID}`,
+        customer_name: createdOrder.customer_name || `Customer ${createdOrder.customer_id}`,
         worker_name: createdOrder.assigned_worker ? `Worker ${createdOrder.assigned_worker}` : 'Unassigned'
       };
     } catch (error) {
@@ -225,9 +231,12 @@ const orderService = {
       // Transform response back to frontend format
       const updatedOrder = response.data;
       return {
-        id: updatedOrder.orderID,
-        orderID: updatedOrder.orderID,
-        customerID: updatedOrder.customerID,
+        id: updatedOrder.order_id,
+        order_id: updatedOrder.order_id,
+        orderID: updatedOrder.order_id,  // Keep for compatibility
+        customer_id: updatedOrder.customer_id,
+        customerID: updatedOrder.customer_id,  // Keep for compatibility
+        customer_name: updatedOrder.customer_name,
         order_date: updatedOrder.order_date,
         shipping_address: updatedOrder.shipping_address,
         order_status: updatedOrder.order_status,
@@ -247,7 +256,7 @@ const orderService = {
         items_count: updatedOrder.items ? updatedOrder.items.length : 0,
         items_total_quantity: updatedOrder.items ? updatedOrder.items.reduce((sum, item) => sum + item.quantity, 0) : 0,
         is_fulfilled: updatedOrder.items ? updatedOrder.items.every(item => item.fulfilled_quantity >= item.quantity) : false,
-        customer_name: `Customer ${updatedOrder.customerID}`,
+        customer_name: updatedOrder.customer_name || `Customer ${updatedOrder.customer_id}`,
         worker_name: updatedOrder.assigned_worker ? `Worker ${updatedOrder.assigned_worker}` : 'Unassigned'
       };
     } catch (error) {

@@ -63,6 +63,10 @@ export const authService = {
     return !!localStorage.getItem('token');
   },
   
+  getToken: () => {
+    return localStorage.getItem('token');
+  },
+
   getCurrentUser: async () => {
     try {
       const token = localStorage.getItem('token');

@@ -60,7 +60,7 @@ const Orders = () => {
   // Filter orders based on search term and filters
   const filteredOrders = orders.filter(order => {
     const matchesSearch = !searchTerm || 
-      order.orderID.toString().includes(searchTerm) ||
+      order.order_id.toString().includes(searchTerm) ||
       order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.shipping_address.toLowerCase().includes(searchTerm.toLowerCase());
     
@@ -295,10 +295,10 @@ const Orders = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50">
+                <tr key={order.order_id || order.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">
-                      #{order.orderID}
+                      #{order.order_id}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -313,7 +313,7 @@ const Orders = () => {
                           {order.customer_name}
                         </div>
                         <div className="text-sm text-gray-500">
-                          ID: {order.customerID}
+                          ID: {order.customer_id}
                         </div>
                       </div>
                     </div>
@@ -321,7 +321,7 @@ const Orders = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <select
                       value={order.order_status}
-                      onChange={(e) => handleStatusUpdate(order.orderID, e.target.value)}
+                      onChange={(e) => handleStatusUpdate(order.order_id, e.target.value)}
                       className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border-0 ${order.status_color}`}
                     >
                       {Object.entries(ORDER_STATUS_DISPLAY).map(([value, label]) => (
@@ -345,21 +345,21 @@ const Orders = () => {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                     <button
-                      onClick={() => navigate(`/orders/${order.orderID}`)}
+                      onClick={() => navigate(`/orders/${order.order_id}`)}
                       className="text-primary-600 hover:text-primary-900 p-1"
                       title="View Details"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => navigate(`/orders/${order.orderID}/edit`)}
+                      onClick={() => navigate(`/orders/${order.order_id}/edit`)}
                       className="text-yellow-600 hover:text-yellow-900 p-1"
                       title="Edit Order"
                     >
                       <Edit className="w-4 h-4" />
                     </button>
                     <button
-                      onClick={() => handleDeleteOrder(order.orderID)}
+                      onClick={() => handleDeleteOrder(order.order_id)}
                       className="text-red-600 hover:text-red-900 p-1"
                       title="Delete Order"
                     >
