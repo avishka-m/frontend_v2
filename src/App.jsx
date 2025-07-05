@@ -7,6 +7,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
 import Notification from './components/common/Notification';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import { Toaster } from 'react-hot-toast';
 
 // Pages
 import Login from './pages/Login';
@@ -59,7 +60,6 @@ import Analytics from './pages/Analytics';
 import Settings from './pages/Settings';
 
 // Workflow Components
-import WorkflowDashboard from './pages/WorkflowDashboard';
 import OrderWorkflowTracker from './pages/OrderWorkflowTracker';
 import WorkflowManagement from './pages/WorkflowManagement';
 
@@ -71,6 +71,7 @@ function App() {
           <AuthProvider>
             <ChatbotProvider>
               <Notification />
+              <Toaster position="top-right" />
               <Routes>
                 {/* Public routes */}
                 <Route path="/login" element={<Login />} />
@@ -277,9 +278,7 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   <Route path="/workflow/dashboard" element={
-                    <RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}>
-                      <WorkflowDashboard />
-                    </RoleBasedRoute>
+                    <Navigate to="/dashboard" replace />
                   } />
                   <Route path="/workflow/order/:orderId" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}>
