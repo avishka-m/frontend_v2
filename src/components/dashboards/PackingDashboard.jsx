@@ -38,14 +38,17 @@ const PackingDashboard = () => {
   const { currentUser } = useAuth();
   const [pendingOrders, setPendingOrders] = useState([]);
   const [packingOrders, setPackingOrders] = useState([]);
-  const [shippedOrders, setShippedOrders] = useState([]);
+  const [historyOrders, setHistoryOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'packing', 'shipped'
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'packing', 'history'
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
+  
+  // Local state to track orders moved to packing without status change
+  const [localPackingOrders, setLocalPackingOrders] = useState([]);
 
   // Fetch orders and organize by status
   const fetchOrders = useCallback(async () => {
@@ -58,18 +61,18 @@ const PackingDashboard = () => {
       if (orders && Array.isArray(orders)) {
         // Group orders by status relevant to packing
         const pending = orders.filter(order => 
-          order.order_status === 'picking' || order.order_status === 'picked'
+          order.order_status === 'picked' // Only show picked orders ready for packing
         );
         const packing = orders.filter(order => 
-          order.order_status === 'packing'
+          order.order_status === 'packing' // Orders with actual packing status
         );
-        const shipped = orders.filter(order => 
+        const history = orders.filter(order => 
           order.order_status === 'shipping' || order.order_status === 'shipped' || order.order_status === 'delivered'
         );
 
         setPendingOrders(pending);
         setPackingOrders(packing);
-        setShippedOrders(shipped);
+        setHistoryOrders(history);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -97,17 +100,18 @@ const PackingDashboard = () => {
         // Remove order from all lists first
         setPendingOrders(prev => prev.filter(order => order.orderID !== order_id));
         setPackingOrders(prev => prev.filter(order => order.orderID !== order_id));
-        setShippedOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setHistoryOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setLocalPackingOrders(prev => prev.filter(order => order.orderID !== order_id));
         
         // Add updated order to appropriate list
         const updatedOrder = { ...order_data, order_status };
         
-        if (order_status === 'picking' || order_status === 'picked') {
+        if (order_status === 'picked') {
           setPendingOrders(prev => [...prev, updatedOrder]);
         } else if (order_status === 'packing') {
           setPackingOrders(prev => [...prev, updatedOrder]);
         } else if (['shipping', 'shipped', 'delivered'].includes(order_status)) {
-          setShippedOrders(prev => [...prev, updatedOrder]);
+          setHistoryOrders(prev => [...prev, updatedOrder]);
         }
         
         // Show success notification for relevant updates
@@ -150,15 +154,21 @@ const PackingDashboard = () => {
     try {
       setProcessingOrder(orderId);
       
-      const result = await orderService.updateOrderStatus(orderId, 'packing');
-      
-      if (result) {
-        toast.success('Order packing started successfully');
-        // WebSocket will handle the update
-        setActiveTab('packing');
-      } else {
-        toast.error('Failed to start packing');
+      // Find the order in pending orders
+      const order = pendingOrders.find(o => o.orderID === orderId);
+      if (!order) {
+        toast.error('Order not found');
+        return;
       }
+      
+      // Move order to local packing orders WITHOUT changing status
+      setLocalPackingOrders(prev => [...prev, order]);
+      setPendingOrders(prev => prev.filter(o => o.orderID !== orderId));
+      
+      // Switch to packing tab
+      setActiveTab('packing');
+      
+      toast.success('Order moved to packing queue');
     } catch (error) {
       console.error('Error starting packing:', error);
       toast.error('Failed to start packing');
@@ -171,12 +181,21 @@ const PackingDashboard = () => {
     try {
       setProcessingOrder(orderId);
       
+      // Actually change the status to shipping
       const result = await orderService.updateOrderStatus(orderId, 'shipping');
       
       if (result) {
+        // Remove from local packing orders
+        setLocalPackingOrders(prev => prev.filter(o => o.orderID !== orderId));
+        setPackingOrders(prev => prev.filter(o => o.orderID !== orderId));
+        
+        // Switch to history tab
+        setActiveTab('history');
+        
         toast.success('Order packed successfully - moved to shipping');
-        // WebSocket will handle the update
-        setActiveTab('shipped');
+        
+        // Refresh orders to get updated data
+        await fetchOrders();
       } else {
         toast.error('Failed to complete packing');
       }
@@ -197,9 +216,10 @@ const PackingDashboard = () => {
       case 'pending':
         return pendingOrders;
       case 'packing':
-        return packingOrders;
-      case 'shipped':
-        return shippedOrders;
+        // Combine actual packing orders with local packing orders
+        return [...packingOrders, ...localPackingOrders];
+      case 'history':
+        return historyOrders;
       default:
         return [];
     }
@@ -219,8 +239,8 @@ const PackingDashboard = () => {
         return 'Ready for Packing';
       case 'packing':
         return 'Currently Packing';
-      case 'shipped':
-        return 'Packed & Shipped';
+      case 'history':
+        return 'Packing History';
       default:
         return 'Orders';
     }
@@ -231,9 +251,9 @@ const PackingDashboard = () => {
       case 'pending':
         return `${pendingOrders.length} orders ready to be packed`;
       case 'packing':
-        return `${packingOrders.length} orders currently being packed`;
-      case 'shipped':
-        return `${shippedOrders.length} orders packed and shipped`;
+        return `${packingOrders.length + localPackingOrders.length} orders currently being packed`;
+      case 'history':
+        return `${historyOrders.length} completed orders`;
       default:
         return '';
     }
@@ -274,7 +294,7 @@ const PackingDashboard = () => {
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <div className="text-2xl font-bold text-gray-900">
-                {pendingOrders.length + packingOrders.length}
+                {pendingOrders.length + packingOrders.length + localPackingOrders.length}
               </div>
               <div className="text-sm text-gray-600">Active Orders</div>
             </div>
@@ -288,8 +308,8 @@ const PackingDashboard = () => {
           <nav className="-mb-px flex space-x-8 px-6">
             {[
               { id: 'pending', label: 'Ready for Packing', icon: Clock, count: pendingOrders.length },
-              { id: 'packing', label: 'Currently Packing', icon: Package, count: packingOrders.length },
-              { id: 'shipped', label: 'Packed & Shipped', icon: Truck, count: shippedOrders.length }
+              { id: 'packing', label: 'Currently Packing', icon: Package, count: packingOrders.length + localPackingOrders.length },
+              { id: 'history', label: 'History', icon: History, count: historyOrders.length }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -480,7 +500,7 @@ const PackingOrderRow = ({ order, activeTab, onViewDetails, onStartPacking, onCo
               {isProcessing ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Starting...</span>
+                  <span>Moving...</span>
                 </>
               ) : (
                 <>
@@ -505,13 +525,13 @@ const PackingOrderRow = ({ order, activeTab, onViewDetails, onStartPacking, onCo
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4" />
-                  <span>Complete & Ship</span>
+                  <span>Complete</span>
                 </>
               )}
             </button>
           )}
           
-          {activeTab === 'shipped' && (
+          {activeTab === 'history' && (
             <div className="flex items-center space-x-2 text-green-600">
               <CheckCircle className="h-4 w-4" />
               <span className="text-sm font-medium">Completed</span>
