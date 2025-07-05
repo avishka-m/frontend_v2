@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Navigate } from 'react-router-dom';
 import ReceivingClerkDashboard from '../components/dashboards/ReceivingClerkDashboard';
 import PickerDashboard from '../components/dashboards/PickerDashboard';
-import PackingDashboard from '../components/dashboards/PackingDashboard';
+import PackerDashboard from '../components/dashboards/PackerDashboard';
 import DriverDashboard from '../components/dashboards/DriverDashboard';
 import ManagerDashboard from '../components/dashboards/ManagerDashboard';
 
@@ -21,7 +21,7 @@ const RoleBasedDashboard = () => {
     case 'Picker':
       return <PickerDashboard />;
     case 'Packer':
-      return <PackingDashboard />;
+      return <PackerDashboard />;
     case 'Driver':
       return <DriverDashboard />;
     case 'Manager':
