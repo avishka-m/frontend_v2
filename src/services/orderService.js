@@ -60,7 +60,7 @@ export const ORDER_PRIORITY_COLORS = {
   [ORDER_PRIORITY.LOW]: 'bg-green-100 text-green-800'
 };
 
-export const orderService = {
+const orderService = {
   // Get all orders with optional filters
   getOrders: async (params = {}) => {
     try {
@@ -76,9 +76,12 @@ export const orderService = {
       
       // Transform backend data to frontend format for compatibility
       const transformedData = response.data.map(order => ({
-        id: order.orderID,
-        orderID: order.orderID,
-        customerID: order.customerID,
+        id: order.order_id,
+        order_id: order.order_id,
+        orderID: order.order_id,  // Keep for compatibility
+        customer_id: order.customer_id,
+        customerID: order.customer_id,  // Keep for compatibility
+        customer_name: order.customer_name,
         order_date: order.order_date,
         shipping_address: order.shipping_address,
         order_status: order.order_status,
@@ -311,7 +314,7 @@ export const orderService = {
   // Update order status
   updateOrderStatus: async (orderId, newStatus, workerId = null) => {
     try {
-      const params = new URLSearchParams({ status: newStatus });
+      const params = new URLSearchParams({ new_status: newStatus });
       if (workerId) {
         params.append('worker_id', workerId);
       }
@@ -324,3 +327,5 @@ export const orderService = {
     }
   }
 };
+
+export default orderService;

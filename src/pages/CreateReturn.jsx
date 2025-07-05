@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import returnsService, { RETURNS_METHODS, RETURN_REASONS, ITEM_CONDITIONS } from '../services/returnsService';
-import { orderService } from '../services/orderService';
+import orderService from '../services/orderService';
 import workerService from '../services/workerService';
 import { customerService } from '../services/customerService';
 

@@ -145,7 +145,7 @@ class RoleBasedService {
   async updateOrderStatus(orderId, newStatus) {
     try {
       const response = await axios.put(
-        `${API_BASE_URL}/role-based/orders/${orderId}/status`,
+        `${API_BASE_URL}/orders/${orderId}/status`,
         null, // No body needed
         {
           headers: this.getAuthHeaders(),
