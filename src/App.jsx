@@ -28,9 +28,6 @@ import CreateOrder from './pages/CreateOrder';
 import UserProfile from './components/common/UserProfile';
 import ChangePassword from './components/common/ChangePassword';
 
-// Test Components
-import WebSocketTest from './components/WebSocketTest';
-
 // Import placeholder components for new routes
 // These will need to be created separately
 import Customers from './pages/Customers';
@@ -291,11 +288,6 @@ function App() {
                     <RoleBasedRoute allowedRoles={['Manager']}>
                       <Settings />
                     </RoleBasedRoute>
-                  } />
-                  
-                  {/* Test routes - for development only */}
-                  <Route path="/test/websocket" element={
-                    <WebSocketTest />
                   } />
                   
                   {/* Common routes */}
