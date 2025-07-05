@@ -15,49 +15,73 @@ import {
   DollarSign,
   X,
   AlertCircle,
-  Wifi,
-  WifiOff,
-  RefreshCw
+  RefreshCw,
+  TrendingUp,
+  Star,
+  Calendar,
+  MapPin,
+  Activity,
+  Users,
+  ShoppingCart,
+  Filter,
+  Download,
+  BarChart3,
+  Zap,
+  Award,
+  Target,
+  Truck,
+  Box,
+  CheckSquare,
+  Archive
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import orderService from '../../services/orderService';
 
 const ReceivingClerkDashboard = () => {
   const { currentUser } = useAuth();
-  const [confirmedOrders, setConfirmedOrders] = useState([]);
+  const [pendingOrders, setPendingOrders] = useState([]);
   const [receivingOrders, setReceivingOrders] = useState([]);
-  const [processedOrders, setProcessedOrders] = useState([]);
+  const [completedOrders, setCompletedOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('confirmed'); // 'confirmed', 'receiving', 'history'
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'receiving', 'completed'
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
+  const [workflowAnimation, setWorkflowAnimation] = useState(null);
+  
+  // Local state to track orders being received without status change
+  const [localReceivingOrders, setLocalReceivingOrders] = useState([]);
 
   // Define fetchOrders function first
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch all orders and filter by status
+      // Fetch all orders and filter by receiving-related statuses
       const result = await orderService.getOrders();
       
       if (result && Array.isArray(result)) {
-        // Filter orders by status
-        const confirmed = result.filter(order => order.order_status === 'confirmed');
-        const receiving = result.filter(order => order.order_status === 'receiving');
-        const processed = result.filter(order => 
+        // Group orders by status relevant to receiving workflow
+        const pending = result.filter(order => 
+          order.order_status === 'confirmed' // Orders ready to be received
+        );
+        const receiving = result.filter(order => 
+          order.order_status === 'receiving' // Orders with actual receiving status
+        );
+        const completed = result.filter(order => 
           order.order_status === 'picking' || 
-          order.order_status === 'picking_in_progress' ||
+          order.order_status === 'picked' ||
           order.order_status === 'packing' ||
+          order.order_status === 'shipping' ||
           order.order_status === 'shipped' ||
           order.order_status === 'delivered'
         );
 
-        setConfirmedOrders(confirmed);
+        setPendingOrders(pending);
         setReceivingOrders(receiving);
-        setProcessedOrders(processed);
+        setCompletedOrders(completed);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -74,44 +98,40 @@ const ReceivingClerkDashboard = () => {
     if (message.type === 'order_update') {
       const { order_id, order_status, order_data } = message.data;
       
-      // Only show updates for receiving-relevant statuses
-      const isRelevantUpdate = ['confirmed', 'receiving', 'picking', 'processed', 'delivered'].includes(order_status);
+      // Show subtle update indicator
+      setIsUpdating(true);
+      setUpdateMessage(`Order #${order_id} updated`);
       
-      if (isRelevantUpdate) {
-        // Show subtle update indicator
-        setIsUpdating(true);
-        setUpdateMessage(`Order #${order_id} updated`);
+      // Smart state updates - only update if relevant to receiving workflow
+      const isRelevantUpdate = ['confirmed', 'receiving', 'picking', 'picked', 'packing', 'shipping', 'shipped', 'delivered'].includes(order_status);
+      
+      if (isRelevantUpdate && order_data) {
+        // Remove order from all lists first
+        setPendingOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setReceivingOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setCompletedOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setLocalReceivingOrders(prev => prev.filter(order => order.orderID !== order_id));
         
-        // Smart state updates - only update if we have complete order data
-        if (order_data) {
-          // Remove order from all lists first
-          setConfirmedOrders(prev => prev.filter(order => order.orderID !== order_id));
-          setReceivingOrders(prev => prev.filter(order => order.orderID !== order_id));
-          setProcessedOrders(prev => prev.filter(order => order.orderID !== order_id));
-          
-          // Add updated order to appropriate list
-          const updatedOrder = { ...order_data, order_status };
-          
-          if (order_status === 'confirmed') {
-            setConfirmedOrders(prev => [...prev, updatedOrder]);
-          } else if (order_status === 'receiving') {
-            setReceivingOrders(prev => [...prev, updatedOrder]);
-          } else if (['picking', 'processed', 'delivered'].includes(order_status)) {
-            setProcessedOrders(prev => [...prev, updatedOrder]);
-          }
-          
-          // Show success notification only for relevant status changes
-          if (['receiving', 'picking'].includes(order_status)) {
-            toast.success(`Order #${order_id} moved to ${order_status}`);
-          }
+        // Add updated order to appropriate list
+        const updatedOrder = { ...order_data, order_status };
+        
+        if (order_status === 'confirmed') {
+          setPendingOrders(prev => [...prev, updatedOrder]);
+        } else if (order_status === 'receiving') {
+          setReceivingOrders(prev => [...prev, updatedOrder]);
+        } else if (['picking', 'picked', 'packing', 'shipping', 'shipped', 'delivered'].includes(order_status)) {
+          setCompletedOrders(prev => [...prev, updatedOrder]);
         }
         
-        // Hide update indicator after 2 seconds
-        setTimeout(() => {
-          setIsUpdating(false);
-          setUpdateMessage('');
-        }, 2000);
+        // Show success notification for relevant updates
+        toast.success(`Order #${order_id} moved to ${order_status}`);
       }
+      
+      // Hide update indicator after 2 seconds
+      setTimeout(() => {
+        setIsUpdating(false);
+        setUpdateMessage('');
+      }, 2000);
     }
   }, []);
 
@@ -146,17 +166,32 @@ const ReceivingClerkDashboard = () => {
     try {
       setProcessingOrder(orderId);
       
-      const result = await orderService.updateOrderStatus(orderId, 'receiving');
-      
-      if (result) {
-        toast.success('Order receiving started successfully');
-        // No need to refresh - WebSocket will handle the update
-        
-        // Switch to receiving tab to show the updated order
-        setActiveTab('receiving');
-      } else {
-        toast.error('Failed to start receiving');
+      // Find the order in pending orders
+      const order = pendingOrders.find(o => o.orderID === orderId);
+      if (!order) {
+        toast.error('Order not found');
+        return;
       }
+      
+      // Show workflow animation
+      setWorkflowAnimation('starting');
+      
+      // Move order to local receiving orders WITHOUT changing status
+      setLocalReceivingOrders(prev => [...prev, order]);
+      setPendingOrders(prev => prev.filter(o => o.orderID !== orderId));
+      
+      // Switch to receiving tab with animation
+      setTimeout(() => {
+        setActiveTab('receiving');
+        setWorkflowAnimation('receiving');
+      }, 300);
+      
+      // Clear animation after transition
+      setTimeout(() => {
+        setWorkflowAnimation(null);
+      }, 1000);
+      
+      toast.success('📦 Order moved to receiving queue');
     } catch (error) {
       console.error('Error starting receiving:', error);
       toast.error('Failed to start receiving');
@@ -169,14 +204,32 @@ const ReceivingClerkDashboard = () => {
     try {
       setProcessingOrder(orderId);
       
+      // Show workflow animation
+      setWorkflowAnimation('completing');
+      
+      // Actually change the status to picking
       const result = await orderService.updateOrderStatus(orderId, 'picking');
       
       if (result) {
-        toast.success('Order receiving completed - moved to picking stage');
-        // No need to refresh - WebSocket will handle the update
+        // Remove from local receiving orders
+        setLocalReceivingOrders(prev => prev.filter(o => o.orderID !== orderId));
+        setReceivingOrders(prev => prev.filter(o => o.orderID !== orderId));
         
-        // Switch to history tab to show the completed order
-        setActiveTab('history');
+        // Switch to completed tab with animation
+        setTimeout(() => {
+          setActiveTab('completed');
+          setWorkflowAnimation('completed');
+        }, 300);
+        
+        // Clear animation after transition
+        setTimeout(() => {
+          setWorkflowAnimation(null);
+        }, 1000);
+        
+        toast.success('✅ Order receiving completed - moved to picking stage');
+        
+        // Refresh orders to get updated data
+        await fetchOrders();
       } else {
         toast.error('Failed to complete receiving');
       }
@@ -194,12 +247,13 @@ const ReceivingClerkDashboard = () => {
 
   const getCurrentOrders = () => {
     switch (activeTab) {
-      case 'confirmed':
-        return confirmedOrders;
+      case 'pending':
+        return pendingOrders;
       case 'receiving':
-        return receivingOrders;
-      case 'history':
-        return processedOrders;
+        // Combine actual receiving orders with local receiving orders
+        return [...receivingOrders, ...localReceivingOrders];
+      case 'completed':
+        return completedOrders;
       default:
         return [];
     }
@@ -215,12 +269,12 @@ const ReceivingClerkDashboard = () => {
 
   const getTabTitle = () => {
     switch (activeTab) {
-      case 'confirmed':
-        return 'Confirmed Orders';
+      case 'pending':
+        return 'Pending Deliveries';
       case 'receiving':
-        return 'Orders in Receiving';
-      case 'history':
-        return 'Processed Orders History';
+        return 'Currently Receiving';
+      case 'completed':
+        return 'Completed Receiving';
       default:
         return 'Orders';
     }
@@ -228,12 +282,12 @@ const ReceivingClerkDashboard = () => {
 
   const getTabDescription = () => {
     switch (activeTab) {
-      case 'confirmed':
-        return `${confirmedOrders.length} orders ready to start receiving`;
+      case 'pending':
+        return `${pendingOrders.length} orders ready to start receiving`;
       case 'receiving':
-        return `${receivingOrders.length} orders currently being received`;
-      case 'history':
-        return `${processedOrders.length} orders completed and moved to next stages`;
+        return `${receivingOrders.length + localReceivingOrders.length} orders currently being received`;
+      case 'completed':
+        return `${completedOrders.length} orders completed and moved to next stages`;
       default:
         return '';
     }
@@ -254,104 +308,256 @@ const ReceivingClerkDashboard = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <User className="h-8 w-8 text-blue-600" />
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-3 rounded-lg">
+              <Package className="h-8 w-8 text-white" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Receiving Clerk Dashboard</h1>
-              <p className="text-gray-600">Welcome, {currentUser?.username || 'Receiving Clerk'}</p>
+              <p className="text-gray-600">Welcome back, {currentUser?.username || 'Receiving Clerk'}</p>
+              <div className="flex items-center mt-2 space-x-4">
+                <div className="flex items-center text-sm">
+                  <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                  <span className="text-gray-600">
+                    {isConnected ? 'Real-time updates active' : 'Offline mode'}
+                  </span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <Archive className="h-4 w-4 mr-2 text-blue-600" />
+                  <span className="text-gray-600">
+                    {receivingOrders.length + localReceivingOrders.length} active receiving
+                  </span>
+                </div>
+                <div className="flex items-center text-sm">
+                  <TrendingUp className="h-4 w-4 mr-2 text-green-600" />
+                  <span className="text-gray-600">
+                    {completedOrders.length} completed today
+                  </span>
+                </div>
+              </div>
             </div>
           </div>
           
-          <div className="flex items-center space-x-2 text-sm">
-            {isConnected ? (
-              <div className="flex items-center space-x-2 text-green-600">
-                <Wifi className="w-4 h-4" />
-                <span>Real-time updates active</span>
+          {/* Connection Status and Update Indicator */}
+          <div className="flex items-center space-x-3">
+            <div className="text-right">
+              <div className="text-sm font-medium text-gray-900">
+                {new Date().toLocaleDateString()}
               </div>
-            ) : (
-              <div className="flex items-center space-x-2 text-amber-600">
-                <WifiOff className="w-4 h-4" />
-                <span>Connecting to real-time updates...</span>
+              <div className="text-xs text-gray-500">
+                {new Date().toLocaleTimeString()}
               </div>
-            )}
+            </div>
+            <ConnectionStatus 
+              isConnected={isConnected} 
+              connectionStatus={connectionStatus}
+              connectionError={connectionError}
+            />
+            <UpdateIndicator 
+              isUpdating={isUpdating}
+              message={updateMessage}
+            />
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <AlertCircle className="h-6 w-6 text-blue-600" />
+        <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <Truck className="h-6 w-6 text-blue-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Pending Deliveries</p>
+                <p className="text-2xl font-semibold text-gray-900">{pendingOrders.length}</p>
+                <p className="text-xs text-gray-500 mt-1">Ready to start</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Confirmed Orders</p>
-              <p className="text-2xl font-semibold text-gray-900">{confirmedOrders.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-yellow-100 p-3 rounded-lg">
-              <Package className="h-6 w-6 text-yellow-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">In Receiving</p>
-              <p className="text-2xl font-semibold text-gray-900">{receivingOrders.length}</p>
+            <div className="text-right">
+              <div className="text-xs text-gray-500">Today</div>
+              <div className="text-sm font-medium text-blue-600">
+                {pendingOrders.length > 0 ? 'Action needed' : 'All clear'}
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="bg-green-100 p-3 rounded-lg">
-              <CheckCircle className="h-6 w-6 text-green-600" />
+        <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="bg-yellow-100 p-3 rounded-lg">
+                <Activity className="h-6 w-6 text-yellow-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Currently Receiving</p>
+                <p className="text-2xl font-semibold text-gray-900">{receivingOrders.length + localReceivingOrders.length}</p>
+                <p className="text-xs text-gray-500 mt-1">In progress</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Processed Today</p>
-              <p className="text-2xl font-semibold text-gray-900">{processedOrders.length}</p>
+            <div className="text-right">
+              <div className="text-xs text-gray-500">Active</div>
+              <div className="text-sm font-medium text-yellow-600">
+                {(receivingOrders.length + localReceivingOrders.length) > 0 ? 'Processing' : 'None active'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="bg-green-100 p-3 rounded-lg">
+                <CheckSquare className="h-6 w-6 text-green-600" />
+              </div>
+              <div className="ml-4">
+                <p className="text-sm font-medium text-gray-600">Completed Today</p>
+                <p className="text-2xl font-semibold text-gray-900">{completedOrders.length}</p>
+                <p className="text-xs text-gray-500 mt-1">Moved to next stage</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-gray-500">Success</div>
+              <div className="text-sm font-medium text-green-600">
+                {completedOrders.length > 0 ? `${completedOrders.length} done` : 'None yet'}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
+      {/* Workflow Progress Indicator */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Receiving Workflow Progress</h3>
+          <div className="text-sm text-gray-600">
+            {workflowAnimation && (
+              <div className="flex items-center space-x-2">
+                <div className="animate-pulse w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span className="capitalize">{workflowAnimation}...</span>
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex items-center space-x-4">
+          <div className="flex-1">
+            <div className="flex items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                pendingOrders.length > 0 ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-500'
+              }`}>
+                <Truck className="h-4 w-4" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-900">Pending Deliveries</p>
+                <p className="text-xs text-gray-500">{pendingOrders.length} waiting</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            <div className="flex items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                (receivingOrders.length + localReceivingOrders.length) > 0 ? 'bg-yellow-500 text-white' : 'bg-gray-200 text-gray-500'
+              }`}>
+                <Activity className="h-4 w-4" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-900">Currently Receiving</p>
+                <p className="text-xs text-gray-500">{receivingOrders.length + localReceivingOrders.length} in progress</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex-1">
+            <div className="flex items-center">
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                completedOrders.length > 0 ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-500'
+              }`}>
+                <CheckSquare className="h-4 w-4" />
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-gray-900">Completed</p>
+                <p className="text-xs text-gray-500">{completedOrders.length} done today</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Progress Bar */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+            <span>Daily Progress</span>
+            <span>{Math.round((completedOrders.length / Math.max(pendingOrders.length + receivingOrders.length + localReceivingOrders.length + completedOrders.length, 1)) * 100)}% Complete</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-500"
+              style={{ 
+                width: `${Math.round((completedOrders.length / Math.max(pendingOrders.length + receivingOrders.length + localReceivingOrders.length + completedOrders.length, 1)) * 100)}%` 
+              }}
+            ></div>
+          </div>
+        </div>
+      </div>
+
       {/* Navigation Tabs */}
-      <div className="bg-white rounded-lg shadow">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 px-6">
             <button
-              onClick={() => setActiveTab('confirmed')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'confirmed'
+              onClick={() => setActiveTab('pending')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'pending'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              } ${workflowAnimation === 'starting' ? 'animate-pulse' : ''}`}
             >
-              Confirmed Orders ({confirmedOrders.length})
+              <div className="flex items-center space-x-2">
+                <Truck className="h-4 w-4" />
+                <span>Pending Deliveries</span>
+                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                  activeTab === 'pending' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {pendingOrders.length}
+                </span>
+              </div>
             </button>
             <button
               onClick={() => setActiveTab('receiving')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
                 activeTab === 'receiving'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              } ${workflowAnimation === 'receiving' ? 'animate-pulse' : ''}`}
             >
-              In Receiving ({receivingOrders.length})
+              <div className="flex items-center space-x-2">
+                <Activity className="h-4 w-4" />
+                <span>Currently Receiving</span>
+                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                  activeTab === 'receiving' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {receivingOrders.length + localReceivingOrders.length}
+                </span>
+              </div>
             </button>
             <button
-              onClick={() => setActiveTab('history')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                activeTab === 'history'
+              onClick={() => setActiveTab('completed')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'completed'
                   ? 'border-blue-500 text-blue-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
+              } ${workflowAnimation === 'completed' ? 'animate-pulse' : ''}`}
             >
-              <History className="h-4 w-4 inline mr-2" />
-              History ({processedOrders.length})
+              <div className="flex items-center space-x-2">
+                <CheckSquare className="h-4 w-4" />
+                <span>Completed</span>
+                <span className={`rounded-full px-2 py-1 text-xs font-medium ${
+                  activeTab === 'completed' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+                }`}>
+                  {completedOrders.length}
+                </span>
+              </div>
             </button>
           </nav>
         </div>
@@ -377,14 +583,14 @@ const ReceivingClerkDashboard = () => {
               <h3 className="text-lg font-semibold text-gray-900">{getTabTitle()}</h3>
               <p className="text-sm text-gray-600">{getTabDescription()}</p>
             </div>
-            {activeTab === 'history' && (
+            {activeTab === 'completed' && (
               <button
                 onClick={fetchOrders}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                title="Refresh history to get latest item details"
+                title="Refresh completed orders to get latest details"
               >
                 <RefreshCw className="h-4 w-4" />
-                <span>Refresh History</span>
+                <span>Refresh</span>
               </button>
             )}
           </div>
@@ -423,17 +629,6 @@ const ReceivingClerkDashboard = () => {
           onClose={() => setSelectedOrder(null)}
         />
       )}
-      
-      {/* Connection Status and Update Indicators */}
-      <ConnectionStatus 
-        connectionStatus={connectionStatus}
-        isConnected={isConnected}
-        connectionError={connectionError}
-      />
-      <UpdateIndicator 
-        isUpdating={isUpdating}
-        message={updateMessage}
-      />
     </div>
   );
 };
@@ -486,26 +681,35 @@ const OrderRow = ({
   };
 
   return (
-    <div className="p-4 hover:bg-gray-50">
+    <div className="p-4 hover:bg-gray-50 transition-colors border-l-4 border-transparent hover:border-blue-500">
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <div className="bg-blue-100 p-2 rounded-lg">
-            <Package className="h-5 w-5 text-blue-600" />
+          <div className={`p-2 rounded-lg ${
+            activeTab === 'pending' ? 'bg-blue-100' : 
+            activeTab === 'receiving' ? 'bg-yellow-100' : 
+            'bg-green-100'
+          }`}>
+            <Package className={`h-5 w-5 ${
+              activeTab === 'pending' ? 'text-blue-600' : 
+              activeTab === 'receiving' ? 'text-yellow-600' : 
+              'text-green-600'
+            }`} />
           </div>
           <div>
             <h4 className="text-sm font-medium text-gray-900">
               Order #{order.order_id}
             </h4>
             <p className="text-sm text-gray-600">
-              Customer: {order.customer_name || order.customer_id}
+              <Users className="h-3 w-3 inline mr-1" />
+              {order.customer_name || order.customer_id}
             </p>
             <div className="flex items-center space-x-4 text-xs text-gray-500 mt-1">
               <div className="flex items-center space-x-1">
-                <Clock className="h-3 w-3" />
+                <Calendar className="h-3 w-3" />
                 <span>{new Date(order.order_date).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center space-x-1">
-                <Package className="h-3 w-3" />
+                <Box className="h-3 w-3" />
                 <span>{order.items?.length || 0} items</span>
               </div>
               <div className="flex items-center space-x-1">
@@ -522,13 +726,13 @@ const OrderRow = ({
                   {order.items.slice(0, 3).map((item, index) => (
                     <span 
                       key={index}
-                      className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded"
+                      className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded-full"
                     >
                       {item.item_name || item.name || item.productName || `Item ${index + 1}`} (x{item.quantity || 1})
                     </span>
                   ))}
                   {order.items.length > 3 && (
-                    <span className="text-xs text-gray-500">
+                    <span className="text-xs text-gray-500 px-2 py-1 bg-gray-50 rounded-full">
                       +{order.items.length - 3} more
                     </span>
                   )}
@@ -539,27 +743,32 @@ const OrderRow = ({
         </div>
         
         <div className="flex items-center space-x-3">
-          <span className={`px-2 py-1 text-xs rounded-full ${getStatusColor(order.order_status)}`}>
-            {order.order_status}
-          </span>
-          <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(order.priority)}`}>
-            {getPriorityLabel(order.priority)}
-          </span>
+          <div className="text-right">
+            <span className={`px-3 py-1 text-xs font-medium rounded-full ${getStatusColor(order.order_status)}`}>
+              {order.order_status}
+            </span>
+            <div className="mt-1">
+              <span className={`px-2 py-1 text-xs rounded-full ${getPriorityColor(order.priority)}`}>
+                <Star className="h-3 w-3 inline mr-1" />
+                {getPriorityLabel(order.priority)}
+              </span>
+            </div>
+          </div>
           
           <div className="flex items-center space-x-2">
             <button
               onClick={() => onViewDetails(order)}
-              className="flex items-center space-x-1 px-3 py-1 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+              className="flex items-center space-x-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
             >
               <Eye className="h-4 w-4" />
               <span>View</span>
             </button>
             
-            {activeTab === 'confirmed' && (
+            {activeTab === 'pending' && (
               <button
                 onClick={() => onStartReceiving(order.order_id)}
                 disabled={processingOrder === order.order_id}
-                className="flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                className="flex items-center space-x-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 {processingOrder === order.order_id ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
@@ -574,7 +783,7 @@ const OrderRow = ({
               <button
                 onClick={() => onCompleteReceiving(order.order_id)}
                 disabled={processingOrder === order.order_id}
-                className="flex items-center space-x-1 px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                className="flex items-center space-x-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
               >
                 {processingOrder === order.order_id ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
