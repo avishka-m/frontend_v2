@@ -29,55 +29,47 @@ import {
   Zap,
   Award,
   Target,
-  DollarSign,
-  Navigation,
-  Route,
-  Home,
-  Phone,
-  Mail
+  DollarSign
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import orderService from '../../services/orderService';
 
-const DriverDashboard = () => {
+const PackingDashboard = () => {
   const { currentUser } = useAuth();
-  const [readyOrders, setReadyOrders] = useState([]);
-  const [deliveryOrders, setDeliveryOrders] = useState([]);
-  const [historyOrders, setHistoryOrders] = useState([]);
+  const [pendingOrders, setPendingOrders] = useState([]);
+  const [packingOrders, setPackingOrders] = useState([]);
+  const [shippedOrders, setShippedOrders] = useState([]);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [activeTab, setActiveTab] = useState('ready'); // 'ready', 'delivery', 'history'
+  const [activeTab, setActiveTab] = useState('pending'); // 'pending', 'packing', 'shipped'
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [updateMessage, setUpdateMessage] = useState('');
-  
-  // Local state to track orders out for delivery without status change
-  const [localDeliveryOrders, setLocalDeliveryOrders] = useState([]);
 
   // Fetch orders and organize by status
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       
-      // Fetch all orders and filter by shipping-related statuses
+      // Fetch all orders and filter by packing-related statuses
       const orders = await orderService.getOrders();
       
       if (orders && Array.isArray(orders)) {
-        // Group orders by status relevant to shipping/delivery
-        const ready = orders.filter(order => 
-          order.order_status === 'shipping' // Only show shipping orders ready for delivery
+        // Group orders by status relevant to packing
+        const pending = orders.filter(order => 
+          order.order_status === 'picking' || order.order_status === 'picked'
         );
-        const delivery = orders.filter(order => 
-          order.order_status === 'shipped' // Orders with actual shipped status (out for delivery)
+        const packing = orders.filter(order => 
+          order.order_status === 'packing'
         );
-        const history = orders.filter(order => 
-          order.order_status === 'delivered' // Completed deliveries
+        const shipped = orders.filter(order => 
+          order.order_status === 'shipping' || order.order_status === 'shipped' || order.order_status === 'delivered'
         );
 
-        setReadyOrders(ready);
-        setDeliveryOrders(delivery);
-        setHistoryOrders(history);
+        setPendingOrders(pending);
+        setPackingOrders(packing);
+        setShippedOrders(shipped);
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -98,25 +90,24 @@ const DriverDashboard = () => {
       setIsUpdating(true);
       setUpdateMessage(`Order #${order_id} updated`);
       
-      // Smart state updates - only update if relevant to shipping workflow
-      const isRelevantUpdate = ['shipping', 'shipped', 'delivered'].includes(order_status);
+      // Smart state updates - only update if relevant to packing workflow
+      const isRelevantUpdate = ['picking', 'picked', 'packing', 'shipping', 'shipped', 'delivered'].includes(order_status);
       
       if (isRelevantUpdate && order_data) {
         // Remove order from all lists first
-        setReadyOrders(prev => prev.filter(order => order.orderID !== order_id));
-        setDeliveryOrders(prev => prev.filter(order => order.orderID !== order_id));
-        setHistoryOrders(prev => prev.filter(order => order.orderID !== order_id));
-        setLocalDeliveryOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setPendingOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setPackingOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setShippedOrders(prev => prev.filter(order => order.orderID !== order_id));
         
         // Add updated order to appropriate list
         const updatedOrder = { ...order_data, order_status };
         
-        if (order_status === 'shipping') {
-          setReadyOrders(prev => [...prev, updatedOrder]);
-        } else if (order_status === 'shipped') {
-          setDeliveryOrders(prev => [...prev, updatedOrder]);
-        } else if (order_status === 'delivered') {
-          setHistoryOrders(prev => [...prev, updatedOrder]);
+        if (order_status === 'picking' || order_status === 'picked') {
+          setPendingOrders(prev => [...prev, updatedOrder]);
+        } else if (order_status === 'packing') {
+          setPackingOrders(prev => [...prev, updatedOrder]);
+        } else if (['shipping', 'shipped', 'delivered'].includes(order_status)) {
+          setShippedOrders(prev => [...prev, updatedOrder]);
         }
         
         // Show success notification for relevant updates
@@ -141,7 +132,7 @@ const DriverDashboard = () => {
     autoConnect: true,
     onMessage: handleWebSocketMessage,
     onConnect: () => {
-      console.log('WebSocket connected for driver dashboard');
+      console.log('WebSocket connected for packing dashboard');
     },
     onDisconnect: () => {
       console.log('WebSocket disconnected');
@@ -155,58 +146,43 @@ const DriverDashboard = () => {
     fetchOrders();
   }, [fetchOrders]);
 
-  const handleStartDelivery = async (orderId) => {
+  const handleStartPacking = async (orderId) => {
     try {
       setProcessingOrder(orderId);
       
-      // Find the order in ready orders
-      const order = readyOrders.find(o => o.orderID === orderId);
-      if (!order) {
-        toast.error('Order not found');
-        return;
+      const result = await orderService.updateOrderStatus(orderId, 'packing');
+      
+      if (result) {
+        toast.success('Order packing started successfully');
+        // WebSocket will handle the update
+        setActiveTab('packing');
+      } else {
+        toast.error('Failed to start packing');
       }
-      
-      // Move order to local delivery orders WITHOUT changing status
-      setLocalDeliveryOrders(prev => [...prev, order]);
-      setReadyOrders(prev => prev.filter(o => o.orderID !== orderId));
-      
-      // Switch to delivery tab
-      setActiveTab('delivery');
-      
-      toast.success('Order added to delivery route');
     } catch (error) {
-      console.error('Error starting delivery:', error);
-      toast.error('Failed to start delivery');
+      console.error('Error starting packing:', error);
+      toast.error('Failed to start packing');
     } finally {
       setProcessingOrder(null);
     }
   };
 
-  const handleCompleteDelivery = async (orderId) => {
+  const handleCompletePacking = async (orderId) => {
     try {
       setProcessingOrder(orderId);
       
-      // Actually change the status to delivered
-      const result = await orderService.updateOrderStatus(orderId, 'delivered');
+      const result = await orderService.updateOrderStatus(orderId, 'shipping');
       
       if (result) {
-        // Remove from local delivery orders
-        setLocalDeliveryOrders(prev => prev.filter(o => o.orderID !== orderId));
-        setDeliveryOrders(prev => prev.filter(o => o.orderID !== orderId));
-        
-        // Switch to history tab
-        setActiveTab('history');
-        
-        toast.success('Order delivered successfully!');
-        
-        // Refresh orders to get updated data
-        await fetchOrders();
+        toast.success('Order packed successfully - moved to shipping');
+        // WebSocket will handle the update
+        setActiveTab('shipped');
       } else {
-        toast.error('Failed to complete delivery');
+        toast.error('Failed to complete packing');
       }
     } catch (error) {
-      console.error('Error completing delivery:', error);
-      toast.error('Failed to complete delivery');
+      console.error('Error completing packing:', error);
+      toast.error('Failed to complete packing');
     } finally {
       setProcessingOrder(null);
     }
@@ -218,13 +194,12 @@ const DriverDashboard = () => {
 
   const getCurrentOrders = () => {
     switch (activeTab) {
-      case 'ready':
-        return readyOrders;
-      case 'delivery':
-        // Combine actual shipped orders with local delivery orders
-        return [...deliveryOrders, ...localDeliveryOrders];
-      case 'history':
-        return historyOrders;
+      case 'pending':
+        return pendingOrders;
+      case 'packing':
+        return packingOrders;
+      case 'shipped':
+        return shippedOrders;
       default:
         return [];
     }
@@ -233,7 +208,6 @@ const DriverDashboard = () => {
   const filteredOrders = getCurrentOrders().filter(order => 
     order.order_id?.toString().includes(searchTerm) ||
     order.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.shipping_address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     order.items?.some(item => 
       item.item_name?.toLowerCase().includes(searchTerm.toLowerCase())
     )
@@ -241,12 +215,12 @@ const DriverDashboard = () => {
 
   const getTabTitle = () => {
     switch (activeTab) {
-      case 'ready':
-        return 'Ready to Ship';
-      case 'delivery':
-        return 'Out for Delivery';
-      case 'history':
-        return 'Delivery History';
+      case 'pending':
+        return 'Ready for Packing';
+      case 'packing':
+        return 'Currently Packing';
+      case 'shipped':
+        return 'Packed & Shipped';
       default:
         return 'Orders';
     }
@@ -254,12 +228,12 @@ const DriverDashboard = () => {
 
   const getTabDescription = () => {
     switch (activeTab) {
-      case 'ready':
-        return `${readyOrders.length} orders ready for delivery`;
-      case 'delivery':
-        return `${deliveryOrders.length + localDeliveryOrders.length} orders out for delivery`;
-      case 'history':
-        return `${historyOrders.length} completed deliveries`;
+      case 'pending':
+        return `${pendingOrders.length} orders ready to be packed`;
+      case 'packing':
+        return `${packingOrders.length} orders currently being packed`;
+      case 'shipped':
+        return `${shippedOrders.length} orders packed and shipped`;
       default:
         return '';
     }
@@ -268,8 +242,8 @@ const DriverDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Loading driver dashboard...</span>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+        <span className="ml-2 text-gray-600">Loading packing dashboard...</span>
       </div>
     );
   }
@@ -280,23 +254,17 @@ const DriverDashboard = () => {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <Truck className="h-8 w-8 text-blue-600" />
+            <div className="bg-orange-100 p-3 rounded-lg">
+              <Package className="h-8 w-8 text-orange-600" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
-              <p className="text-gray-600">Welcome, {currentUser?.username || 'Driver'}</p>
+              <h1 className="text-2xl font-bold text-gray-900">Packing Dashboard</h1>
+              <p className="text-gray-600">Welcome, {currentUser?.username || 'Packer'}</p>
               <div className="flex items-center mt-2 space-x-4">
                 <div className="flex items-center text-sm">
                   <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
                   <span className="text-gray-600">
                     {isConnected ? 'Real-time updates active' : 'Offline mode'}
-                  </span>
-                </div>
-                <div className="flex items-center text-sm">
-                  <Route className="h-4 w-4 mr-2 text-blue-600" />
-                  <span className="text-gray-600">
-                    {deliveryOrders.length + localDeliveryOrders.length} active deliveries
                   </span>
                 </div>
               </div>
@@ -306,15 +274,9 @@ const DriverDashboard = () => {
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <div className="text-2xl font-bold text-gray-900">
-                {readyOrders.length + deliveryOrders.length + localDeliveryOrders.length}
+                {pendingOrders.length + packingOrders.length}
               </div>
               <div className="text-sm text-gray-600">Active Orders</div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-green-600">
-                {historyOrders.length}
-              </div>
-              <div className="text-sm text-gray-600">Delivered Today</div>
             </div>
           </div>
         </div>
@@ -325,16 +287,16 @@ const DriverDashboard = () => {
         <div className="border-b border-gray-200">
           <nav className="-mb-px flex space-x-8 px-6">
             {[
-              { id: 'ready', label: 'Ready to Ship', icon: Package, count: readyOrders.length },
-              { id: 'delivery', label: 'Out for Delivery', icon: Truck, count: deliveryOrders.length + localDeliveryOrders.length },
-              { id: 'history', label: 'Delivered', icon: CheckCircle, count: historyOrders.length }
+              { id: 'pending', label: 'Ready for Packing', icon: Clock, count: pendingOrders.length },
+              { id: 'packing', label: 'Currently Packing', icon: Package, count: packingOrders.length },
+              { id: 'shipped', label: 'Packed & Shipped', icon: Truck, count: shippedOrders.length }
             ].map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-orange-500 text-orange-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
@@ -342,7 +304,7 @@ const DriverDashboard = () => {
                 <span>{tab.label}</span>
                 <span className={`px-2 py-1 rounded-full text-xs ${
                   activeTab === tab.id
-                    ? 'bg-blue-100 text-blue-600'
+                    ? 'bg-orange-100 text-orange-600'
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {tab.count}
@@ -365,18 +327,12 @@ const DriverDashboard = () => {
                 <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search orders, addresses..."
+                  placeholder="Search orders..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
               </div>
-              {activeTab === 'delivery' && (
-                <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2">
-                  <Navigation className="h-4 w-4" />
-                  <span>Optimize Route</span>
-                </button>
-              )}
             </div>
           </div>
         </div>
@@ -385,7 +341,7 @@ const DriverDashboard = () => {
         <div className="divide-y divide-gray-200">
           {filteredOrders.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
-              <Truck className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+              <Package className="h-12 w-12 mx-auto mb-4 text-gray-400" />
               <p className="text-lg font-medium mb-2">No orders found</p>
               <p className="text-sm">
                 {searchTerm ? 'Try adjusting your search criteria.' : `No orders in ${getTabTitle().toLowerCase()} status.`}
@@ -393,13 +349,13 @@ const DriverDashboard = () => {
             </div>
           ) : (
             filteredOrders.map((order) => (
-              <DriverOrderRow
+              <PackingOrderRow
                 key={order.orderID}
                 order={order}
                 activeTab={activeTab}
                 onViewDetails={handleViewOrderDetails}
-                onStartDelivery={handleStartDelivery}
-                onCompleteDelivery={handleCompleteDelivery}
+                onStartPacking={handleStartPacking}
+                onCompletePacking={handleCompletePacking}
                 processingOrder={processingOrder}
               />
             ))
@@ -409,7 +365,7 @@ const DriverDashboard = () => {
 
       {/* Order Details Modal */}
       {selectedOrder && (
-        <DeliveryOrderDetailsModal
+        <OrderDetailsModal
           order={selectedOrder}
           onClose={() => setSelectedOrder(null)}
         />
@@ -429,12 +385,15 @@ const DriverDashboard = () => {
   );
 };
 
-// Driver Order Row Component
-const DriverOrderRow = ({ order, activeTab, onViewDetails, onStartDelivery, onCompleteDelivery, processingOrder }) => {
+// Packing Order Row Component
+const PackingOrderRow = ({ order, activeTab, onViewDetails, onStartPacking, onCompletePacking, processingOrder }) => {
   const getStatusBadge = (status) => {
     const statusConfig = {
-      'shipping': { color: 'bg-purple-100 text-purple-800', label: 'Ready to Ship' },
-      'shipped': { color: 'bg-blue-100 text-blue-800', label: 'Out for Delivery' },
+      'picking': { color: 'bg-blue-100 text-blue-800', label: 'Picking' },
+      'picked': { color: 'bg-green-100 text-green-800', label: 'Picked' },
+      'packing': { color: 'bg-orange-100 text-orange-800', label: 'Packing' },
+      'shipping': { color: 'bg-purple-100 text-purple-800', label: 'Shipping' },
+      'shipped': { color: 'bg-gray-100 text-gray-800', label: 'Shipped' },
       'delivered': { color: 'bg-green-100 text-green-800', label: 'Delivered' },
     };
     
@@ -448,23 +407,17 @@ const DriverOrderRow = ({ order, activeTab, onViewDetails, onStartDelivery, onCo
 
   const getPriorityBadge = (priority) => {
     const priorityConfig = {
-      1: { color: 'bg-red-100 text-red-800', label: 'Urgent' },
-      2: { color: 'bg-yellow-100 text-yellow-800', label: 'Standard' },
-      3: { color: 'bg-green-100 text-green-800', label: 'Economy' },
+      1: { color: 'bg-red-100 text-red-800', label: 'High' },
+      2: { color: 'bg-yellow-100 text-yellow-800', label: 'Medium' },
+      3: { color: 'bg-green-100 text-green-800', label: 'Low' },
     };
     
-    const config = priorityConfig[priority] || { color: 'bg-gray-100 text-gray-800', label: 'Standard' };
+    const config = priorityConfig[priority] || { color: 'bg-gray-100 text-gray-800', label: 'Normal' };
     return (
       <span className={`px-2 py-1 rounded-full text-xs font-medium ${config.color}`}>
-        {config.label}
+        Priority {config.label}
       </span>
     );
-  };
-
-  const getDistanceEstimate = (address) => {
-    // Mock distance calculation - in real app, use Google Maps API
-    const distances = ['0.5 mi', '1.2 mi', '2.1 mi', '3.4 mi', '5.2 mi'];
-    return distances[Math.floor(Math.random() * distances.length)];
   };
 
   const isProcessing = processingOrder === order.orderID;
@@ -474,8 +427,8 @@ const DriverOrderRow = ({ order, activeTab, onViewDetails, onStartDelivery, onCo
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4 flex-1">
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Truck className="h-5 w-5 text-blue-600" />
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <Package className="h-5 w-5 text-orange-600" />
             </div>
           </div>
           
@@ -488,35 +441,23 @@ const DriverOrderRow = ({ order, activeTab, onViewDetails, onStartDelivery, onCo
               {getPriorityBadge(order.priority)}
             </div>
             
-            <div className="flex items-center space-x-6 text-sm text-gray-600 mb-2">
+            <div className="flex items-center space-x-6 text-sm text-gray-600">
               <div className="flex items-center space-x-1">
                 <User className="h-4 w-4" />
-                <span>{order.customer_name || `Customer ${order.customerID}`}</span>
+                <span>Customer: {order.customerID}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Package className="h-4 w-4" />
-                <span>{order.items?.length || 0} items</span>
+                <span>Items: {order.items?.length || 0}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <DollarSign className="h-4 w-4" />
-                <span>${order.total_amount || 0}</span>
+                <span>Total: ${order.total_amount || 0}</span>
               </div>
               <div className="flex items-center space-x-1">
                 <Clock className="h-4 w-4" />
                 <span>{new Date(order.order_date).toLocaleDateString()}</span>
               </div>
-            </div>
-            
-            {/* Delivery Address */}
-            <div className="flex items-center space-x-2 text-sm">
-              <MapPin className="h-4 w-4 text-gray-500" />
-              <span className="text-gray-700 font-medium">
-                {order.shipping_address || 'Address not available'}
-              </span>
-              <span className="text-gray-500">•</span>
-              <span className="text-blue-600 font-medium">
-                {getDistanceEstimate(order.shipping_address)}
-              </span>
             </div>
           </div>
         </div>
@@ -530,91 +471,70 @@ const DriverOrderRow = ({ order, activeTab, onViewDetails, onStartDelivery, onCo
             <Eye className="h-4 w-4" />
           </button>
           
-          {/* Navigation button for delivery orders */}
-          {activeTab === 'delivery' && (
+          {activeTab === 'pending' && (
             <button
-              onClick={() => window.open(`https://maps.google.com/maps?q=${encodeURIComponent(order.shipping_address || '')}`, '_blank')}
-              className="p-2 text-blue-600 hover:text-blue-900 hover:bg-blue-100 rounded-lg transition-colors"
-              title="Navigate"
-            >
-              <Navigation className="h-4 w-4" />
-            </button>
-          )}
-          
-          {activeTab === 'ready' && (
-            <button
-              onClick={() => onStartDelivery(order.orderID)}
+              onClick={() => onStartPacking(order.orderID)}
               disabled={isProcessing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
             >
               {isProcessing ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Adding...</span>
+                  <span>Starting...</span>
                 </>
               ) : (
                 <>
-                  <Truck className="h-4 w-4" />
-                  <span>Start Delivery</span>
+                  <Package className="h-4 w-4" />
+                  <span>Start Packing</span>
                 </>
               )}
             </button>
           )}
           
-          {activeTab === 'delivery' && (
+          {activeTab === 'packing' && (
             <button
-              onClick={() => onCompleteDelivery(order.orderID)}
+              onClick={() => onCompletePacking(order.orderID)}
               disabled={isProcessing}
               className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2 transition-colors"
             >
               {isProcessing ? (
                 <>
                   <RefreshCw className="h-4 w-4 animate-spin" />
-                  <span>Delivering...</span>
+                  <span>Completing...</span>
                 </>
               ) : (
                 <>
                   <CheckCircle className="h-4 w-4" />
-                  <span>Mark Delivered</span>
+                  <span>Complete & Ship</span>
                 </>
               )}
             </button>
           )}
           
-          {activeTab === 'history' && (
+          {activeTab === 'shipped' && (
             <div className="flex items-center space-x-2 text-green-600">
               <CheckCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">Delivered</span>
+              <span className="text-sm font-medium">Completed</span>
             </div>
           )}
         </div>
       </div>
       
-      {/* Order Items Summary */}
+      {/* Order Items Details */}
       {order.items && order.items.length > 0 && (
         <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-medium text-gray-700">Delivery Items</h4>
-            <span className="text-sm text-gray-500">
-              {order.items.length} item{order.items.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-          <div className="mt-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {order.items.slice(0, 3).map((item, index) => (
-              <div key={index} className="flex justify-between items-center text-sm bg-gray-50 rounded px-3 py-2">
-                <span className="text-gray-700 truncate">
-                  {item.item_name || `Item ${item.itemID}`}
+          <h4 className="text-sm font-medium text-gray-700 mb-2">Items to Pack</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {order.items.map((item, index) => (
+              <div key={index} className="flex justify-between items-center text-sm">
+                <span className="text-gray-600">
+                  Item #{item.itemID || `${index + 1}`}
                 </span>
-                <span className="font-medium text-gray-900 ml-2">
-                  ×{item.quantity}
+                <span className="font-medium text-gray-900">
+                  Qty: {item.quantity}
                 </span>
               </div>
             ))}
-            {order.items.length > 3 && (
-              <div className="flex items-center text-sm text-gray-500 bg-gray-50 rounded px-3 py-2">
-                <span>+{order.items.length - 3} more items</span>
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -622,8 +542,8 @@ const DriverOrderRow = ({ order, activeTab, onViewDetails, onStartDelivery, onCo
   );
 };
 
-// Delivery Order Details Modal Component
-const DeliveryOrderDetailsModal = ({ order, onClose }) => {
+// Order Details Modal Component
+const OrderDetailsModal = ({ order, onClose }) => {
   const calculateOrderTotal = (items) => {
     if (!items || !Array.isArray(items)) return 0;
     return items.reduce((total, item) => {
@@ -638,7 +558,7 @@ const DeliveryOrderDetailsModal = ({ order, onClose }) => {
       <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full mx-4 max-h-96 overflow-hidden">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">
-            Delivery Order #{order.order_id || order.orderID}
+            Order #{order.order_id || order.orderID} Details
           </h3>
           <button
             onClick={onClose}
@@ -656,7 +576,7 @@ const DeliveryOrderDetailsModal = ({ order, onClose }) => {
             </div>
             <div>
               <p className="text-sm font-medium text-gray-600 mb-1">Status</p>
-              <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
                 {order.order_status}
               </span>
             </div>
@@ -672,48 +592,22 @@ const DeliveryOrderDetailsModal = ({ order, onClose }) => {
             </div>
           </div>
 
-          {/* Delivery Address - Primary focus for drivers */}
-          <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium text-blue-900">Delivery Address</p>
-              <button
-                onClick={() => window.open(`https://maps.google.com/maps?q=${encodeURIComponent(order.shipping_address || '')}`, '_blank')}
-                className="px-3 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700 flex items-center space-x-1"
-              >
-                <Navigation className="h-3 w-3" />
-                <span>Navigate</span>
-              </button>
-            </div>
-            <p className="text-blue-900 font-medium">{order.shipping_address || 'Address not available'}</p>
-          </div>
-
-          {/* Customer Contact Info */}
-          <div className="mb-6 grid grid-cols-2 gap-4">
-            <div className="flex items-center space-x-2">
-              <Phone className="h-4 w-4 text-gray-500" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Phone</p>
-                <p className="text-gray-900">{order.customer_phone || 'Not provided'}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Mail className="h-4 w-4 text-gray-500" />
-              <div>
-                <p className="text-sm font-medium text-gray-600">Email</p>
-                <p className="text-gray-900">{order.customer_email || 'Not provided'}</p>
-              </div>
-            </div>
-          </div>
-
-          {order.delivery_notes && (
+          {order.shipping_address && (
             <div className="mb-6">
-              <p className="text-sm font-medium text-gray-600 mb-2">Delivery Notes</p>
-              <p className="text-gray-900 bg-yellow-50 p-3 rounded-lg">{order.delivery_notes}</p>
+              <p className="text-sm font-medium text-gray-600 mb-2">Shipping Address</p>
+              <p className="text-gray-900">{order.shipping_address}</p>
+            </div>
+          )}
+
+          {order.notes && (
+            <div className="mb-6">
+              <p className="text-sm font-medium text-gray-600 mb-2">Packing Notes</p>
+              <p className="text-gray-900">{order.notes}</p>
             </div>
           )}
 
           <div>
-            <p className="text-sm font-medium text-gray-600 mb-3">Items to Deliver</p>
+            <p className="text-sm font-medium text-gray-600 mb-3">Items to Pack</p>
             {order.items && order.items.length > 0 ? (
               <div className="space-y-2">
                 {order.items.map((item, index) => (
@@ -755,4 +649,4 @@ const DeliveryOrderDetailsModal = ({ order, onClose }) => {
   );
 };
 
-export default DriverDashboard;
+export default PackingDashboard;

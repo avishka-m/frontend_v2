@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import shippingService, { SHIPPING_METHODS } from '../services/shippingService';
-import { orderService } from '../services/orderService';
+import orderService from '../services/orderService';
 import workerService from '../services/workerService';
 
 const CreateShipping = () => {
