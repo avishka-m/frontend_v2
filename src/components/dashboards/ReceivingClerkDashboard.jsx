@@ -16,7 +16,8 @@ import {
   X,
   AlertCircle,
   Wifi,
-  WifiOff
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import orderService from '../../services/orderService';
@@ -66,59 +67,51 @@ const ReceivingClerkDashboard = () => {
     }
   }, []);
 
-  // Handle WebSocket messages
+  // Handle WebSocket messages with improved UX
   const handleWebSocketMessage = useCallback((message) => {
     console.log('Received WebSocket message:', message);
     
     if (message.type === 'order_update') {
       const { order_id, order_status, order_data } = message.data;
       
-      // Show update indicator
-      setIsUpdating(true);
-      setUpdateMessage(`Order #${order_id} updated`);
+      // Only show updates for receiving-relevant statuses
+      const isRelevantUpdate = ['confirmed', 'receiving', 'picking', 'processed', 'delivered'].includes(order_status);
       
-      // Update the specific order in state without full refresh
-      const updateOrderInState = (orders) => {
-        return orders.map(order => {
-          if (order.orderID === order_id) {
-            return { ...order, order_status, ...order_data };
+      if (isRelevantUpdate) {
+        // Show subtle update indicator
+        setIsUpdating(true);
+        setUpdateMessage(`Order #${order_id} updated`);
+        
+        // Smart state updates - only update if we have complete order data
+        if (order_data) {
+          // Remove order from all lists first
+          setConfirmedOrders(prev => prev.filter(order => order.orderID !== order_id));
+          setReceivingOrders(prev => prev.filter(order => order.orderID !== order_id));
+          setProcessedOrders(prev => prev.filter(order => order.orderID !== order_id));
+          
+          // Add updated order to appropriate list
+          const updatedOrder = { ...order_data, order_status };
+          
+          if (order_status === 'confirmed') {
+            setConfirmedOrders(prev => [...prev, updatedOrder]);
+          } else if (order_status === 'receiving') {
+            setReceivingOrders(prev => [...prev, updatedOrder]);
+          } else if (['picking', 'processed', 'delivered'].includes(order_status)) {
+            setProcessedOrders(prev => [...prev, updatedOrder]);
           }
-          return order;
-        });
-      };
-      
-      // Update all order states
-      setConfirmedOrders(prev => updateOrderInState(prev));
-      setReceivingOrders(prev => updateOrderInState(prev));
-      setProcessedOrders(prev => updateOrderInState(prev));
-      
-      // If the order moved to a different status, we need to reorganize
-      if (order_data) {
-        // Remove the order from all lists first
-        setConfirmedOrders(prev => prev.filter(order => order.orderID !== order_id));
-        setReceivingOrders(prev => prev.filter(order => order.orderID !== order_id));
-        setProcessedOrders(prev => prev.filter(order => order.orderID !== order_id));
-        
-        // Add the updated order to the appropriate list
-        const updatedOrder = { ...order_data, order_status };
-        
-        if (order_status === 'confirmed') {
-          setConfirmedOrders(prev => [...prev, updatedOrder]);
-        } else if (order_status === 'receiving') {
-          setReceivingOrders(prev => [...prev, updatedOrder]);
-        } else if (order_status === 'processed' || order_status === 'delivered') {
-          setProcessedOrders(prev => [...prev, updatedOrder]);
+          
+          // Show success notification only for relevant status changes
+          if (['receiving', 'picking'].includes(order_status)) {
+            toast.success(`Order #${order_id} moved to ${order_status}`);
+          }
         }
+        
+        // Hide update indicator after 2 seconds
+        setTimeout(() => {
+          setIsUpdating(false);
+          setUpdateMessage('');
+        }, 2000);
       }
-      
-      // Hide update indicator after 2 seconds
-      setTimeout(() => {
-        setIsUpdating(false);
-        setUpdateMessage('');
-      }, 2000);
-      
-      // Show notification for relevant order updates
-      toast.success(`Order #${order_id} status updated to ${order_status}`);
     }
   }, []);
 
@@ -379,8 +372,22 @@ const ReceivingClerkDashboard = () => {
 
         {/* Tab Content Header */}
         <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">{getTabTitle()}</h3>
-          <p className="text-sm text-gray-600">{getTabDescription()}</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-900">{getTabTitle()}</h3>
+              <p className="text-sm text-gray-600">{getTabDescription()}</p>
+            </div>
+            {activeTab === 'history' && (
+              <button
+                onClick={fetchOrders}
+                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                title="Refresh history to get latest item details"
+              >
+                <RefreshCw className="h-4 w-4" />
+                <span>Refresh History</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Orders List */}
