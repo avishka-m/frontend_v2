@@ -7,7 +7,7 @@ export const useWebSocket = (options = {}) => {
   const { 
     autoConnect = true, 
     reconnectInterval = 5000, 
-    maxReconnectAttempts = 10,
+    maxReconnectAttempts = 3,  // Reduced from 10 to 3 to prevent spam
     onMessage = null,
     onConnect = null,
     onDisconnect = null,
@@ -21,6 +21,24 @@ export const useWebSocket = (options = {}) => {
   const ws = useRef(null);
   const reconnectAttempts = useRef(0);
   const reconnectTimer = useRef(null);
+  
+  // Use refs to avoid recreating the connect function on every render
+  const callbacksRef = useRef({
+    onMessage,
+    onConnect,
+    onDisconnect,
+    onError
+  });
+  
+  // Update refs when callbacks change
+  useEffect(() => {
+    callbacksRef.current = {
+      onMessage,
+      onConnect,
+      onDisconnect,
+      onError
+    };
+  });
 
   const connect = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -38,49 +56,55 @@ export const useWebSocket = (options = {}) => {
       ws.current = new WebSocket(wsUrl);
 
       ws.current.onopen = () => {
+        console.log('WebSocket connection opened');
         setConnectionStatus('Open');
         setConnectionError(null);
         reconnectAttempts.current = 0;
         
-        if (onConnect) {
-          onConnect();
+        if (callbacksRef.current.onConnect) {
+          callbacksRef.current.onConnect();
         }
       };
 
       ws.current.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
+          console.log('WebSocket message received:', data);
           setLastMessage(data);
           
-          if (onMessage) {
-            onMessage(data);
+          if (callbacksRef.current.onMessage) {
+            callbacksRef.current.onMessage(data);
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);
         }
       };
 
-      ws.current.onclose = () => {
+      ws.current.onclose = (event) => {
+        console.log('WebSocket connection closed:', event.code, event.reason);
         setConnectionStatus('Closed');
         
-        if (onDisconnect) {
-          onDisconnect();
+        if (callbacksRef.current.onDisconnect) {
+          callbacksRef.current.onDisconnect();
         }
 
-        // Attempt to reconnect if not at max attempts
-        if (reconnectAttempts.current < maxReconnectAttempts) {
+        // Only attempt to reconnect if not at max attempts and if close wasn't intentional
+        if (reconnectAttempts.current < maxReconnectAttempts && event.code !== 1000) {
           reconnectAttempts.current++;
+          console.log(`WebSocket reconnect attempt ${reconnectAttempts.current}/${maxReconnectAttempts}`);
           reconnectTimer.current = setTimeout(() => {
             connect();
           }, reconnectInterval);
+        } else {
+          console.log('WebSocket max reconnect attempts reached or connection closed normally');
         }
       };
 
       ws.current.onerror = (error) => {
         setConnectionError('WebSocket connection error');
         
-        if (onError) {
-          onError(error);
+        if (callbacksRef.current.onError) {
+          callbacksRef.current.onError(error);
         }
       };
 
@@ -88,7 +112,7 @@ export const useWebSocket = (options = {}) => {
       setConnectionError('Failed to create WebSocket connection');
       console.error('WebSocket connection error:', error);
     }
-  }, [onConnect, onMessage, onDisconnect, onError, reconnectInterval, maxReconnectAttempts]);
+  }, [reconnectInterval, maxReconnectAttempts]); // Removed callback dependencies
 
   const disconnect = useCallback(() => {
     if (reconnectTimer.current) {
@@ -125,8 +149,18 @@ export const useWebSocket = (options = {}) => {
   // Send heartbeat every 30 seconds to keep connection alive
   useEffect(() => {
     if (connectionStatus === 'Open') {
+      // Send initial heartbeat after connection
+      const initialTimeout = setTimeout(() => {
+        sendHeartbeat();
+      }, 1000); // Send first heartbeat after 1 second
+
+      // Then send heartbeat every 30 seconds
       const heartbeatInterval = setInterval(sendHeartbeat, 30000);
-      return () => clearInterval(heartbeatInterval);
+      
+      return () => {
+        clearTimeout(initialTimeout);
+        clearInterval(heartbeatInterval);
+      };
     }
   }, [connectionStatus, sendHeartbeat]);
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import useWebSocket from '../../hooks/useWebSocket';
+import ConnectionStatus from '../common/ConnectionStatus';
+import UpdateIndicator from '../common/UpdateIndicator';
 import { 
   User,
   Package,
@@ -29,6 +31,8 @@ const ReceivingClerkDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState('');
 
   // Define fetchOrders function first
   const fetchOrders = useCallback(async () => {
@@ -67,14 +71,56 @@ const ReceivingClerkDashboard = () => {
     console.log('Received WebSocket message:', message);
     
     if (message.type === 'order_update') {
-      // Refresh orders when an order update is received
-      fetchOrders();
+      const { order_id, order_status, order_data } = message.data;
+      
+      // Show update indicator
+      setIsUpdating(true);
+      setUpdateMessage(`Order #${order_id} updated`);
+      
+      // Update the specific order in state without full refresh
+      const updateOrderInState = (orders) => {
+        return orders.map(order => {
+          if (order.orderID === order_id) {
+            return { ...order, order_status, ...order_data };
+          }
+          return order;
+        });
+      };
+      
+      // Update all order states
+      setConfirmedOrders(prev => updateOrderInState(prev));
+      setReceivingOrders(prev => updateOrderInState(prev));
+      setProcessedOrders(prev => updateOrderInState(prev));
+      
+      // If the order moved to a different status, we need to reorganize
+      if (order_data) {
+        // Remove the order from all lists first
+        setConfirmedOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setReceivingOrders(prev => prev.filter(order => order.orderID !== order_id));
+        setProcessedOrders(prev => prev.filter(order => order.orderID !== order_id));
+        
+        // Add the updated order to the appropriate list
+        const updatedOrder = { ...order_data, order_status };
+        
+        if (order_status === 'confirmed') {
+          setConfirmedOrders(prev => [...prev, updatedOrder]);
+        } else if (order_status === 'receiving') {
+          setReceivingOrders(prev => [...prev, updatedOrder]);
+        } else if (order_status === 'processed' || order_status === 'delivered') {
+          setProcessedOrders(prev => [...prev, updatedOrder]);
+        }
+      }
+      
+      // Hide update indicator after 2 seconds
+      setTimeout(() => {
+        setIsUpdating(false);
+        setUpdateMessage('');
+      }, 2000);
       
       // Show notification for relevant order updates
-      const { order_id, order_status } = message.data;
       toast.success(`Order #${order_id} status updated to ${order_status}`);
     }
-  }, [fetchOrders]);
+  }, []);
 
   // WebSocket connection for real-time updates
   const { 
@@ -111,7 +157,7 @@ const ReceivingClerkDashboard = () => {
       
       if (result) {
         toast.success('Order receiving started successfully');
-        await fetchOrders(); // Refresh orders
+        // No need to refresh - WebSocket will handle the update
         
         // Switch to receiving tab to show the updated order
         setActiveTab('receiving');
@@ -134,7 +180,7 @@ const ReceivingClerkDashboard = () => {
       
       if (result) {
         toast.success('Order receiving completed - moved to picking stage');
-        await fetchOrders(); // Refresh orders
+        // No need to refresh - WebSocket will handle the update
         
         // Switch to history tab to show the completed order
         setActiveTab('history');
@@ -370,6 +416,17 @@ const ReceivingClerkDashboard = () => {
           onClose={() => setSelectedOrder(null)}
         />
       )}
+      
+      {/* Connection Status and Update Indicators */}
+      <ConnectionStatus 
+        connectionStatus={connectionStatus}
+        isConnected={isConnected}
+        connectionError={connectionError}
+      />
+      <UpdateIndicator 
+        isUpdating={isUpdating}
+        message={updateMessage}
+      />
     </div>
   );
 };
