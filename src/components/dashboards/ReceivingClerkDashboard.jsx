@@ -62,6 +62,20 @@ const ReceivingClerkDashboard = () => {
     }
   }, []);
 
+  // Handle WebSocket messages
+  const handleWebSocketMessage = useCallback((message) => {
+    console.log('Received WebSocket message:', message);
+    
+    if (message.type === 'order_update') {
+      // Refresh orders when an order update is received
+      fetchOrders();
+      
+      // Show notification for relevant order updates
+      const { order_id, order_status } = message.data;
+      toast.success(`Order #${order_id} status updated to ${order_status}`);
+    }
+  }, [fetchOrders]);
+
   // WebSocket connection for real-time updates
   const { 
     connectionStatus, 
@@ -81,20 +95,6 @@ const ReceivingClerkDashboard = () => {
       console.error('WebSocket error:', error);
     }
   });
-
-  // Handle WebSocket messages
-  const handleWebSocketMessage = useCallback((message) => {
-    console.log('Received WebSocket message:', message);
-    
-    if (message.type === 'order_update') {
-      // Refresh orders when an order update is received
-      fetchOrders();
-      
-      // Show notification for relevant order updates
-      const { order_id, order_status } = message.data;
-      toast.success(`Order #${order_id} status updated to ${order_status}`);
-    }
-  }, [fetchOrders]);
 
   useEffect(() => {
     // Initial fetch
