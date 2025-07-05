@@ -1,19 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { 
-  Truck, 
+  Package, 
   CheckCircle, 
   Clock, 
-  Package,
+  Truck,
   ArrowRight,
   User,
-  Calendar,
-  MapPin
+  Calendar
 } from 'lucide-react';
 import roleBasedService from '../../services/roleBasedService';
 import { toast } from 'react-hot-toast';
 
-const DriverDashboard = () => {
+const PackerDashboard = () => {
   const { currentUser } = useAuth();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -26,7 +25,7 @@ const DriverDashboard = () => {
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const result = await roleBasedService.getOrdersForDriver();
+      const result = await roleBasedService.getOrdersForPacker();
       if (result.success) {
         setOrders(result.data);
       } else {
@@ -56,35 +55,18 @@ const DriverDashboard = () => {
     }
   };
 
-  const handleMarkShipped = async (orderId) => {
+  const handleCompletePacking = async (orderId) => {
     try {
       setProcessingOrder(orderId);
-      const result = await roleBasedService.updateOrderStatus(orderId, 'shipped');
+      const result = await roleBasedService.updateOrderStatus(orderId, 'shipping');
       if (result.success) {
-        toast.success('Order marked as shipped');
+        toast.success('Order moved to shipping');
         fetchOrders();
       } else {
-        toast.error(result.error || 'Failed to mark as shipped');
+        toast.error(result.error || 'Failed to complete packing');
       }
     } catch (error) {
-      toast.error('Failed to mark as shipped');
-    } finally {
-      setProcessingOrder(null);
-    }
-  };
-
-  const handleMarkDelivered = async (orderId) => {
-    try {
-      setProcessingOrder(orderId);
-      const result = await roleBasedService.updateOrderStatus(orderId, 'delivered');
-      if (result.success) {
-        toast.success('Order delivered successfully');
-        fetchOrders();
-      } else {
-        toast.error(result.error || 'Failed to mark as delivered');
-      }
-    } catch (error) {
-      toast.error('Failed to mark as delivered');
+      toast.error('Failed to complete packing');
     } finally {
       setProcessingOrder(null);
     }
@@ -92,10 +74,8 @@ const DriverDashboard = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'shipping':
-        return 'bg-indigo-100 text-indigo-800';
-      case 'shipped':
-        return 'bg-green-100 text-green-800';
+      case 'packing':
+        return 'bg-purple-100 text-purple-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
@@ -104,7 +84,7 @@ const DriverDashboard = () => {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600"></div>
       </div>
     );
   }
@@ -116,9 +96,9 @@ const DriverDashboard = () => {
         <div className="px-4 py-6 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Packer Dashboard</h1>
               <p className="mt-2 text-sm text-gray-600">
-                Welcome back, {currentUser?.name}! Manage deliveries and shipments.
+                Welcome back, {currentUser?.name}! Pack orders for shipping.
               </p>
             </div>
             <div className="text-right">
@@ -133,15 +113,15 @@ const DriverDashboard = () => {
       <div className="bg-white shadow rounded-lg">
         <div className="px-4 py-5 sm:p-6">
           <h3 className="text-lg leading-6 font-medium text-gray-900 mb-4">
-            Orders Ready for Delivery
+            Orders Ready for Packing
           </h3>
           
           {orders.length === 0 ? (
             <div className="text-center py-8">
-              <Truck className="mx-auto h-12 w-12 text-gray-400" />
+              <Package className="mx-auto h-12 w-12 text-gray-400" />
               <h3 className="mt-2 text-sm font-medium text-gray-900">No orders available</h3>
               <p className="mt-1 text-sm text-gray-500">
-                All orders have been delivered or none are ready for shipping.
+                All orders have been packed or none are ready for packing.
               </p>
             </div>
           ) : (
@@ -154,7 +134,7 @@ const DriverDashboard = () => {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                       <div className="flex-shrink-0">
-                        <Truck className="h-8 w-8 text-indigo-600" />
+                        <Package className="h-8 w-8 text-purple-600" />
                       </div>
                       <div>
                         <h4 className="text-lg font-medium text-gray-900">
@@ -172,23 +152,15 @@ const DriverDashboard = () => {
                             {order.order_status}
                           </span>
                         </div>
-                        
-                        {/* Shipping Address */}
-                        {order.shipping_address && (
-                          <div className="flex items-center text-sm text-gray-500 mt-1">
-                            <MapPin className="h-4 w-4 mr-1" />
-                            {order.shipping_address}
-                          </div>
-                        )}
                       </div>
                     </div>
                     
                     <div className="flex items-center space-x-3">
-                      {!order.assigned_worker && order.order_status === 'shipping' && (
+                      {!order.assigned_worker && (
                         <button
                           onClick={() => handleTakeOrder(order.orderID)}
                           disabled={processingOrder === order.orderID}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50"
                         >
                           {processingOrder === order.orderID ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -199,33 +171,18 @@ const DriverDashboard = () => {
                         </button>
                       )}
                       
-                      {order.assigned_worker === currentUser?.workerID && order.order_status === 'shipping' && (
+                      {order.assigned_worker === currentUser?.workerID && (
                         <button
-                          onClick={() => handleMarkShipped(order.orderID)}
-                          disabled={processingOrder === order.orderID}
-                          className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
-                        >
-                          {processingOrder === order.orderID ? (
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          ) : (
-                            <Truck className="h-4 w-4 mr-2" />
-                          )}
-                          Mark Shipped
-                        </button>
-                      )}
-                      
-                      {order.assigned_worker === currentUser?.workerID && order.order_status === 'shipped' && (
-                        <button
-                          onClick={() => handleMarkDelivered(order.orderID)}
+                          onClick={() => handleCompletePacking(order.orderID)}
                           disabled={processingOrder === order.orderID}
                           className="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:opacity-50"
                         >
                           {processingOrder === order.orderID ? (
                             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
                           ) : (
-                            <CheckCircle className="h-4 w-4 mr-2" />
+                            <Truck className="h-4 w-4 mr-2" />
                           )}
-                          Mark Delivered
+                          Complete → Shipping
                         </button>
                       )}
                     </div>
@@ -234,7 +191,7 @@ const DriverDashboard = () => {
                   {/* Order Items Preview */}
                   {order.items && order.items.length > 0 && (
                     <div className="mt-4 p-3 bg-gray-50 rounded-md">
-                      <h5 className="text-sm font-medium text-gray-700 mb-2">Items to Deliver</h5>
+                      <h5 className="text-sm font-medium text-gray-700 mb-2">Items to Pack</h5>
                       <div className="space-y-1">
                         {order.items.slice(0, 3).map((item, index) => (
                           <div key={index} className="flex justify-between text-sm">
@@ -260,4 +217,4 @@ const DriverDashboard = () => {
   );
 };
 
-export default DriverDashboard;
+export default PackerDashboard;
