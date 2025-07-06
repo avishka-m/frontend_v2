@@ -6,5 +6,6 @@ export * from './workerService';
 export * from './locationService';
 export * from './warehouseService';
 export * from './chatbotService';
+export * from './aiAssistantService';
 export * from './dashboardService';
 export * from './masterDataService';

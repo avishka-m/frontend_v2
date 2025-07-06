@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChatbot } from '../hooks/useChatbot';
 import dashboardService from '../services/dashboardService';
+
 import {
   CubeIcon,
   ShoppingCartIcon,
@@ -366,6 +367,8 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+
+
 
       {/* Stats cards */}
       <div className="mt-4 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

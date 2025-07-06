@@ -1,12 +1,13 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
-import { ChatbotProvider } from './context/ChatbotContext';
+import { EnhancedChatbotProvider } from './context/EnhancedChatbotContext';
 import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
 import Notification from './components/common/Notification';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import PersonalAssistant from './components/ai/PersonalAssistant';
 import { Toaster } from 'react-hot-toast';
 
 // Pages
@@ -66,7 +67,7 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <NotificationProvider>
           <AuthProvider>
-            <ChatbotProvider>
+            <EnhancedChatbotProvider>
               <Notification />
               <Toaster position="top-right" />
               <Routes>
@@ -301,7 +302,11 @@ function App() {
                   <Route path="*" element={<NotFound />} />
                 </Route>
               </Routes>
-            </ChatbotProvider>
+              
+              {/* Enhanced Personal Assistant */}
+              <PersonalAssistant />
+              
+            </EnhancedChatbotProvider>
           </AuthProvider>
         </NotificationProvider>
       </BrowserRouter>
