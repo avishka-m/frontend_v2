@@ -61,6 +61,9 @@ import Settings from './pages/Settings';
 import OrderWorkflowTracker from './pages/OrderWorkflowTracker';
 import WorkflowManagement from './pages/WorkflowManagement';
 
+// Enhanced Chatbot Components
+import EnhancedChatbotPage from './pages/chatbot/EnhancedChatbotPage';
+
 function App() {
   return (
     <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
@@ -290,6 +293,9 @@ function App() {
                       <Settings />
                     </RoleBasedRoute>
                   } />
+                  
+                  {/* Enhanced Chatbot - All roles */}
+                  <Route path="/chatbot/enhanced" element={<EnhancedChatbotPage />} />
                   
                   {/* Common routes */}
                   <Route path="/profile" element={<UserProfile />} />

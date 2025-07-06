@@ -811,6 +811,14 @@ The interface is fully functional - I'll connect to live data once the backend s
           {/* Control buttons */}
           <div className="flex items-center gap-1">
             <button
+              onClick={() => window.open('/chatbot/enhanced', '_blank')}
+              className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-all"
+              title="Open Enhanced Chatbot"
+            >
+              <Expand className="h-4 w-4" />
+            </button>
+            
+            <button
               onClick={toggleMinimize}
               className="p-1.5 hover:bg-white hover:bg-opacity-20 rounded-full transition-all"
               title="Minimize"

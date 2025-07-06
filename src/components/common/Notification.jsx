@@ -183,3 +183,4 @@ const NotificationContainer = () => {
 };
 
 export default NotificationContainer;
+export { NotificationContainer as Notification };
