@@ -215,24 +215,24 @@ const PersonalAssistant = () => {
       console.error('Failed to initialize assistant:', error);
       
       // Fallback: Create mock agents for demo purposes
-      const mockAgents = [
-        {
-          id: 'manager',
-          name: 'Executive Assistant',
-          description: 'Full system oversight and analytics',
-          capabilities: ['Analytics', 'Management', 'Reporting'],
-          color: 'purple'
-        },
-        {
-          id: 'clerk',
-          name: 'Inventory Specialist',
-          description: 'Inventory and receiving expert',
-          capabilities: ['Inventory', 'Receiving', 'Stock Management'],
-          color: 'green'
-        }
-      ];
+      // const mockAgents = [
+      //   {
+      //     id: 'manager',
+      //     name: 'Executive Assistant',
+      //     description: 'Full system oversight and analytics',
+      //     capabilities: ['Analytics', 'Management', 'Reporting'],
+      //     color: 'purple'
+      //   },
+      //   {
+      //     id: 'clerk',
+      //     name: 'Inventory Specialist',
+      //     description: 'Inventory and receiving expert',
+      //     capabilities: ['Inventory', 'Receiving', 'Stock Management'],
+      //     color: 'green'
+      //   }
+      // ];
       
-      setAvailableAgents(mockAgents);
+      // setAvailableAgents(mockAgents);
       setCurrentAgent('manager');
       setConversationId('demo-conversation');
       setMessages([{
@@ -277,9 +277,9 @@ I'll automatically switch to full functionality when the backend service is read
         setMessages([{
           id: Date.now(),
           role: 'assistant',
-          content: `👋 Hello! I'm your ${agentName}. I'm here to help you with warehouse operations.
+          content: `Hello! I'm your ${agentName}. I'm here to help you with warehouse operations.
 
-🎯 **I can help you with:**
+**I can help you with:**
 ${agent?.capabilities?.map(cap => `• ${cap}`).join('\n') || '• General warehouse assistance'}
 
 What would you like to do today?`,
