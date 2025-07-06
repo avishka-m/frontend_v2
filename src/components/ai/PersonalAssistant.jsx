@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { aiAssistantService } from '../../services/aiAssistantService';
+import { chatbotService } from '../../services/chatbotService';
 import ReactMarkdown from 'react-markdown';
 
 // Custom scrollbar styles
@@ -1258,44 +1259,104 @@ const AgentSelectionView = ({ availableAgents, currentAgent, onSelectAgent, getA
   </div>
 );
 
-// Conversation History View Component
-const ConversationHistoryView = () => (
-  <div className="h-full flex flex-col">
-    <div className="flex-1 overflow-y-scroll p-4 custom-scrollbar">
-    <div className="text-center mb-6">
-      <h3 className="text-lg font-semibold text-gray-800">Conversation History</h3>
-      <p className="text-sm text-gray-600 mt-1">Review your past interactions</p>
-    </div>
+// Conversation History View Component - REAL DATA FROM MONGODB
+const ConversationHistoryView = () => {
+  const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    loadRealConversations();
+  }, []);
+
+  const loadRealConversations = async () => {
+    try {
+      setLoading(true);
+      const response = await chatbotService.getAllConversations({
+        limit: 20,
+        status: 'active'
+      });
+      setConversations(response.conversations || []);
+    } catch (error) {
+      console.error('Failed to load real conversations:', error);
+      setConversations([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return 'Unknown time';
     
-    <div className="space-y-3">
-      {/* Placeholder for conversation history */}
-      <div className="p-4 bg-gray-50 rounded-xl">
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">Today, 10:30 AM</span>
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    
+    if (diffHours < 1) return 'Just now';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    
+    return date.toLocaleDateString();
+  };
+
+  const getConversationPreview = (conversation) => {
+    return conversation.title || 'New conversation';
+  };
+
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-scroll p-4 custom-scrollbar">
+        <div className="text-center mb-6">
+          <h3 className="text-lg font-semibold text-gray-800">Conversation History</h3>
+          <p className="text-sm text-gray-600 mt-1">Review your past interactions</p>
         </div>
-        <p className="text-sm text-gray-600">Discussed inventory management and restocking procedures</p>
-      </div>
-      
-      <div className="p-4 bg-gray-50 rounded-xl">
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">Yesterday, 2:15 PM</span>
-        </div>
-        <p className="text-sm text-gray-600">Optimized picking routes for warehouse efficiency</p>
-      </div>
-      
-      <div className="p-4 bg-gray-50 rounded-xl">
-        <div className="flex items-center gap-2 mb-2">
-          <Clock className="h-4 w-4 text-gray-500" />
-          <span className="text-sm font-medium text-gray-700">2 days ago, 11:45 AM</span>
-        </div>
-        <p className="text-sm text-gray-600">Reviewed packing procedures and safety protocols</p>
+        
+        {loading ? (
+          <div className="flex justify-center items-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            <span className="ml-2 text-sm text-gray-600">Loading conversations...</span>
+          </div>
+        ) : conversations.length === 0 ? (
+          <div className="text-center py-8">
+            <div className="text-gray-400 text-6xl mb-4">💬</div>
+            <p className="text-gray-500 text-sm">No conversations yet</p>
+            <p className="text-gray-400 text-xs mt-1">Start chatting to see your history here!</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {conversations.map((conversation, index) => (
+              <div key={conversation.conversation_id || index} className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700">
+                    {formatTimeAgo(conversation.last_message_at || conversation.created_at)}
+                  </span>
+                  <span className="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded-full">
+                    {conversation.agent_role || 'Assistant'}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600">
+                  {getConversationPreview(conversation)}
+                </p>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-gray-400">
+                    {conversation.message_count || 0} messages
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    ID: {conversation.conversation_id?.slice(-8) || 'Unknown'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
-    </div>
-  </div>
-);
+  );
+};
 
 // Analytics View Component
 const AnalyticsView = ({ usageAnalytics }) => (
