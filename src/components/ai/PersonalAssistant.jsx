@@ -33,7 +33,6 @@ import {
   ArrowUp
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { aiAssistantService } from '../../services/aiAssistantService';
 import { chatbotService } from '../../services/chatbotService';
 import ReactMarkdown from 'react-markdown';
 
@@ -162,12 +161,50 @@ const PersonalAssistant = () => {
 
   const initializeAssistant = async () => {
     try {
-      const agents = await aiAssistantService.getAvailableAgents();
-      setAvailableAgents(agents.allowedAgents);
+      // Use predefined agents since we're integrating with chatbotService
+      const agents = [
+        {
+          id: 'manager',
+          name: 'Executive Assistant',
+          description: 'Full system oversight and analytics',
+          capabilities: ['Analytics', 'Management', 'Reporting'],
+          color: 'purple'
+        },
+        {
+          id: 'clerk',
+          name: 'Inventory Specialist',
+          description: 'Inventory and receiving expert',
+          capabilities: ['Inventory', 'Receiving', 'Stock Management'],
+          color: 'green'
+        },
+        {
+          id: 'picker',
+          name: 'Order Picker',
+          description: 'Order fulfillment expert',
+          capabilities: ['Picking', 'Order Processing', 'Location Management'],
+          color: 'blue'
+        },
+        {
+          id: 'packer',
+          name: 'Packing Specialist',
+          description: 'Packaging and shipping expert',
+          capabilities: ['Packing', 'Shipping', 'Quality Control'],
+          color: 'orange'
+        },
+        {
+          id: 'driver',
+          name: 'Delivery Coordinator',
+          description: 'Transportation and logistics expert',
+          capabilities: ['Delivery', 'Route Planning', 'Vehicle Management'],
+          color: 'red'
+        }
+      ];
+      setAvailableAgents(agents);
       
       // Auto-select the best agent based on user role
-      if (agents.allowedAgents.length > 0) {
-        const defaultAgent = agents.allowedAgents.find(a => a.id === agents.userRole) || agents.allowedAgents[0];
+      if (agents.length > 0) {
+        const userRole = currentUser?.role?.toLowerCase() || 'manager';
+        const defaultAgent = agents.find(a => a.id === userRole) || agents[0];
         await selectAgent(defaultAgent.id);
       }
       
@@ -228,21 +265,30 @@ I'll automatically switch to full functionality when the backend service is read
       const agentName = agent?.name || 'AI Assistant';
       
       try {
-        const result = await aiAssistantService.selectAgent(agentId, workContext);
+        // Create a new conversation with the selected agent using chatbotService
+        const conversation = await chatbotService.createConversation({
+          agentRole: agentId,
+          title: `${agentName} Session`,
+          initialContext: workContext
+        });
         
         setCurrentAgent(agentId);
-        setConversationId(result.conversationId);
+        setConversationId(conversation.conversation_id);
         setMessages([{
           id: Date.now(),
           role: 'assistant',
-          content: result.welcomeMessage,
+          content: `👋 Hello! I'm your ${agentName}. I'm here to help you with warehouse operations.
+
+🎯 **I can help you with:**
+${agent?.capabilities?.map(cap => `• ${cap}`).join('\n') || '• General warehouse assistance'}
+
+What would you like to do today?`,
           timestamp: new Date(),
           type: 'welcome'
         }]);
         
-        // Load quick actions for this agent
-        const actions = aiAssistantService.getContextualQuickActions(agentId, workContext);
-        setQuickActions(actions);
+        // Update quick actions for this agent
+        updateWorkContext();
         
       } catch (apiError) {
         // Fallback to demo mode for this agent
@@ -281,6 +327,24 @@ Try the quick actions below or ask me anything about warehouse operations!`,
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Map user roles to appropriate chatbot agent roles
+  const getUserChatbotRole = (userRole) => {
+    const roleMapping = {
+      'Manager': 'manager',
+      'ReceivingClerk': 'clerk',
+      'Clerk': 'clerk', 
+      'Picker': 'picker',
+      'Packer': 'packer',
+      'Driver': 'driver',
+      'ClerkSupervisor': 'clerk',
+      'PickerSupervisor': 'picker',
+      'PackerSupervisor': 'packer',
+      'DriverSupervisor': 'driver'
+    };
+    
+    return roleMapping[userRole] || 'clerk'; // Default to clerk if unknown role
   };
 
   const sendMessage = async (message, options = {}) => {
@@ -332,25 +396,25 @@ The interface is fully functional - I'll connect to live data once the backend s
 
         setMessages(prev => [...prev, assistantMessage]);
       } else {
-        const response = await aiAssistantService.sendMessage(message, {
-          ...options,
-          attachments,
-          context: workContext
+        // Use chatbotService to send message with automatic conversation handling
+        const response = await chatbotService.sendMessage(message, {
+          conversationId: conversationId,
+          role: getUserChatbotRole(currentUser?.role || 'Manager')
         });
 
         const assistantMessage = {
           id: Date.now() + 1,
           role: 'assistant',
-          content: response.response,
+          content: response.reply,
           timestamp: new Date(),
-          metadata: response.metadata
+          metadata: { conversationId: response.conversationId }
         };
 
         setMessages(prev => [...prev, assistantMessage]);
         
-        // Update work context based on response
-        if (response.context) {
-          setWorkContext(prev => ({ ...prev, ...response.context }));
+        // Update conversation ID if it changed (new conversation created)
+        if (response.conversationId && response.conversationId !== conversationId) {
+          setConversationId(response.conversationId);
         }
       }
       
@@ -412,16 +476,25 @@ The interface is fully functional - I'll connect to live data once the backend s
         setMessages(prev => [...prev, assistantMessage]);
       } else {
         try {
-          const response = await aiAssistantService.sendQuickAction(action.id, workContext);
+          // Use chatbotService to handle quick actions as regular messages
+          const response = await chatbotService.sendMessage(`Quick Action: ${action.label}`, {
+            conversationId: conversationId,
+            role: getUserChatbotRole(currentUser?.role || 'Manager')
+          });
           
           const assistantMessage = {
             id: Date.now() + 1,
             role: 'assistant',
-            content: response.response,
+            content: response.reply,
             timestamp: new Date()
           };
 
           setMessages(prev => [...prev, assistantMessage]);
+          
+          // Update conversation ID if needed
+          if (response.conversationId && response.conversationId !== conversationId) {
+            setConversationId(response.conversationId);
+          }
         } catch (apiError) {
           // Fallback to demo mode if backend fails
           console.warn('Backend unavailable, falling back to demo mode:', apiError);

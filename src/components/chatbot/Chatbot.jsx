@@ -256,25 +256,37 @@ const ChatBot = () => {
         <div className="flex items-center space-x-2">
           <button
             onClick={handleCreateNewChat}
-            className={`text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1 ${
-              newChatAnimation ? 'animate-pulse' : ''
+            className={`relative text-xs text-blue-600 hover:text-blue-800 flex items-center space-x-1 transition-all duration-300 ${
+              newChatAnimation ? 'animate-pulse scale-110' : ''
             }`}
             title="Create New Chat"
           >
             {newChatAnimation ? (
-              <span>✨ Creating...</span>
+              <div className="relative">
+                <span className="text-lg animate-spin">✨</span>
+                <span className="absolute -top-1 -right-1 text-xs animate-bounce">🎉</span>
+                <span className="ml-1 font-medium text-green-600">Creating...</span>
+              </div>
             ) : (
-              <>
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span>New</span>
-              </>
+              <div className="relative group">
+                <div className="absolute -inset-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg opacity-0 group-hover:opacity-20 transition-opacity duration-300"></div>
+                <div className="relative flex items-center space-x-1">
+                  <div className="relative">
+                    <svg className="w-4 h-4 transition-transform group-hover:rotate-90 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="text-xs animate-pulse">✨</span>
+                    </div>
+                  </div>
+                  <span className="font-medium group-hover:text-purple-600 transition-colors">New</span>
+                </div>
+              </div>
             )}
           </button>
           <button
             onClick={() => setShowFullHistoryManager(true)}
-            className="text-xs text-primary-600 hover:text-primary-800"
+            className="text-xs text-primary-600 hover:text-primary-800 transition-colors hover:underline"
           >
             View All
           </button>
@@ -283,64 +295,205 @@ const ChatBot = () => {
       
       {quickHistory.length === 0 ? (
         <div className="text-center py-4">
-          <p className="text-xs text-gray-500 mb-2">No recent conversations</p>
+          <div className="mb-3">
+            <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto">
+              <span className="text-2xl">💬</span>
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mb-3">No recent conversations</p>
           <button
             onClick={handleCreateNewChat}
-            className="text-xs text-blue-600 hover:text-blue-800 flex items-center justify-center space-x-1 mx-auto"
+            className="inline-flex items-center justify-center space-x-1 px-3 py-2 bg-gradient-to-r from-blue-500 to-purple-500 text-white text-xs rounded-lg hover:from-blue-600 hover:to-purple-600 transition-all duration-300 hover:scale-105 shadow-sm hover:shadow-md"
           >
-            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>Start your first chat</span>
+            <span className="text-sm animate-pulse">✨</span>
+            <span className="font-medium">Start your first chat</span>
           </button>
         </div>
       ) : (
         <div className="space-y-1">
           {quickHistory.map((conv, index) => (
-            <div
+            <ConversationHistoryCard
               key={conv.conversation_id}
-              onClick={() => handleConversationSelect(conv.conversation_id)}
-              className={`p-2 rounded cursor-pointer transition-all duration-300 text-xs ${
-                conversationId === conv.conversation_id 
-                  ? 'bg-primary-100 border border-primary-200' 
-                  : 'bg-white border border-gray-100 hover:bg-gray-50'
-              } ${
-                index === 0 && newChatAnimation ? 'animate-bounce bg-green-50 border-green-200' : ''
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center space-x-1 flex-1">
-                  <span className="font-medium text-gray-900 truncate">
-                    {formatConversationTitle(conv)}
-                  </span>
-                  {index === 0 && newChatAnimation && (
-                    <span className="text-green-500 text-xs">✨ New</span>
-                  )}
-                </div>
-                <button
-                  onClick={(e) => handleDeleteConversation(conv.conversation_id, e)}
-                  className="text-gray-400 hover:text-red-500 ml-1"
-                >
-                  ×
-                </button>
-              </div>
-              
-              <div className="flex items-center justify-between">
-                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                  chatbotService.getAgentColor(conv.agent_role)
-                }`}>
-                  {conv.agent_role}
-                </span>
-                <span className="text-xs text-gray-500">
-                  {formatLastActivity(conv.last_activity)}
-                </span>
-              </div>
-            </div>
+              conversation={conv}
+              isActive={conversationId === conv.conversation_id}
+              isNew={index === 0 && newChatAnimation}
+              onSelect={() => handleConversationSelect(conv.conversation_id)}
+              onDelete={(e) => handleDeleteConversation(conv.conversation_id, e)}
+            />
           ))}
         </div>
       )}
     </div>
   );
+
+  // Enhanced Conversation History Card with Message Preview
+  const ConversationHistoryCard = ({ conversation, isActive, isNew, onSelect, onDelete }) => {
+    const [showPreview, setShowPreview] = useState(false);
+    const [previewMessages, setPreviewMessages] = useState([]);
+    const [loadingPreview, setLoadingPreview] = useState(false);
+
+    const loadMessagePreview = async () => {
+      if (previewMessages.length > 0) return; // Already loaded
+      
+      try {
+        setLoadingPreview(true);
+        const response = await chatbotService.getConversation(conversation.conversation_id, {
+          limit: 3,
+          includeContext: false
+        });
+        setPreviewMessages(response.messages || []);
+      } catch (error) {
+        console.error('Failed to load message preview:', error);
+        setPreviewMessages([]);
+      } finally {
+        setLoadingPreview(false);
+      }
+    };
+
+    const handleMouseEnter = () => {
+      setShowPreview(true);
+      loadMessagePreview();
+    };
+
+    const handleMouseLeave = () => {
+      setShowPreview(false);
+    };
+
+    const formatPreviewMessage = (message) => {
+      if (message.content.length > 60) {
+        return message.content.substring(0, 60) + '...';
+      }
+      return message.content;
+    };
+
+    return (
+      <div className="relative">
+        <div
+          onClick={onSelect}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+          className={`p-2 rounded cursor-pointer transition-all duration-300 text-xs border ${
+            isActive 
+              ? 'bg-primary-100 border-primary-200 shadow-sm' 
+              : 'bg-white border-gray-100 hover:bg-gray-50 hover:border-gray-200 hover:shadow-sm'
+          } ${
+            isNew ? 'animate-bounce bg-green-50 border-green-200 shadow-md' : ''
+          }`}
+        >
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center space-x-1 flex-1">
+              <span className="font-medium text-gray-900 truncate">
+                {formatConversationTitle(conversation)}
+              </span>
+              {isNew && (
+                <div className="flex items-center space-x-1">
+                  <span className="text-green-500 text-xs animate-pulse">✨</span>
+                  <span className="text-xs text-green-600 font-medium">New</span>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={onDelete}
+              className="text-gray-400 hover:text-red-500 transition-colors ml-1 opacity-0 group-hover:opacity-100"
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <span className={`text-xs px-1.5 py-0.5 rounded ${
+              chatbotService.getAgentColor(conversation.agent_role)
+            }`}>
+              {conversation.agent_role}
+            </span>
+            <span className="text-xs text-gray-500">
+              {formatLastActivity(conversation.last_activity)}
+            </span>
+          </div>
+
+          {/* Message count indicator */}
+          <div className="mt-1 flex items-center justify-between">
+            <span className="text-xs text-gray-400">
+              {conversation.message_count || 0} messages
+            </span>
+            <div className="flex items-center space-x-1">
+              <span className="text-xs text-blue-500">👁️</span>
+              <span className="text-xs text-blue-500">Preview</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Message Preview Tooltip */}
+        {showPreview && (
+          <div className="absolute z-50 left-full top-0 ml-2 w-80 bg-white border border-gray-200 rounded-lg shadow-xl p-3 transform transition-all duration-200">
+            <div className="flex items-center justify-between mb-2">
+              <h5 className="text-sm font-medium text-gray-800">Message Preview</h5>
+              <span className="text-xs text-gray-500">Last {Math.min(previewMessages.length, 3)} messages</span>
+            </div>
+            
+            {loadingPreview ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="flex space-x-1">
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+                <span className="ml-2 text-xs text-gray-500">Loading...</span>
+              </div>
+            ) : previewMessages.length > 0 ? (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {previewMessages.slice(-3).map((msg, index) => (
+                  <div key={index} className={`p-2 rounded text-xs ${
+                    msg.message_type === 'user' || msg.role === 'user' 
+                      ? 'bg-blue-50 border-l-2 border-blue-400' 
+                      : 'bg-gray-50 border-l-2 border-gray-400'
+                  }`}>
+                    <div className="flex items-center space-x-1 mb-1">
+                      <span className={`font-medium ${
+                        msg.message_type === 'user' || msg.role === 'user' ? 'text-blue-700' : 'text-gray-700'
+                      }`}>
+                        {msg.message_type === 'user' || msg.role === 'user' ? '👤 You' : '🤖 Assistant'}
+                      </span>
+                      <span className="text-gray-400">•</span>
+                      <span className="text-gray-500">
+                        {new Date(msg.created_at || msg.timestamp).toLocaleTimeString([], { 
+                          hour: '2-digit', 
+                          minute: '2-digit' 
+                        })}
+                      </span>
+                    </div>
+                    <p className="text-gray-600 leading-relaxed">
+                      {formatPreviewMessage(msg)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <span className="text-gray-400 text-2xl">💬</span>
+                <p className="text-xs text-gray-500 mt-1">No messages yet</p>
+              </div>
+            )}
+            
+            <div className="mt-3 pt-2 border-t border-gray-100">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSelect();
+                }}
+                className="w-full text-xs bg-blue-500 text-white py-1 px-3 rounded hover:bg-blue-600 transition-colors"
+              >
+                Open Conversation
+              </button>
+            </div>
+
+            {/* Arrow pointer */}
+            <div className="absolute top-4 -left-2 w-4 h-4 bg-white border-l border-t border-gray-200 transform rotate-45"></div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const UserInsightsPanel = () => (
     <div className="p-3 bg-gradient-to-r from-primary-50 to-blue-50 rounded-lg">
@@ -482,29 +635,54 @@ const ChatBot = () => {
               {showAgentSelector && <AgentSelector />}
             </div>
             
-            <div className="relative">
+            <div className="relative group">
               <button
                 onClick={handleCreateNewChat}
-                className={`text-white hover:text-gray-200 transition-all duration-300 ${
-                  newChatAnimation ? 'animate-pulse scale-110' : ''
+                className={`relative text-white hover:text-gray-200 transition-all duration-300 ${
+                  newChatAnimation ? 'animate-pulse scale-110' : 'hover:scale-110'
                 }`}
                 title="Start New Chat"
               >
+                {/* Background glow effect */}
+                <div className="absolute -inset-2 bg-white bg-opacity-0 group-hover:bg-opacity-10 rounded-full transition-all duration-300"></div>
+                
                 {newChatAnimation ? (
-                  <span className="text-lg">✨</span>
+                  <div className="relative flex items-center justify-center">
+                    <span className="text-lg animate-spin">✨</span>
+                    <span className="absolute text-xs animate-bounce">🎉</span>
+                  </div>
                 ) : (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
+                  <div className="relative">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 transform group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    
+                    {/* Sparkle effects on hover */}
+                    <div className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <span className="text-xs animate-pulse">✨</span>
+                    </div>
+                    <div className="absolute -bottom-1 -left-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
+                      <span className="text-xs animate-pulse">⭐</span>
+                    </div>
+                  </div>
                 )}
               </button>
               
-              {/* New chat indicator */}
+              {/* Enhanced new chat indicator */}
               {newChatAnimation && (
-                <span className="absolute -top-1 -right-1 bg-green-400 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center animate-bounce">
-                  ✓
-                </span>
+                <div className="absolute -top-2 -right-2 flex items-center justify-center">
+                  <div className="bg-green-400 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center animate-bounce shadow-lg">
+                    ✓
+                  </div>
+                  <div className="absolute w-5 h-5 bg-green-400 rounded-full animate-ping opacity-30"></div>
+                </div>
               )}
+              
+              {/* Tooltip */}
+              <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-black bg-opacity-75 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none whitespace-nowrap">
+                Create new chat ✨
+                <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-2 border-r-2 border-t-2 border-transparent border-t-black border-t-opacity-75"></div>
+              </div>
             </div>
             
             <button onClick={toggleChat} className="text-white hover:text-gray-200 transition-colors">
