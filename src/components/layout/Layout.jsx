@@ -1,12 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { useChatbot } from '../../hooks/useChatbot';
 import Header from './Header';
 import Sidebar from './Sidebar';
-import ChatBot from '../chatbot/ChatBot';
 
 const Layout = () => {
-  const { isChatOpen } = useChatbot();
   const [isMobile, setIsMobile] = useState(false);
 
   // Check if the screen size is mobile
@@ -41,9 +38,6 @@ const Layout = () => {
             </div>
           </div>
         </main>
-
-        {/* Add ChatBot component */}
-        <ChatBot />
       </div>
     </div>
   );

@@ -1,10 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
-import { useChatbot } from '../../hooks/useChatbot';
 import NotificationDropdown from '../common/NotificationDropdown';
 import {
-  MessageCircle,
   Search,
   ChevronDown,
   User,
@@ -13,7 +11,6 @@ import {
 
 const Header = () => {
   const { currentUser, logout } = useAuth();
-  const { toggleChat } = useChatbot();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -48,14 +45,6 @@ const Header = () => {
           />
           <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
         </form>
-
-        <button
-          onClick={toggleChat}
-          className="p-2 rounded-full text-gray-700 hover:bg-gray-100 relative"
-          aria-label="Open chat"
-        >
-          <MessageCircle className="w-6 h-6" />
-        </button>
 
         <NotificationDropdown />
 
