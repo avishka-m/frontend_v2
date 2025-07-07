@@ -45,10 +45,27 @@ const FloatingChatWidget = () => {
       // Add welcome message if no messages exist
       if (messages.length === 0) {
         setTimeout(() => {
+          const getWelcomeMessage = (role) => {
+            switch (role) {
+              case 'Manager':
+                return `Hello Manager! I'm your Executive Assistant with full warehouse oversight capabilities. I can help with analytics, system monitoring, workforce management, and strategic insights. Use the quick actions below or ask me anything about warehouse operations.`;
+              case 'ReceivingClerk':
+                return `Hi! I'm your Inventory Specialist assistant, focused on receiving and stock management. Use the quick actions for common tasks or ask me about inventory operations.`;
+              case 'Picker':
+                return `Hello! I'm your Picking Assistant, here to help optimize your picking routes and manage order fulfillment. Try the quick actions or ask me about picking operations.`;
+              case 'Packer':
+                return `Hi! I'm your Packing Specialist assistant, ready to help with packing workflows and shipping preparation. Use the actions below or ask me about packing tasks.`;
+              case 'Driver':
+                return `Hello! I'm your Delivery Coordinator assistant, here to help with routes, deliveries, and vehicle management. Try the quick actions for common tasks.`;
+              default:
+                return `Hi! I'm your warehouse assistant. Use the buttons above for quick actions, or type a question. For advanced features, click "Open Full Chat".`;
+            }
+          };
+
           const welcomeMessage = {
             id: Date.now(),
             role: 'assistant',
-            content: `Hi! I'm your Quick Assistant for ${currentUser?.role || 'warehouse operations'}. Use the buttons above for quick actions, or type a question. For advanced features, click "Open Full Chat".`,
+            content: getWelcomeMessage(currentUser?.role),
             timestamp: new Date()
           };
           setMessages([welcomeMessage]);
@@ -61,8 +78,10 @@ const FloatingChatWidget = () => {
   const getQuickActions = () => {
     const actionMap = {
       'Manager': [
-        { id: 'analytics', label: 'View Analytics', icon: BarChart3, description: 'Check warehouse performance' },
-        { id: 'alerts', label: 'System Alerts', icon: Zap, description: 'Review urgent notifications' }
+        { id: 'overview', label: 'System Overview', icon: BarChart3, description: 'Get comprehensive warehouse status' },
+        { id: 'analytics', label: 'Performance Analytics', icon: BarChart3, description: 'View detailed performance metrics' },
+        { id: 'alerts', label: 'Critical Alerts', icon: Zap, description: 'Review urgent system notifications' },
+        { id: 'workforce', label: 'Workforce Status', icon: Package, description: 'Check worker performance and attendance' }
       ],
       'ReceivingClerk': [
         { id: 'inventory', label: 'Check Inventory', icon: Package, description: 'View current stock levels' },
@@ -101,8 +120,23 @@ const FloatingChatWidget = () => {
     setShowQuickActions(false);
     
     try {
+      // Map user roles to proper chatbot assistant roles
+      const getChatbotRole = (userRole) => {
+        const roleMapping = {
+          'Manager': 'manager',
+          'ReceivingClerk': 'clerk', 
+          'Picker': 'picker',
+          'Packer': 'packer',
+          'Driver': 'driver'
+        };
+        return roleMapping[userRole] || 'manager'; // Default managers get manager assistant
+      };
+
+      const chatbotRole = getChatbotRole(currentUser?.role);
+      console.log('Sending message with role:', chatbotRole, 'for user role:', currentUser?.role);
+      
       const response = await chatbotService.sendMessage(message, {
-        role: currentUser?.role?.toLowerCase() || 'manager'
+        role: chatbotRole
       });
       
       const assistantMessage = {
@@ -175,7 +209,14 @@ const FloatingChatWidget = () => {
           <div className="flex items-center space-x-2">
             <Bot className="h-5 w-5" />
             <div>
-              <h3 className="font-semibold text-sm">Quick Assistant</h3>
+              <h3 className="font-semibold text-sm">
+                {currentUser?.role === 'Manager' ? 'Executive Assistant' : 
+                 currentUser?.role === 'ReceivingClerk' ? 'Inventory Specialist' :
+                 currentUser?.role === 'Picker' ? 'Picking Assistant' :
+                 currentUser?.role === 'Packer' ? 'Packing Specialist' :
+                 currentUser?.role === 'Driver' ? 'Delivery Coordinator' :
+                 'Quick Assistant'}
+              </h3>
               <p className="text-xs text-white/80">{currentUser?.role || 'User'}</p>
             </div>
           </div>
