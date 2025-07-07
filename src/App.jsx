@@ -62,7 +62,7 @@ import OrderWorkflowTracker from './pages/OrderWorkflowTracker';
 import WorkflowManagement from './pages/WorkflowManagement';
 
 // Enhanced Chatbot Components
-import EnhancedChatbotPage from './pages/chatbot/EnhancedChatbotPage';
+import RoleBasedChatbot from './pages/chatbot/RoleBasedChatbot';
 
 function App() {
   return (
@@ -295,7 +295,7 @@ function App() {
                   } />
                   
                   {/* Enhanced Chatbot - All roles */}
-                  <Route path="/chatbot/enhanced" element={<EnhancedChatbotPage />} />
+                  <Route path="/chatbot/enhanced" element={<RoleBasedChatbot />} />
                   
                   {/* Common routes */}
                   <Route path="/profile" element={<UserProfile />} />
