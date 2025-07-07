@@ -367,5 +367,202 @@ export const chatbotService = {
     };
     
     return agentColors[agentRole?.toLowerCase()] || 'bg-gray-100 text-gray-800';
+  },
+
+  // === ROLE-BASED ENHANCED FEATURES ===
+  roleBased: {
+    // Dashboard and Overview
+    getDashboard: async () => {
+      try {
+        const response = await chatbotApi.get('/role-based/dashboard');
+        return response.data;
+      } catch (error) {
+        console.error('Dashboard API error:', error);
+        throw new Error(error.message || 'Failed to load dashboard');
+      }
+    },
+
+    getPermissions: async () => {
+      try {
+        const response = await chatbotApi.get('/role-based/permissions');
+        return response.data;
+      } catch (error) {
+        console.error('Permissions API error:', error);
+        throw new Error(error.message || 'Failed to load permissions');
+      }
+    },
+
+    getActivitySummary: async (days = 7) => {
+      try {
+        const response = await chatbotApi.get(`/role-based/activity-summary?days=${days}`);
+        return response.data;
+      } catch (error) {
+        console.error('Activity summary API error:', error);
+        throw new Error(error.message || 'Failed to load activity summary');
+      }
+    },
+
+    getQuickHistory: async (limit = 5) => {
+      try {
+        const response = await chatbotApi.get(`/role-based/quick/history?limit=${limit}`);
+        return response.data;
+      } catch (error) {
+        console.error('Quick history API error:', error);
+        throw new Error(error.message || 'Failed to load quick history');
+      }
+    },
+
+    // Manager Analytics (Manager only)
+    analytics: {
+      getSystemOverview: async (periodDays = 30) => {
+        try {
+          const response = await chatbotApi.get(`/role-based/analytics/system-overview?period_days=${periodDays}`);
+          return response.data;
+        } catch (error) {
+          console.error('System overview API error:', error);
+          throw new Error(error.message || 'Failed to load system overview');
+        }
+      },
+
+      getUserAnalytics: async (userId, periodDays = 30) => {
+        try {
+          const response = await chatbotApi.get(`/role-based/analytics/user/${userId}?period_days=${periodDays}`);
+          return response.data;
+        } catch (error) {
+          console.error('User analytics API error:', error);
+          throw new Error(error.message || 'Failed to load user analytics');
+        }
+      },
+
+      getPerformanceMetrics: async (periodDays = 30) => {
+        try {
+          const response = await chatbotApi.get(`/role-based/analytics/performance?period_days=${periodDays}`);
+          return response.data;
+        } catch (error) {
+          console.error('Performance metrics API error:', error);
+          throw new Error(error.message || 'Failed to load performance metrics');
+        }
+      },
+
+      getSystemAlerts: async () => {
+        try {
+          const response = await chatbotApi.get('/role-based/analytics/alerts');
+          return response.data;
+        } catch (error) {
+          console.error('System alerts API error:', error);
+          throw new Error(error.message || 'Failed to load system alerts');
+        }
+      },
+
+      getExecutiveSummary: async (periodDays = 30) => {
+        try {
+          const response = await chatbotApi.get(`/role-based/analytics/executive-summary?period_days=${periodDays}`);
+          return response.data;
+        } catch (error) {
+          console.error('Executive summary API error:', error);
+          throw new Error(error.message || 'Failed to load executive summary');
+        }
+      }
+    },
+
+    // Agent Management (Manager only)
+    agents: {
+      getManagementOverview: async () => {
+        try {
+          const response = await chatbotApi.get('/role-based/agents/management/overview');
+          return response.data;
+        } catch (error) {
+          console.error('Agent management API error:', error);
+          throw new Error(error.message || 'Failed to load agent management overview');
+        }
+      },
+
+      provideFeedback: async (agentRole, positiveFeedback = true) => {
+        try {
+          const response = await chatbotApi.post('/role-based/agents/feedback', {
+            agent_role: agentRole,
+            positive_feedback: positiveFeedback
+          });
+          return response.data;
+        } catch (error) {
+          console.error('Agent feedback API error:', error);
+          throw new Error(error.message || 'Failed to provide agent feedback');
+        }
+      }
+    },
+
+    // Enhanced Search
+    search: {
+      smartSearch: async (query) => {
+        try {
+          const response = await chatbotApi.post('/role-based/search/smart', { query });
+          return response.data;
+        } catch (error) {
+          console.error('Smart search API error:', error);
+          throw new Error(error.message || 'Failed to perform smart search');
+        }
+      },
+
+      semanticSearch: async (query, options = {}) => {
+        try {
+          const searchData = {
+            query,
+            limit: options.limit || 20,
+            similarity_threshold: options.similarityThreshold || 0.7,
+            content_types: options.content_types,
+            agent_roles: options.agent_roles,
+            date_from: options.date_from,
+            date_to: options.date_to
+          };
+          const response = await chatbotApi.post('/role-based/search/semantic', searchData);
+          return response.data;
+        } catch (error) {
+          console.error('Semantic search API error:', error);
+          throw new Error(error.message || 'Failed to perform semantic search');
+        }
+      }
+    },
+
+    // Export and Bulk Operations
+    exportConversations: async (conversationIds = null, options = {}) => {
+      try {
+        const exportData = {
+          conversation_ids: conversationIds,
+          format: options.format || 'json',
+          include_metadata: options.includeMetadata !== false,
+          include_context: options.includeContext !== false
+        };
+        const response = await chatbotApi.post('/role-based/export/conversations', exportData);
+        return response.data;
+      } catch (error) {
+        console.error('Export API error:', error);
+        throw new Error(error.message || 'Failed to export conversations');
+      }
+    },
+
+    bulkOperations: async (conversationIds, operation, operationData = {}) => {
+      try {
+        const response = await chatbotApi.post('/role-based/bulk/operations', {
+          conversation_ids: conversationIds,
+          operation: operation,
+          operation_data: operationData
+        });
+        return response.data;
+      } catch (error) {
+        console.error('Bulk operations API error:', error);
+        throw new Error(error.message || 'Failed to perform bulk operations');
+      }
+    },
+
+    // Features and capabilities
+    getAvailableFeatures: async () => {
+      try {
+        const response = await chatbotApi.get('/role-based/features');
+        return response.data;
+      } catch (error) {
+        console.error('Features API error:', error);
+        throw new Error(error.message || 'Failed to load available features');
+      }
+    }
   }
 };

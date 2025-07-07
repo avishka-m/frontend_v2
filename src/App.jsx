@@ -7,7 +7,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
 import Notification from './components/common/Notification';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import PersonalAssistant from './components/ai/PersonalAssistant';
+import FloatingChatWidget from './components/common/FloatingChatWidget';
 import { Toaster } from 'react-hot-toast';
 
 // Pages
@@ -60,6 +60,9 @@ import Settings from './pages/Settings';
 // Workflow Components
 import OrderWorkflowTracker from './pages/OrderWorkflowTracker';
 import WorkflowManagement from './pages/WorkflowManagement';
+
+// Enhanced Chatbot Components
+import RoleBasedChatbot from './pages/chatbot/RoleBasedChatbot';
 
 function App() {
   return (
@@ -291,6 +294,9 @@ function App() {
                     </RoleBasedRoute>
                   } />
                   
+                  {/* Enhanced Chatbot - All roles */}
+                  <Route path="/chatbot/enhanced" element={<RoleBasedChatbot />} />
+                  
                   {/* Common routes */}
                   <Route path="/profile" element={<UserProfile />} />
                   <Route path="/change-password" element={<ChangePassword />} />
@@ -304,7 +310,7 @@ function App() {
               </Routes>
               
               {/* Enhanced Personal Assistant */}
-              <PersonalAssistant />
+              <FloatingChatWidget />
               
             </EnhancedChatbotProvider>
           </AuthProvider>
