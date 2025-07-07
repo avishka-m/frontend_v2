@@ -31,11 +31,21 @@ const EnhancedChatbotPage = () => {
   const { user } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [activeView, setActiveView] = useState('chat');
-  const [systemStatus, setSystemStatus] = useState({});
-  const [userPermissions, setUserPermissions] = useState({});
+  const [systemStatus, setSystemStatus] = useState({
+    status: 'operational',
+    uptime: '99.9%',
+    activeAgents: 5,
+    responseTime: '< 200ms'
+  });
+  const [userPermissions, setUserPermissions] = useState({
+    canChat: true,
+    canViewHistory: true,
+    canExport: true,
+    canManage: false
+  });
   const [conversations, setConversations] = useState([]);
   const [dashboardData, setDashboardData] = useState({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start with false
   const [notification, setNotification] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -44,29 +54,41 @@ const EnhancedChatbotPage = () => {
   const isManager = userRole.toLowerCase() === 'manager';
 
   useEffect(() => {
-    initializePage();
-  }, [user]);
-
-  const initializePage = async () => {
-    // Initialize immediately without blocking API calls
+    console.log('Enhanced Chatbot Page initializing...');
+    
+    // Force loading state to false - no matter what
     setIsLoading(false);
     
-    // Set default data
-    setSystemStatus({
-      status: 'operational',
-      uptime: '99.9%',
-      activeAgents: 5,
-      responseTime: '< 200ms'
-    });
+    // Update permissions safely
+    try {
+      setUserPermissions(prev => ({
+        ...prev,
+        canManage: user?.role?.toLowerCase() === 'manager'
+      }));
+    } catch (error) {
+      console.warn('Error setting permissions:', error);
+    }
     
-    setUserPermissions({
-      canChat: true,
-      canViewHistory: true,
-      canExport: true,
-      canManage: isManager
-    });
+    // Load conversations in background - don't let this block the UI
+    setTimeout(() => {
+      loadConversationsInBackground().catch(error => {
+        console.warn('Background conversation loading failed:', error);
+      });
+    }, 100);
     
-    // Load conversations in background
+    // Show success notification
+    setTimeout(() => {
+      try {
+        showNotification('Enhanced chatbot ready!', 'success');
+      } catch (error) {
+        console.warn('Error showing notification:', error);
+      }
+    }, 500);
+    
+    console.log('Enhanced Chatbot Page initialized successfully');
+  }, []); // Empty dependency array
+
+  const loadConversationsInBackground = async () => {
     try {
       const response = await chatbotService.getAllConversations({ limit: 100 });
       setConversations(response.conversations || []);
@@ -74,8 +96,13 @@ const EnhancedChatbotPage = () => {
       console.warn('Could not load conversations:', error);
       setConversations([]);
     }
-    
-    showNotification('Enhanced chatbot ready!', 'success');
+  };
+
+  const initializePage = async () => {
+    // Legacy function - now handled in useEffect
+    setIsLoading(false);
+    await loadConversationsInBackground();
+    showNotification('Data refreshed successfully', 'success');
   };
 
   const loadConversations = async () => {
