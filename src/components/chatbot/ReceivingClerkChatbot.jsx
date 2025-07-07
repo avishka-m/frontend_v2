@@ -8,7 +8,7 @@ const ReceivingClerkChatbot = () => {
       title="WMS Chatbot"
       role="Receiving Clerk"
       iconComponent={Package}
-      gradientColors="from-green-600 to-emerald-600"
+      gradientColors="from-primary-500 to-blue-500"
       showAssistantSelection={false} // Regular users only see their role-specific assistant
     />
   );

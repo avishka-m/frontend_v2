@@ -8,8 +8,8 @@ const ManagerChatbot = () => {
       title="WMS Chatbot"
       role="Manager"
       iconComponent={Crown}
-      gradientColors="from-purple-600 to-pink-600"
-      showAssistantSelection={true} // Managers can select different assistants
+      gradientColors="from-primary-600 to-blue-600"
+      showAssistantSelection={false} // Simplified interface for all users
     />
   );
 };

@@ -8,7 +8,7 @@ const PickerChatbot = () => {
       title="WMS Chatbot"
       role="Picker"
       iconComponent={ShoppingCart}
-      gradientColors="from-orange-600 to-red-600"
+      gradientColors="from-primary-600 to-indigo-600"
       showAssistantSelection={false} // Regular users only see their role-specific assistant
     />
   );

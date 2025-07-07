@@ -137,18 +137,23 @@ const ChatWindow = ({
   );
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-white overflow-hidden">
       {/* Conversation Header */}
-      {renderConversationHeader()}
+      <div className="flex-shrink-0">
+        {renderConversationHeader()}
+      </div>
 
-      {/* Messages Area */}
+      {/* Messages Area - Scrollable */}
       <div 
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto p-4 space-y-4"
-        style={{ maxHeight: 'calc(100vh - 200px)' }}
+        className="flex-1 overflow-y-auto px-4 py-4 min-h-0"
       >
-        {messages.length === 0 ? renderEmptyState() : (
-          <div className="space-y-4">
+        {messages.length === 0 ? (
+          <div className="h-full">
+            {renderEmptyState()}
+          </div>
+        ) : (
+          <div className="space-y-4 pb-4">
             {messages.map((message, index) => (
               <ChatMessage
                 key={message.id || index}
@@ -181,57 +186,62 @@ const ChatWindow = ({
         )}
       </div>
 
-      {/* Message Input Area */}
-      <div className="border-t border-gray-200 bg-white p-4">
-        <div className="flex items-end space-x-3">
-          {/* Attachment button */}
-          <button 
-            className="p-2 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
-            disabled={sending}
-          >
-            <Paperclip className="h-5 w-5" />
-          </button>
-
-          {/* Message input */}
-          <div className="flex-1 relative">
-            <textarea
-              ref={textareaRef}
-              value={currentMessage}
-              onChange={(e) => setCurrentMessage(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder={`Message ${agentDisplay.name}...`}
-              disabled={sending}
-              className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 pr-12 focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32 min-h-[48px]"
-              rows={1}
-            />
-            
-            {/* Emoji button */}
+      {/* Message Input Area - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t border-gray-200 bg-white">
+        <div className="p-4">
+          <div className="flex items-end space-x-3">
+            {/* Attachment button */}
             <button 
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-2 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0"
               disabled={sending}
             >
-              <Smile className="h-5 w-5" />
+              <Paperclip className="h-5 w-5" />
             </button>
+
+            {/* Message input */}
+            <div className="flex-1 relative">
+              <textarea
+                ref={textareaRef}
+                value={currentMessage}
+                onChange={(e) => setCurrentMessage(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={`Message ${agentDisplay.name}...`}
+                disabled={sending}
+                className="w-full resize-none border border-gray-300 rounded-lg px-4 py-3 pr-12 focus:ring-2 focus:ring-blue-500 focus:border-transparent max-h-32 min-h-[48px] transition-all"
+                rows={1}
+              />
+              
+              {/* Emoji button */}
+              <button 
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                disabled={sending}
+              >
+                <Smile className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Send button */}
+            <Button
+              onClick={handleSend}
+              disabled={!currentMessage.trim() || sending}
+              className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50 transition-all"
+            >
+              {sending ? (
+                <RefreshCw className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
+              )}
+            </Button>
           </div>
 
-          {/* Send button */}
-          <Button
-            onClick={handleSend}
-            disabled={!currentMessage.trim() || sending}
-            className="flex-shrink-0 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:opacity-50"
-          >
-            {sending ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              <Send className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-
-        {/* Input helper text */}
-        <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
-          <span>Press Enter to send, Shift+Enter for new line</span>
-          <span>{currentMessage.length}/2000</span>
+          {/* Input helper text */}
+          <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
+            <span className="hidden sm:block">Press Enter to send, Shift+Enter for new line</span>
+            <span className="sm:hidden">Enter to send</span>
+            <span className={`${currentMessage.length > 1800 ? 'text-orange-500' : ''} ${currentMessage.length > 1950 ? 'text-red-500' : ''}`}>
+              {currentMessage.length}/2000
+            </span>
+          </div>
         </div>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MessageSquare, 
   Plus, 
@@ -22,10 +22,30 @@ const ChatHistorySidebar = ({
   onSelectConversation,
   onNewConversation,
   onRefresh,
+  onDeleteConversation,
+  onArchiveConversation,
   loading
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(null);
+  const [processing, setProcessing] = useState(false);
+
+  // Handle ESC key to close dialogs
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setShowDeleteConfirm(null);
+        setShowArchiveConfirm(null);
+      }
+    };
+
+    if (showDeleteConfirm || showArchiveConfirm) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showDeleteConfirm, showArchiveConfirm]);
 
   // Filter conversations based on search
   const filteredConversations = conversations.filter(conv =>
@@ -67,16 +87,44 @@ const ChatHistorySidebar = ({
     }
   };
 
+  const handleDeleteConversation = async (conversationId) => {
+    if (!onDeleteConversation) return;
+    
+    setProcessing(true);
+    try {
+      await onDeleteConversation(conversationId);
+      setShowDeleteConfirm(null);
+    } catch (error) {
+      console.error('Failed to delete conversation:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleArchiveConversation = async (conversationId) => {
+    if (!onArchiveConversation) return;
+    
+    setProcessing(true);
+    try {
+      await onArchiveConversation(conversationId);
+      setShowArchiveConfirm(null);
+    } catch (error) {
+      console.error('Failed to archive conversation:', error);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="p-4 border-b border-gray-200">
+    <div className="h-full flex flex-col overflow-hidden">
+      {/* Header - Fixed */}
+      <div className="flex-shrink-0 p-4 border-b border-gray-200 bg-white">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-semibold text-gray-900">Chat History</h3>
           <button
             onClick={handleRefresh}
             disabled={refreshing}
-            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-100"
           >
             <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           </button>
@@ -85,7 +133,7 @@ const ChatHistorySidebar = ({
         {/* New Chat Button */}
         <Button
           onClick={onNewConversation}
-          className="w-full mb-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+          className="w-full mb-3 bg-gradient-to-r from-primary-600 to-blue-600 hover:from-primary-700 hover:to-blue-700 transition-all shadow-sm hover:shadow-md"
         >
           <Plus className="h-4 w-4 mr-2" />
           New Chat
@@ -99,13 +147,13 @@ const ChatHistorySidebar = ({
             placeholder="Search conversations..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
+            className="pl-10 transition-all"
           />
         </div>
       </div>
 
-      {/* Conversations List */}
-      <div className="flex-1 overflow-y-auto">
+      {/* Conversations List - Scrollable */}
+      <div className="flex-1 overflow-y-auto min-h-0">
         {loading && conversations.length === 0 ? (
           <div className="p-4 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
@@ -135,8 +183,8 @@ const ChatHistorySidebar = ({
                     isActive 
                       ? 'bg-blue-50 border-r-2 border-blue-600' 
                       : 'hover:bg-gray-50'
-                  }`}
-                  onClick={() => onSelectConversation(conversation)}
+                  } ${processing ? 'opacity-50 pointer-events-none' : ''}`}
+                  onClick={() => !processing && onSelectConversation(conversation)}
                 >
                   <div className="flex items-start space-x-3">
                     {/* Agent Icon */}
@@ -157,18 +205,31 @@ const ChatHistorySidebar = ({
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <button 
-                              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all"
+                              className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-gray-600 transition-all rounded hover:bg-gray-100"
                               onClick={(e) => e.stopPropagation()}
                             >
                               <MoreVertical className="h-3 w-3" />
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem>
+                            <DropdownMenuItem 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowArchiveConfirm(conversation.conversation_id);
+                              }}
+                              disabled={processing}
+                            >
                               <Archive className="h-4 w-4 mr-2" />
                               Archive
                             </DropdownMenuItem>
-                            <DropdownMenuItem className="text-red-600">
+                            <DropdownMenuItem 
+                              className="text-red-600 hover:bg-red-50 focus:bg-red-50"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDeleteConfirm(conversation.conversation_id);
+                              }}
+                              disabled={processing}
+                            >
                               <Trash2 className="h-4 w-4 mr-2" />
                               Delete
                             </DropdownMenuItem>
@@ -201,6 +262,13 @@ const ChatHistorySidebar = ({
                   {isActive && (
                     <div className="absolute right-0 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-blue-600 rounded-l"></div>
                   )}
+                  
+                  {/* Processing Indicator */}
+                  {processing && (showDeleteConfirm === conversation.conversation_id || showArchiveConfirm === conversation.conversation_id) && (
+                    <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center">
+                      <RefreshCw className="h-4 w-4 animate-spin text-primary-600" />
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -221,6 +289,86 @@ const ChatHistorySidebar = ({
           </span>
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center mr-3">
+                <Trash2 className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Conversation</h3>
+                <p className="text-sm text-gray-500">This action cannot be undone</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to delete this conversation? All messages will be permanently removed.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                disabled={processing}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteConversation(showDeleteConfirm)}
+                disabled={processing}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+              >
+                {processing ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Delete'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Confirmation Dialog */}
+      {showArchiveConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center mb-4">
+              <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                <Archive className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Archive Conversation</h3>
+                <p className="text-sm text-gray-500">Move to archived conversations</p>
+              </div>
+            </div>
+            <p className="text-gray-700 mb-6">
+              This conversation will be moved to your archived conversations. You can restore it later if needed.
+            </p>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setShowArchiveConfirm(null)}
+                disabled={processing}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleArchiveConversation(showArchiveConfirm)}
+                disabled={processing}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center"
+              >
+                {processing ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Archive'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

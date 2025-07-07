@@ -8,7 +8,7 @@ const DriverChatbot = () => {
       title="WMS Chatbot"
       role="Driver"
       iconComponent={Truck}
-      gradientColors="from-red-600 to-rose-600"
+      gradientColors="from-primary-600 to-blue-700"
       showAssistantSelection={false} // Regular users only see their role-specific assistant
     />
   );
