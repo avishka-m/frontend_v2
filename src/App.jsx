@@ -7,7 +7,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import RoleBasedRoute from './components/common/RoleBasedRoute';
 import Notification from './components/common/Notification';
 import ErrorBoundary from './components/common/ErrorBoundary';
-import PersonalAssistant from './components/ai/PersonalAssistant';
+import FloatingChatWidget from './components/common/FloatingChatWidget';
 import { Toaster } from 'react-hot-toast';
 
 // Pages
@@ -310,7 +310,7 @@ function App() {
               </Routes>
               
               {/* Enhanced Personal Assistant */}
-              <PersonalAssistant />
+              <FloatingChatWidget />
               
             </EnhancedChatbotProvider>
           </AuthProvider>
