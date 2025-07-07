@@ -267,7 +267,7 @@ const ConversationSearchPanel = ({
                     <SelectItem value="inventory">Inventory</SelectItem>
                     <SelectItem value="orders">Orders</SelectItem>
                     <SelectItem value="analytics">Analytics</SelectItem>
-                    <SelectItem value="general">General</SelectItem>
+                    <SelectItem value="manager">Manager</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

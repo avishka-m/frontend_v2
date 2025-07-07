@@ -22,10 +22,11 @@ const AssistantSelectionPanel = ({
   // Get agent capabilities description
   const getAgentCapabilities = (agentId) => {
     const capabilities = {
-      'general': [
-        'General warehouse inquiries',
-        'System navigation help',
-        'Basic information lookup'
+      'manager': [
+        'Warehouse operations oversight',
+        'Team management assistance',
+        'Performance analytics',
+        'Strategic planning support'
       ],
       'clerk': [
         'Receiving operations',
@@ -48,7 +49,7 @@ const AssistantSelectionPanel = ({
         'Vehicle management'
       ]
     };
-    return capabilities[agentId] || capabilities['general'];
+    return capabilities[agentId] || capabilities['manager'];
   };
 
   return (

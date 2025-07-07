@@ -21,7 +21,7 @@ import { chatbotService } from '../../services/chatbotService';
 const ChatMessage = ({ 
   message, 
   isCurrentUser = false, 
-  agentRole = 'general',
+  agentRole = 'manager',
   showTimestamp = true,
   onCopy = null,
   onFeedback = null 

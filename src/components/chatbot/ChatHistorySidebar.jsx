@@ -69,13 +69,13 @@ const ChatHistorySidebar = ({
   // Get agent icon and color
   const getAgentInfo = (agentRole) => {
     const agentMap = {
-      'general': { icon: Bot, color: 'text-blue-600', bg: 'bg-blue-100' },
+      'manager': { icon: Bot, color: 'text-indigo-600', bg: 'bg-indigo-100' },
       'clerk': { icon: User, color: 'text-green-600', bg: 'bg-green-100' },
       'picker': { icon: User, color: 'text-orange-600', bg: 'bg-orange-100' },
       'packer': { icon: User, color: 'text-purple-600', bg: 'bg-purple-100' },
       'driver': { icon: User, color: 'text-red-600', bg: 'bg-red-100' }
     };
-    return agentMap[agentRole] || agentMap['general'];
+    return agentMap[agentRole] || agentMap['manager'];
   };
 
   const handleRefresh = async () => {
@@ -241,7 +241,7 @@ const ChatHistorySidebar = ({
                       <p className={`text-xs capitalize mb-1 ${
                         isActive ? 'text-blue-700' : 'text-gray-500'
                       }`}>
-                        {conversation.agent_role || 'general'} assistant
+                        {conversation.agent_role || 'manager'} assistant
                       </p>
                       
                       {/* Message Count & Date */}

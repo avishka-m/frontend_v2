@@ -32,7 +32,23 @@ const ChatbotDashboard = ({
   const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [messages, setMessages] = useState([]);
-  const [selectedAgent, setSelectedAgent] = useState('general');
+  // Initialize selectedAgent based on role
+  const getInitialAgent = () => {
+    if (showAssistantSelection) {
+      return 'manager'; // Managers start with manager agent
+    } else {
+      // Other roles get role-specific agent
+      const roleAgentMap = {
+        'ReceivingClerk': 'clerk',
+        'Picker': 'picker',
+        'Packer': 'packer',
+        'Driver': 'driver'
+      };
+      return roleAgentMap[currentUser?.role] || 'manager';
+    }
+  };
+
+  const [selectedAgent, setSelectedAgent] = useState(getInitialAgent());
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -44,21 +60,17 @@ const ChatbotDashboard = ({
 
   // Available agents based on role
   const getAvailableAgents = () => {
-    const baseAgents = [
-      { id: 'general', name: 'General Assistant', icon: Bot, color: 'from-blue-500 to-blue-600' },
-    ];
-
     if (showAssistantSelection) {
       // Manager gets all agents
       return [
-        ...baseAgents,
+        { id: 'manager', name: 'Manager Assistant', icon: Bot, color: 'from-indigo-500 to-blue-600' },
         { id: 'clerk', name: 'Receiving Clerk', icon: User, color: 'from-green-500 to-green-600' },
         { id: 'picker', name: 'Picker Assistant', icon: User, color: 'from-orange-500 to-orange-600' },
         { id: 'packer', name: 'Packer Assistant', icon: User, color: 'from-purple-500 to-purple-600' },
         { id: 'driver', name: 'Driver Assistant', icon: User, color: 'from-red-500 to-red-600' }
       ];
     } else {
-      // Other roles get role-specific agent
+      // Other roles get only their role-specific agent
       const roleAgentMap = {
         'ReceivingClerk': { id: 'clerk', name: 'Receiving Assistant', icon: User, color: 'from-green-500 to-green-600' },
         'Picker': { id: 'picker', name: 'Picker Assistant', icon: User, color: 'from-orange-500 to-orange-600' },
@@ -67,31 +79,13 @@ const ChatbotDashboard = ({
       };
       
       const roleAgent = roleAgentMap[currentUser?.role];
-      if (roleAgent) {
-        return [baseAgents[0], roleAgent];
-      }
-      return baseAgents;
+      return roleAgent ? [roleAgent] : [{ id: 'manager', name: 'Manager Assistant', icon: Bot, color: 'from-indigo-500 to-blue-600' }];
     }
   };
 
   const availableAgents = getAvailableAgents();
 
-  // Auto-select role-specific agent for non-managers
-  useEffect(() => {
-    if (!showAssistantSelection && currentUser?.role) {
-      const roleAgentMap = {
-        'ReceivingClerk': 'clerk',
-        'Picker': 'picker',
-        'Packer': 'packer',
-        'Driver': 'driver'
-      };
-      
-      const roleAgentId = roleAgentMap[currentUser.role];
-      if (roleAgentId) {
-        setSelectedAgent(roleAgentId);
-      }
-    }
-  }, [currentUser?.role, showAssistantSelection]);
+
 
   // Initialize
   useEffect(() => {

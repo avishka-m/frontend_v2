@@ -41,7 +41,7 @@ const UserChatInterface = () => {
   const [conversations, setConversations] = useState([]);
   const [messages, setMessages] = useState([]);
   const [currentMessage, setCurrentMessage] = useState('');
-  const [selectedAgent, setSelectedAgent] = useState('general');
+  const [selectedAgent, setSelectedAgent] = useState('manager');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,10 +49,10 @@ const UserChatInterface = () => {
 
   // Available agents for regular users
   const availableAgents = [
-    { id: 'general', name: 'General Assistant', color: 'blue' },
+    { id: 'manager', name: 'Manager Assistant', color: 'indigo' },
     { id: 'clerk', name: 'Receiving Clerk', color: 'green' },
-    { id: 'picker', name: 'Picker Assistant', color: 'blue' },
-    { id: 'packer', name: 'Packing Assistant', color: 'orange' },
+    { id: 'picker', name: 'Picker Assistant', color: 'orange' },
+    { id: 'packer', name: 'Packing Assistant', color: 'purple' },
     { id: 'driver', name: 'Driver Assistant', color: 'red' }
   ];
 
@@ -102,7 +102,7 @@ const UserChatInterface = () => {
       );
       
       setMessages(response.messages || []);
-      setSelectedAgent(conversation.agent_role || 'general');
+      setSelectedAgent(conversation.agent_role || 'manager');
     } catch (error) {
       showNotification('Failed to load conversation', 'error');
       console.error('Failed to load conversation:', error);
