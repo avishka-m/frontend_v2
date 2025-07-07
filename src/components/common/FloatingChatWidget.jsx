@@ -10,7 +10,8 @@ import {
   Zap,
   Package,
   Truck,
-  BarChart3
+  BarChart3,
+  RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { chatbotService } from '../../services/chatbotService';
@@ -26,6 +27,7 @@ const FloatingChatWidget = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showQuickActions, setShowQuickActions] = useState(true);
   const [hasNewFeatures, setHasNewFeatures] = useState(true); // Show notification for new users
+  const [hasUserInteracted, setHasUserInteracted] = useState(false); // Track if user sent a message
   
   // Refs
   const messagesEndRef = useRef(null);
@@ -36,7 +38,7 @@ const FloatingChatWidget = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
   
-  // Focus input when opened and hide notification
+  // Focus input when opened and add welcome message
   useEffect(() => {
     if (isOpen && inputRef.current) {
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -66,7 +68,8 @@ const FloatingChatWidget = () => {
             id: Date.now(),
             role: 'assistant',
             content: getWelcomeMessage(currentUser?.role),
-            timestamp: new Date()
+            timestamp: new Date(),
+            isWelcome: true // Mark as welcome message
           };
           setMessages([welcomeMessage]);
         }, 500);
@@ -117,7 +120,7 @@ const FloatingChatWidget = () => {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
-    setShowQuickActions(false);
+    setHasUserInteracted(true); // Mark that user has interacted
     
     try {
       // Map user roles to proper chatbot assistant roles
@@ -163,6 +166,46 @@ const FloatingChatWidget = () => {
   const handleQuickAction = (action) => {
     const message = `Quick Action: ${action.label} - ${action.description}`;
     sendMessage(message);
+  };
+
+  const toggleQuickActions = () => {
+    setShowQuickActions(!showQuickActions);
+  };
+
+  const resetChat = () => {
+    setMessages([]);
+    setHasUserInteracted(false);
+    setShowQuickActions(true);
+    setInputMessage('');
+    
+    // Add welcome message again after reset
+    setTimeout(() => {
+      const getWelcomeMessage = (role) => {
+        switch (role) {
+          case 'Manager':
+            return `Hello Manager! I'm your Executive Assistant with full warehouse oversight capabilities. I can help with analytics, system monitoring, workforce management, and strategic insights. Use the quick actions below or ask me anything about warehouse operations.`;
+          case 'ReceivingClerk':
+            return `Hi! I'm your Inventory Specialist assistant, focused on receiving and stock management. Use the quick actions for common tasks or ask me about inventory operations.`;
+          case 'Picker':
+            return `Hello! I'm your Picking Assistant, here to help optimize your picking routes and manage order fulfillment. Try the quick actions or ask me about picking operations.`;
+          case 'Packer':
+            return `Hi! I'm your Packing Specialist assistant, ready to help with packing workflows and shipping preparation. Use the actions below or ask me about packing tasks.`;
+          case 'Driver':
+            return `Hello! I'm your Delivery Coordinator assistant, here to help with routes, deliveries, and vehicle management. Try the quick actions for common tasks.`;
+          default:
+            return `Hi! I'm your warehouse assistant. Use the buttons above for quick actions, or type a question. For advanced features, click "Open Full Chat".`;
+        }
+      };
+
+      const welcomeMessage = {
+        id: Date.now(),
+        role: 'assistant',
+        content: getWelcomeMessage(currentUser?.role),
+        timestamp: new Date(),
+        isWelcome: true
+      };
+      setMessages([welcomeMessage]);
+    }, 300);
   };
 
   const handleKeyPress = (e) => {
@@ -221,6 +264,15 @@ const FloatingChatWidget = () => {
             </div>
           </div>
           <div className="flex items-center space-x-2">
+            {messages.length > 0 && (
+              <button
+                onClick={resetChat}
+                className="p-1.5 hover:bg-white/20 rounded-md transition-colors"
+                title="Start New Chat"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+            )}
             <button
               onClick={openFullChat}
               className="p-1.5 hover:bg-white/20 rounded-md transition-colors"
@@ -239,9 +291,19 @@ const FloatingChatWidget = () => {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-3 space-y-3">
-          {messages.length === 0 && showQuickActions && (
-            <div className="space-y-2">
-              <p className="text-xs text-gray-500 text-center mb-3">Quick actions for {currentUser?.role}:</p>
+          {/* Quick Actions - Show until user interacts or manually hidden */}
+          {!hasUserInteracted && showQuickActions && (
+            <div className="space-y-2 border-b border-gray-100 pb-3 mb-3">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-gray-500">Quick actions for {currentUser?.role}:</p>
+                <button
+                  onClick={toggleQuickActions}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Hide quick actions"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
               {getQuickActions().map((action) => {
                 const IconComponent = action.icon;
                 return (
@@ -270,6 +332,53 @@ const FloatingChatWidget = () => {
                     <span className="text-sm font-medium">Open Full Chat</span>
                   </div>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Show Quick Actions Toggle - Only after user has interacted */}
+          {hasUserInteracted && !showQuickActions && (
+            <div className="text-center mb-3">
+              <button
+                onClick={toggleQuickActions}
+                className="text-xs text-primary-600 hover:text-primary-700 bg-primary-50 hover:bg-primary-100 px-2 py-1 rounded-md transition-colors"
+              >
+                Show Quick Actions
+              </button>
+            </div>
+          )}
+
+          {/* Quick Actions After Interaction - Collapsible */}
+          {hasUserInteracted && showQuickActions && (
+            <div className="space-y-2 border border-gray-200 rounded-lg p-2 mb-3 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <p className="text-xs text-gray-600 font-medium">Quick Actions</p>
+                <button
+                  onClick={toggleQuickActions}
+                  className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+                  title="Hide quick actions"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-1">
+                {getQuickActions().map((action) => {
+                  const IconComponent = action.icon;
+                  return (
+                    <button
+                      key={action.id}
+                      onClick={() => handleQuickAction(action)}
+                      className="p-1.5 text-left border border-gray-200 rounded-md hover:border-primary-300 hover:bg-primary-50 transition-colors bg-white"
+                    >
+                      <div className="flex items-center space-x-1">
+                        <IconComponent className="h-3 w-3 text-primary-600" />
+                        <div>
+                          <p className="text-xs font-medium text-gray-900">{action.label}</p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}
