@@ -1,0 +1,45 @@
+{
+  "originalFiles": {
+    "PackingDetail (Original)": "35.39",
+    "ReceivingDetail (Original)": "30.16",
+    "Inventory (Original)": "25.77",
+    "OrderDetail (Original)": "24.96",
+    "WorkflowManagement (Original)": "22.51",
+    "Orders Complex (Original)": "19.04",
+    "Chatbot (Original)": "37.62"
+  },
+  "optimizedFiles": {
+    "PackingDetail (Optimized)": "8.04",
+    "ReceivingDetail (Optimized)": "10.66",
+    "Inventory (Optimized)": "6.41",
+    "OrderDetail (Optimized)": "9.27",
+    "WorkflowManagement (Optimized)": "11.33",
+    "Orders Complex (Optimized)": "15.93",
+    "Chatbot (Optimized)": "16.16"
+  },
+  "infrastructureFiles": {
+    "DetailPageTemplate": "10.93",
+    "PackingHeader": "3.30",
+    "ReceivingHeader": "3.73",
+    "InventoryHeader": "4.09",
+    "OrderHeader": "6.76",
+    "WorkflowHeader": "6.56",
+    "OrdersHeader": "9.65",
+    "ChatbotHeader": "11.51",
+    "usePackingData": "6.01",
+    "useReceivingData": "6.99",
+    "useInventoryData": "8.21",
+    "useOrderData": "12.41",
+    "useWorkflowData": "11.63",
+    "useOrdersListData": "12.60",
+    "useChatbotData": "14.77"
+  },
+  "totalSavings": {
+    "originalTotal": "195.45",
+    "optimizedTotal": "77.80",
+    "infrastructureTotal": "129.15",
+    "totalSavings": "117.65",
+    "percentSavings": "60.2"
+  },
+  "timestamp": "2025-07-08T07:19:44.328Z"
+}

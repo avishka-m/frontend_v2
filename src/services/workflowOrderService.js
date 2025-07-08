@@ -10,10 +10,32 @@ class WorkflowOrderService {
         statusFilter = `&status=${statuses.join(',')}`; 
       }
       
-      const response = await api.get(`/orders?limit=100${statusFilter}`);
+      const response = await api.get(`/orders/?limit=100${statusFilter}`);
+      
+      // Ensure we have an array to work with
+      let ordersData = response.data;
+      if (!Array.isArray(ordersData)) {
+        // If the response is wrapped in an object, try to extract the array
+        if (ordersData && typeof ordersData === 'object') {
+          if (ordersData.orders && Array.isArray(ordersData.orders)) {
+            ordersData = ordersData.orders;
+          } else if (ordersData.data && Array.isArray(ordersData.data)) {
+            ordersData = ordersData.data;
+          } else if (ordersData.items && Array.isArray(ordersData.items)) {
+            ordersData = ordersData.items;
+          } else {
+            console.warn('Unexpected response structure in workflow service:', ordersData);
+            ordersData = [];
+          }
+        } else {
+          console.warn('Response is not an array or object in workflow service:', ordersData);
+          ordersData = [];
+        }
+      }
+      
       return {
         success: true,
-        data: response.data || []
+        data: ordersData
       };
     } catch (error) {
       console.error('Error fetching orders by role:', error);
@@ -32,7 +54,7 @@ class WorkflowOrderService {
         params.append('worker_id', workerId);
       }
 
-      const response = await api.put(`/orders/${orderId}/status?${params.toString()}`);
+      const response = await api.put(`/orders/${orderId}/status/?${params.toString()}`);
       return {
         success: true,
         data: response.data
@@ -84,7 +106,7 @@ class WorkflowOrderService {
   // Get picking list with optimal path (AI feature placeholder)
   async getOptimalPickingPath(orderId) {
     try {
-      const response = await api.get(`/orders/${orderId}/picking-list`);
+      const response = await api.get(`/orders/${orderId}/picking-list/`);
       return {
         success: true,
         data: {
@@ -107,7 +129,7 @@ class WorkflowOrderService {
   // Get available workers by role
   async getAvailableWorkers(role) {
     try {
-      const response = await api.get(`/workers?role=${role}&status=available`);
+      const response = await api.get(`/workers/?role=${role}&status=available`);
       return {
         success: true,
         data: response.data || []
@@ -124,7 +146,7 @@ class WorkflowOrderService {
   // Get order details
   async getOrderDetails(orderId) {
     try {
-      const response = await api.get(`/orders/${orderId}`);
+      const response = await api.get(`/orders/${orderId}/`);
       return {
         success: true,
         data: response.data
@@ -151,7 +173,7 @@ class WorkflowOrderService {
         }
       }
       
-      const url = `/orders/${orderId}/status?new_status=${newStatus}&worker_id=${workerId}`;
+      const url = `/orders/${orderId}/status/?new_status=${newStatus}&worker_id=${workerId}`;
       const response = await api.put(url);
       return {
         success: true,
@@ -169,7 +191,7 @@ class WorkflowOrderService {
   // Get order history/timeline
   async getOrderHistory(orderId) {
     try {
-      const response = await api.get(`/orders/${orderId}/history`);
+      const response = await api.get(`/orders/${orderId}/history/`);
       return {
         success: true,
         data: response.data || []

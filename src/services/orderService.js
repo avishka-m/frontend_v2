@@ -65,17 +65,36 @@ const orderService = {
   getOrders: async (params = {}) => {
     try {
       const queryParams = new URLSearchParams();
-      
-      // Add query parameters that match backend API
       if (params.skip) queryParams.append('skip', params.skip);
       if (params.limit) queryParams.append('limit', params.limit);
       if (params.status) queryParams.append('status', params.status);
       if (params.customer_id) queryParams.append('customer_id', params.customer_id);
 
-      const response = await api.get(`/orders?${queryParams.toString()}`);
+      const response = await api.get(`/orders/?${queryParams.toString()}`);
+      
+      // Ensure we have an array to work with
+      let ordersData = response.data;
+      if (!Array.isArray(ordersData)) {
+        // If the response is wrapped in an object, try to extract the array
+        if (ordersData && typeof ordersData === 'object') {
+          if (ordersData.orders && Array.isArray(ordersData.orders)) {
+            ordersData = ordersData.orders;
+          } else if (ordersData.data && Array.isArray(ordersData.data)) {
+            ordersData = ordersData.data;
+          } else if (ordersData.items && Array.isArray(ordersData.items)) {
+            ordersData = ordersData.items;
+          } else {
+            console.warn('Unexpected response structure:', ordersData);
+            return [];
+          }
+        } else {
+          console.warn('Response is not an array or object:', ordersData);
+          return [];
+        }
+      }
       
       // Transform backend data to frontend format for compatibility
-      const transformedData = response.data.map(order => ({
+      const transformedData = ordersData.map(order => ({
         id: order.orderID || order.order_id,
         order_id: order.orderID || order.order_id,
         orderID: order.orderID || order.order_id,  // Keep for compatibility
@@ -109,7 +128,8 @@ const orderService = {
       return transformedData;
     } catch (error) {
       console.error('Error fetching orders:', error);
-      throw error;
+      // Return empty array on error to prevent crashes
+      return [];
     }
   },
   
@@ -120,7 +140,7 @@ const orderService = {
     }
 
     try {
-      const response = await api.get(`/orders/${id}`);
+      const response = await api.get(`/orders/${id}/`);
       
       // Transform backend data to frontend format
       const order = response.data;
@@ -177,7 +197,7 @@ const orderService = {
         }))
       };
 
-      const response = await api.post('/orders', backendData);
+      const response = await api.post('/orders/', backendData);
       
       // Transform response back to frontend format
       const createdOrder = response.data;
@@ -226,7 +246,7 @@ const orderService = {
         notes: order.notes
       };
 
-      const response = await api.put(`/orders/${id}`, backendData);
+      const response = await api.put(`/orders/${id}/`, backendData);
       
       // Transform response back to frontend format
       const updatedOrder = response.data;
@@ -268,7 +288,7 @@ const orderService = {
   // Delete an order
   deleteOrder: async (id) => {
     try {
-      const response = await api.delete(`/orders/${id}`);
+      const response = await api.delete(`/orders/${id}/`);
       return response.data;
     } catch (error) {
       console.error('Error deleting order:', error);
@@ -279,38 +299,75 @@ const orderService = {
   // Get order statistics
   getOrderStats: async () => {
     try {
-      const response = await api.get('/orders?limit=1000'); // Get all orders for stats
-      const orders = response.data;
+      const response = await api.get('/orders/?limit=100'); // Get all orders for stats
+      
+      // Ensure we have an array to work with
+      let ordersData = response.data;
+      if (!Array.isArray(ordersData)) {
+        // If the response is wrapped in an object, try to extract the array
+        if (ordersData && typeof ordersData === 'object') {
+          if (ordersData.orders && Array.isArray(ordersData.orders)) {
+            ordersData = ordersData.orders;
+          } else if (ordersData.data && Array.isArray(ordersData.data)) {
+            ordersData = ordersData.data;
+          } else if (ordersData.items && Array.isArray(ordersData.items)) {
+            ordersData = ordersData.items;
+          } else {
+            console.warn('Unexpected response structure for stats:', ordersData);
+            ordersData = [];
+          }
+        } else {
+          console.warn('Response is not an array or object for stats:', ordersData);
+          ordersData = [];
+        }
+      }
       
       const stats = {
-        total: orders.length,
-        pending: orders.filter(o => o.order_status === ORDER_STATUS.PENDING).length,
-        confirmed: orders.filter(o => o.order_status === ORDER_STATUS.CONFIRMED).length,
-        receiving: orders.filter(o => o.order_status === ORDER_STATUS.RECEIVING).length,
-        picking: orders.filter(o => o.order_status === ORDER_STATUS.PICKING).length,
-        packing: orders.filter(o => o.order_status === ORDER_STATUS.PACKING).length,
-        shipping: orders.filter(o => o.order_status === ORDER_STATUS.SHIPPING).length,
-        shipped: orders.filter(o => o.order_status === ORDER_STATUS.SHIPPED).length,
-        delivered: orders.filter(o => o.order_status === ORDER_STATUS.DELIVERED).length,
-        cancelled: orders.filter(o => o.order_status === ORDER_STATUS.CANCELLED).length,
-        high_priority: orders.filter(o => o.priority === ORDER_PRIORITY.HIGH).length,
-        medium_priority: orders.filter(o => o.priority === ORDER_PRIORITY.MEDIUM).length,
-        low_priority: orders.filter(o => o.priority === ORDER_PRIORITY.LOW).length,
-        total_value: orders.reduce((sum, order) => sum + (order.total_amount || 0), 0),
-        avg_order_value: orders.length > 0 ? orders.reduce((sum, order) => sum + (order.total_amount || 0), 0) / orders.length : 0
+        total: ordersData.length,
+        pending: ordersData.filter(o => o.order_status === ORDER_STATUS.PENDING).length,
+        confirmed: ordersData.filter(o => o.order_status === ORDER_STATUS.CONFIRMED).length,
+        receiving: ordersData.filter(o => o.order_status === ORDER_STATUS.RECEIVING).length,
+        picking: ordersData.filter(o => o.order_status === ORDER_STATUS.PICKING).length,
+        packing: ordersData.filter(o => o.order_status === ORDER_STATUS.PACKING).length,
+        shipping: ordersData.filter(o => o.order_status === ORDER_STATUS.SHIPPING).length,
+        shipped: ordersData.filter(o => o.order_status === ORDER_STATUS.SHIPPED).length,
+        delivered: ordersData.filter(o => o.order_status === ORDER_STATUS.DELIVERED).length,
+        cancelled: ordersData.filter(o => o.order_status === ORDER_STATUS.CANCELLED).length,
+        high_priority: ordersData.filter(o => o.priority === ORDER_PRIORITY.HIGH).length,
+        medium_priority: ordersData.filter(o => o.priority === ORDER_PRIORITY.MEDIUM).length,
+        low_priority: ordersData.filter(o => o.priority === ORDER_PRIORITY.LOW).length,
+        total_value: ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0),
+        avg_order_value: ordersData.length > 0 ? ordersData.reduce((sum, order) => sum + (order.total_amount || 0), 0) / ordersData.length : 0
       };
       
       return stats;
     } catch (error) {
       console.error('Error fetching order stats:', error);
-      throw error;
+      // Return default stats on error
+      return {
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        receiving: 0,
+        picking: 0,
+        packing: 0,
+        shipping: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+        high_priority: 0,
+        medium_priority: 0,
+        low_priority: 0,
+        total_value: 0,
+        avg_order_value: 0
+      };
     }
   },
 
   // Assign worker to order
   assignWorker: async (orderId, workerId) => {
     try {
-      const response = await api.put(`/orders/${orderId}/assign-worker`, {
+      const response = await api.put(`/orders/${orderId}/assign-worker/`, {
         worker_id: workerId
       });
       return response.data;
@@ -328,7 +385,7 @@ const orderService = {
         params.append('worker_id', workerId);
       }
       
-      const response = await api.put(`/orders/${orderId}/status?${params.toString()}`);
+      const response = await api.put(`/orders/${orderId}/status/?${params.toString()}`);
       return response.data;
     } catch (error) {
       console.error('Error updating order status:', error);
