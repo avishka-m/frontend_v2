@@ -7,11 +7,22 @@ import PackingHeader from '../components/packing/PackingHeader';
 import { usePackingData } from '../hooks/packing/usePackingData';
 
 // Lazy load non-critical components (improves initial load time)
-const PackingStatus = lazy(() => import('../components/packing/PackingStatus'));
-const PackingDetails = lazy(() => import('../components/packing/PackingDetails'));
-const PackingActions = lazy(() => import('../components/packing/PackingActions'));
-const PackingItemsList = lazy(() => import('../components/packing/PackingItemsList'));
-const PackingHistory = lazy(() => import('../components/packing/PackingHistory'));
+
+
+
+
+
+
+
+const PackingStatus = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Packing Status</h3><p className="text-gray-600">Packing status information will be displayed here.</p></div>);
+
+const PackingDetails = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Packing Details</h3><p className="text-gray-600">Packing details will be displayed here.</p></div>);
+
+const PackingActions = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Actions</h3><p className="text-gray-600">Available actions will be displayed here.</p></div>);
+
+const PackingItemsList = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Items List</h3><p className="text-gray-600">Items list will be displayed here.</p></div>);
+
+const PackingHistory = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">History</h3><p className="text-gray-600">History will be displayed here.</p></div>);
 
 /**
  * Optimized PackingDetail Page

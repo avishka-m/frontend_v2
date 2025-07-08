@@ -1,20 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../context/NotificationContext';
-import { Card, Button, Form, Input, Divider, Avatar, Row, Col, Typography, Spin } from 'antd';
-import { UserOutlined, SaveOutlined, MailOutlined, PhoneOutlined, IdcardOutlined } from '@ant-design/icons';
-
-const { Title, Text } = Typography;
+import { NOTIFICATION_TYPES } from '../context/NotificationContext';
+import { User, Save, Mail, Phone, IdCard } from 'lucide-react';
 
 const UserProfile = () => {
   const { user, updateUser } = useAuth();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
-  const [form] = Form.useForm();
+  const [formData, setFormData] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    phone: '',
+    job_title: '',
+    department: '',
+  });
 
   useEffect(() => {
     if (user) {
-      form.setFieldsValue({
+      setFormData({
         first_name: user.first_name || '',
         last_name: user.last_name || '',
         email: user.email || '',
@@ -23,20 +28,26 @@ const UserProfile = () => {
         department: user.department || '',
       });
     }
-  }, [user, form]);
+  }, [user]);
 
-  const onFinish = async (values) => {
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     setLoading(true);
     try {
-      await updateUser(values);
+      await updateUser(formData);
       addNotification({
-        type: 'success',
+        type: NOTIFICATION_TYPES.SUCCESS,
         message: 'Profile Updated',
         description: 'Your profile information has been updated successfully.'
       });
     } catch (error) {
       addNotification({
-        type: 'error',
+        type: NOTIFICATION_TYPES.ERROR,
         message: 'Update Failed',
         description: error.message || 'Failed to update profile information. Please try again.'
       });
@@ -48,123 +59,137 @@ const UserProfile = () => {
   if (!user) {
     return (
       <div className="flex justify-center items-center h-64">
-        <Spin size="large" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
     <div className="p-6">
-      <Title level={2} className="mb-6">User Profile</Title>
-      <Row gutter={24}>
-        <Col xs={24} md={8} className="mb-6">
-          <Card className="text-center">
-            <div className="mb-4 flex justify-center">
-              <Avatar 
-                size={100} 
-                icon={<UserOutlined />} 
-                src={user.avatar} 
-                className="bg-blue-500"
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">User Profile</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Profile Info Card */}
+        <div className="bg-white rounded-lg shadow p-6 text-center">
+          <div className="mb-4 flex justify-center">
+            <div className="w-24 h-24 bg-blue-500 rounded-full flex items-center justify-center">
+              {user.avatar ? (
+                <img src={user.avatar} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+              ) : (
+                <User className="w-12 h-12 text-white" />
+              )}
+            </div>
+          </div>
+          <h2 className="text-xl font-semibold text-gray-900">{user.username}</h2>
+          <p className="text-gray-600 mb-4">{user.role || 'User'}</p>
+          <hr className="my-4" />
+          <div className="text-left space-y-2">
+            <p className="flex items-center"><Mail className="w-4 h-4 mr-2 text-gray-500" /> {user.email}</p>
+            <p className="flex items-center"><Phone className="w-4 h-4 mr-2 text-gray-500" /> {user.phone || 'Not provided'}</p>
+            <p className="flex items-center"><IdCard className="w-4 h-4 mr-2 text-gray-500" /> {user.employee_id || 'Not provided'}</p>
+          </div>
+          <hr className="my-4" />
+          <a 
+            href="/change-password" 
+            className="w-full inline-block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+          >
+            Change Password
+          </a>
+        </div>
+
+        {/* Edit Form */}
+        <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Edit Profile Information</h3>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
+                <input
+                  type="text"
+                  name="first_name"
+                  value={formData.first_name}
+                  onChange={handleChange}
+                  placeholder="Enter your first name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
+                <input
+                  type="text"
+                  name="last_name"
+                  value={formData.last_name}
+                  onChange={handleChange}
+                  placeholder="Enter your last name"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                required
               />
             </div>
-            <Title level={4}>{user.username}</Title>
-            <Text type="secondary">{user.role || 'User'}</Text>
-            <Divider />
-            <div className="text-left">
-              <p><MailOutlined className="mr-2" /> {user.email}</p>
-              <p><PhoneOutlined className="mr-2" /> {user.phone || 'Not provided'}</p>
-              <p><IdcardOutlined className="mr-2" /> {user.employee_id || 'Not provided'}</p>
-            </div>
-            <Divider />
-            <Button 
-              type="primary" 
-              href="/change-password" 
-              className="w-full"
-            >
-              Change Password
-            </Button>
-          </Card>
-        </Col>
-        <Col xs={24} md={16}>
-          <Card title="Edit Profile Information">
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={onFinish}
-            >
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="first_name"
-                    label="First Name"
-                    rules={[{ required: true, message: 'Please enter your first name' }]}
-                  >
-                    <Input placeholder="Enter your first name" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="last_name"
-                    label="Last Name"
-                    rules={[{ required: true, message: 'Please enter your last name' }]}
-                  >
-                    <Input placeholder="Enter your last name" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              
-              <Form.Item
-                name="email"
-                label="Email"
-                rules={[
-                  { required: true, message: 'Please enter your email' },
-                  { type: 'email', message: 'Please enter a valid email address' }
-                ]}
-              >
-                <Input placeholder="Enter your email" type="email" />
-              </Form.Item>
-              
-              <Form.Item
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
+              <input
+                type="tel"
                 name="phone"
-                label="Phone Number"
+                value={formData.phone}
+                onChange={handleChange}
+                placeholder="Enter your phone number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Job Title</label>
+                <input
+                  type="text"
+                  name="job_title"
+                  value={formData.job_title}
+                  onChange={handleChange}
+                  placeholder="Enter your job title"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Department</label>
+                <input
+                  type="text"
+                  name="department"
+                  value={formData.department}
+                  onChange={handleChange}
+                  placeholder="Enter your department"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+            </div>
+            
+            <div className="pt-4 border-t">
+              <button
+                type="submit"
+                disabled={loading}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Input placeholder="Enter your phone number" />
-              </Form.Item>
-              
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="job_title"
-                    label="Job Title"
-                  >
-                    <Input placeholder="Enter your job title" />
-                  </Form.Item>
-                </Col>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    name="department"
-                    label="Department"
-                  >
-                    <Input placeholder="Enter your department" />
-                  </Form.Item>
-                </Col>
-              </Row>
-              
-              <Form.Item>
-                <Button 
-                  type="primary" 
-                  htmlType="submit" 
-                  icon={<SaveOutlined />} 
-                  loading={loading}
-                  className="w-full md:w-auto"
-                >
-                  Save Changes
-                </Button>
-              </Form.Item>
-            </Form>
-          </Card>
-        </Col>
-      </Row>
+                <Save className="w-4 h-4 mr-2" />
+                {loading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     </div>
   );
 };

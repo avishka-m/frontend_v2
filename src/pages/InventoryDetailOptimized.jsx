@@ -4,13 +4,41 @@ import DetailPageTemplate from '../components/common/DetailPageTemplate';
 import InventoryHeader from '../components/inventory/InventoryHeader';
 import { useInventoryData } from '../hooks/inventory/useInventoryData';
 
-// Lazy load the inventory-specific components (these would be created separately)
-import { lazy } from 'react';
-const InventoryStatus = lazy(() => import('../components/inventory/InventoryStatus'));
-const InventoryDetails = lazy(() => import('../components/inventory/InventoryDetails'));
-const InventoryActions = lazy(() => import('../components/inventory/InventoryActions'));
-const InventoryStockChart = lazy(() => import('../components/inventory/InventoryStockChart'));
-const InventoryTransactions = lazy(() => import('../components/inventory/InventoryTransactions'));
+// Simple placeholder components for now
+const InventoryStatus = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Inventory Status</h3>
+    <p className="text-gray-600">Status information will be displayed here.</p>
+  </div>
+);
+
+const InventoryDetails = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Item Details</h3>
+    <p className="text-gray-600">Detailed inventory information will be displayed here.</p>
+  </div>
+);
+
+const InventoryActions = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Actions</h3>
+    <p className="text-gray-600">Available actions will be displayed here.</p>
+  </div>
+);
+
+const InventoryStockChart = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Stock Chart</h3>
+    <p className="text-gray-600">Stock level chart will be displayed here.</p>
+  </div>
+);
+
+const InventoryTransactions = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Transaction History</h3>
+    <p className="text-gray-600">Transaction history will be displayed here.</p>
+  </div>
+);
 
 /**
  * Optimized InventoryDetail Page using DetailPageTemplate

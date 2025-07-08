@@ -108,6 +108,28 @@ export const authService = {
       
       throw new Error(error.response?.data?.detail || 'Failed to get user information');
     }
+  },
+
+  changePassword: async (passwordData) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
+      // Real API implementation - change password via backend
+      const response = await api.post('/auth/change-password', passwordData);
+      
+      return response.data;
+    } catch (error) {
+      console.error('Change password error:', error);
+      
+      if (error.response?.status === 401) {
+        throw new Error('Current password is incorrect');
+      }
+      
+      throw new Error(error.response?.data?.detail || 'Failed to change password');
+    }
   }
 };
 

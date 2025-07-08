@@ -6,10 +6,19 @@ import DetailPageTemplate from '../components/common/DetailPageTemplate';
 import useWorkflowData from '../hooks/workflow/useWorkflowData';
 
 // Lazy-loaded components for better performance
-const WorkflowTasks = lazy(() => import('../components/workflow/WorkflowTasks'));
-const WorkflowMetrics = lazy(() => import('../components/workflow/WorkflowMetrics'));
-const WorkflowOptimization = lazy(() => import('../components/workflow/WorkflowOptimization'));
-const WorkflowActions = lazy(() => import('../components/workflow/WorkflowActions'));
+
+
+
+
+
+
+const WorkflowTasks = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Workflow Tasks</h3><p className="text-gray-600">Workflow tasks will be displayed here.</p></div>);
+
+const WorkflowMetrics = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Workflow Metrics</h3><p className="text-gray-600">Workflow metrics will be displayed here.</p></div>);
+
+const WorkflowOptimization = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Optimization</h3><p className="text-gray-600">Workflow optimization will be displayed here.</p></div>);
+
+const WorkflowActions = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Actions</h3><p className="text-gray-600">Available actions will be displayed here.</p></div>);
 
 /**
  * Optimized WorkflowManagement page using DetailPageTemplate

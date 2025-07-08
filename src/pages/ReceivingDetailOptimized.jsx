@@ -7,11 +7,22 @@ import ReceivingHeader from '../components/receiving/ReceivingHeader';
 import { useReceivingData } from '../hooks/receiving/useReceivingData';
 
 // Lazy load non-critical components (improves initial load time)
-const ReceivingStatus = lazy(() => import('../components/receiving/ReceivingStatus'));
-const ReceivingDetails = lazy(() => import('../components/receiving/ReceivingDetails'));
-const ReceivingActions = lazy(() => import('../components/receiving/ReceivingActions'));
-const ReceivingItemsList = lazy(() => import('../components/receiving/ReceivingItemsList'));
-const ReceivingHistory = lazy(() => import('../components/receiving/ReceivingHistory'));
+
+
+
+
+
+
+
+const ReceivingStatus = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Receiving Status</h3><p className="text-gray-600">Receiving status information will be displayed here.</p></div>);
+
+const ReceivingDetails = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Receiving Details</h3><p className="text-gray-600">Receiving details will be displayed here.</p></div>);
+
+const ReceivingActions = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Actions</h3><p className="text-gray-600">Available actions will be displayed here.</p></div>);
+
+const ReceivingItemsList = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Items List</h3><p className="text-gray-600">Items list will be displayed here.</p></div>);
+
+const ReceivingHistory = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">History</h3><p className="text-gray-600">History will be displayed here.</p></div>);
 
 /**
  * Optimized ReceivingDetail Page

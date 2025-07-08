@@ -4,13 +4,41 @@ import DetailPageTemplate from '../components/common/DetailPageTemplate';
 import OrderHeader from '../components/orders/OrderHeader';
 import { useOrderData } from '../hooks/orders/useOrderData';
 
-// Lazy load the order-specific components (these would be created separately)
-import { lazy } from 'react';
-const OrderStatus = lazy(() => import('../components/orders/OrderStatus'));
-const OrderDetails = lazy(() => import('../components/orders/OrderDetails'));
-const OrderActions = lazy(() => import('../components/orders/OrderActions'));
-const OrderItemsList = lazy(() => import('../components/orders/OrderItemsList'));
-const OrderHistory = lazy(() => import('../components/orders/OrderHistory'));
+// Simple placeholder components for now
+const OrderStatus = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Order Status</h3>
+    <p className="text-gray-600">Order status information will be displayed here.</p>
+  </div>
+);
+
+const OrderDetails = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Order Details</h3>
+    <p className="text-gray-600">Detailed order information will be displayed here.</p>
+  </div>
+);
+
+const OrderActions = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Actions</h3>
+    <p className="text-gray-600">Available actions will be displayed here.</p>
+  </div>
+);
+
+const OrderItemsList = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Order Items</h3>
+    <p className="text-gray-600">Order items list will be displayed here.</p>
+  </div>
+);
+
+const OrderHistory = () => (
+  <div className="bg-white rounded-lg shadow p-6">
+    <h3 className="text-lg font-semibold mb-4">Order History</h3>
+    <p className="text-gray-600">Order history will be displayed here.</p>
+  </div>
+);
 
 /**
  * Optimized OrderDetail Page using DetailPageTemplate with REAL DATA INTEGRATION

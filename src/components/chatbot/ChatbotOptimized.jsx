@@ -7,9 +7,16 @@ import DetailPageTemplate from '../common/DetailPageTemplate';
 import useChatbotData from '../../hooks/chatbot/useChatbotData';
 
 // Lazy-loaded components for better performance
-const ConversationHistory = lazy(() => import('./ConversationHistory'));
-const AgentSelector = lazy(() => import('./AgentSelector'));
-const ChatSettings = lazy(() => import('./ChatSettings'));
+
+
+
+
+
+const ConversationHistory = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Conversation History</h3><p className="text-gray-600">Conversation history will be displayed here.</p></div>);
+
+const AgentSelector = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Agent Selector</h3><p className="text-gray-600">Agent selection will be displayed here.</p></div>);
+
+const ChatSettings = () => (<div className="bg-white rounded-lg shadow p-6"><h3 className="text-lg font-semibold mb-4">Chat Settings</h3><p className="text-gray-600">Chat settings will be displayed here.</p></div>);
 
 /**
  * Optimized AI Assistant/Chatbot component using DetailPageTemplate

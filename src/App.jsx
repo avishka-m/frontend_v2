@@ -13,8 +13,8 @@ import { Toaster } from 'react-hot-toast';
 // Pages
 import Login from './pages/Login';
 import RoleBasedDashboard from './pages/RoleBasedDashboard';
-import Inventory from './pages/Inventory';
-import Orders from './pages/Orders';
+import InventoryDetailOptimized from './pages/InventoryDetailOptimized';
+import OrdersComplexOptimized from './pages/OrdersComplexOptimized';
 import NotFound from './pages/NotFound';
 
 // Inventory Components
@@ -22,12 +22,12 @@ import AddInventoryItem from './components/inventory/AddInventoryItem';
 import EditInventoryItem from './components/inventory/EditInventoryItem';
 
 // Order Components
-import OrderDetail from './pages/OrderDetail';
+import OrderDetailOptimized from './pages/OrderDetailOptimized';
 import CreateOrder from './pages/CreateOrder';
 
-// Common Components
-import UserProfile from './components/common/UserProfile';
-import ChangePassword from './components/common/ChangePassword';
+// Common Components  
+import UserProfile from './pages/UserProfile';
+import ChangePassword from './pages/ChangePassword';
 
 // Import placeholder components for new routes
 // These will need to be created separately
@@ -40,11 +40,11 @@ import CreateWorker from './pages/CreateWorker';
 import Locations from './pages/Locations';
 import Receiving from './pages/Receiving';
 import CreateReceiving from './pages/CreateReceiving';
-import ReceivingDetail from './pages/ReceivingDetail';
+import ReceivingDetailOptimized from './pages/ReceivingDetailOptimized';
 import Picking from './pages/Picking';
 import Packing from './pages/Packing';
 import CreatePacking from './pages/CreatePacking';
-import PackingDetail from './pages/PackingDetail';
+import PackingDetailOptimized from './pages/PackingDetailOptimized';
 import Shipping from './pages/Shipping';
 import CreateShipping from './pages/CreateShipping';
 import ShippingDetail from './pages/ShippingDetail';
@@ -59,10 +59,11 @@ import Settings from './pages/Settings';
 
 // Workflow Components
 import OrderWorkflowTracker from './pages/OrderWorkflowTracker';
-import WorkflowManagement from './pages/WorkflowManagement';
+import WorkflowManagementOptimized from './pages/WorkflowManagementOptimized';
 
 // Enhanced Chatbot Components
 import RoleBasedChatbot from './pages/chatbot/RoleBasedChatbot';
+import ChatbotOptimized from './components/chatbot/ChatbotOptimized';
 
 function App() {
   return (
@@ -86,7 +87,7 @@ function App() {
                   {/* Inventory routes - Manager, ReceivingClerk, Picker */}
                   <Route path="/inventory" element={
                     <RoleBasedRoute allowedRoles={['Manager']}>
-                      <Inventory />
+                      <InventoryDetailOptimized />
                     </RoleBasedRoute>
                   } />
                   <Route path="/inventory/add" element={
@@ -103,7 +104,7 @@ function App() {
                   {/* Order routes - Manager, ReceivingClerk, Picker, Packer */}
                   <Route path="/orders" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk', 'Picker', 'Packer']}>
-                      <Orders />
+                      <OrdersComplexOptimized />
                     </RoleBasedRoute>
                   } />
                   <Route path="/orders/create" element={
@@ -113,7 +114,7 @@ function App() {
                   } />
                   <Route path="/orders/:id" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk', 'Picker', 'Packer']}>
-                      <OrderDetail />
+                      <OrderDetailOptimized />
                     </RoleBasedRoute>
                   } />
                   
@@ -171,7 +172,7 @@ function App() {
                   } />
                   <Route path="/receiving/:id" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
-                      <ReceivingDetail />
+                      <ReceivingDetailOptimized />
                     </RoleBasedRoute>
                   } />
                   
@@ -195,7 +196,7 @@ function App() {
                   } />
                   <Route path="/packing/:id" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'Packer']}>
-                      <PackingDetail />
+                      <PackingDetailOptimized />
                     </RoleBasedRoute>
                   } />
                   
@@ -275,7 +276,7 @@ function App() {
                   {/* Workflow routes - Manager, Picker, Packer, Driver */}
                   <Route path="/workflow" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}>
-                      <WorkflowManagement />
+                      <WorkflowManagementOptimized />
                     </RoleBasedRoute>
                   } />
                   <Route path="/workflow/dashboard" element={
@@ -296,6 +297,7 @@ function App() {
                   
                   {/* Enhanced Chatbot - All roles */}
                   <Route path="/chatbot/enhanced" element={<RoleBasedChatbot />} />
+                  <Route path="/chatbot" element={<ChatbotOptimized />} />
                   
                   {/* Common routes */}
                   <Route path="/profile" element={<UserProfile />} />

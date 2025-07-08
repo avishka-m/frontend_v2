@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { authService } from '../services/api';
-import { useAuth } from '../context/AuthContext';
+import { authService } from '../services/authService';
+import { useAuth } from '../hooks/useAuth';
 import { useNotification } from '../context/NotificationContext';
 import { ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 

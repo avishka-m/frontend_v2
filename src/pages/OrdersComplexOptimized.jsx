@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React from 'react';
 import { ShoppingCart, Search, Filter, Eye, Edit, Trash2, RefreshCw, Download } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
@@ -13,10 +13,10 @@ import {
   ORDER_PRIORITY_COLORS
 } from '../services/orderService';
 
-// Lazy-loaded components for better performance
-const OrdersTable = lazy(() => import('../components/orders/OrdersTable'));
-const OrdersFilters = lazy(() => import('../components/orders/OrdersFilters'));
-const OrdersPagination = lazy(() => import('../components/orders/OrdersPagination'));
+// Simple placeholder components for now (these components don't exist yet)
+const OrdersTable = () => <div className="p-4 text-gray-600">Orders table component will be displayed here.</div>;
+const OrdersFilters = () => <div className="p-4 text-gray-600">Orders filters component will be displayed here.</div>;
+const OrdersPagination = () => <div className="p-4 text-gray-600">Orders pagination component will be displayed here.</div>;
 
 /**
  * Optimized Orders page using DetailPageTemplate
