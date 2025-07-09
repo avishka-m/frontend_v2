@@ -21,7 +21,7 @@ const ReceivingClerkDashboard = () => {
         setLoadingMetrics(true);
         const token = localStorage.getItem('token');
         const response = await axios.get(
-          `${import.meta.env.VITE_API_URL}/api/v1/analytics/receiving-clerk`,
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/analytics/receiving-clerk`,
           {
             headers: {
               Authorization: `Bearer ${token}`
@@ -41,7 +41,29 @@ const ReceivingClerkDashboard = () => {
         }
       } catch (error) {
         console.error('Error fetching receiving metrics:', error);
-        toast.error('Failed to load metrics');
+        
+        // More detailed error logging
+        if (error.response) {
+          console.error('Response data:', error.response.data);
+          console.error('Response status:', error.response.status);
+          console.error('Response headers:', error.response.headers);
+          
+          if (error.response.status === 401) {
+            toast.error('Authentication failed. Please login again.');
+          } else if (error.response.status === 403) {
+            toast.error('You do not have permission to view these metrics.');
+          } else if (error.response.status === 404) {
+            toast.error('Metrics endpoint not found. Please check backend configuration.');
+          } else {
+            toast.error(`Failed to load metrics: ${error.response.data?.detail || 'Unknown error'}`);
+          }
+        } else if (error.request) {
+          console.error('No response received:', error.request);
+          toast.error('Could not connect to server. Please check if backend is running.');
+        } else {
+          console.error('Error setting up request:', error.message);
+          toast.error('Failed to load metrics: ' + error.message);
+        }
       } finally {
         setLoadingMetrics(false);
       }

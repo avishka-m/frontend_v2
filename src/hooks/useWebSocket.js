@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { authService } from "../services/authService";
 
-const WEBSOCKET_URL = "ws://localhost:8000/api/v1/ws/orders";
+const WEBSOCKET_URL = "ws://localhost:8002/api/v1/ws/orders";
 
 export const useWebSocket = (options = {}) => {
   const {

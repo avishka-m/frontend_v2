@@ -7,7 +7,7 @@
 import axios from "axios";
 
 // NOTE: API configuration kept for Phase 2B backend integration
-const API_BASE_URL = "http://localhost:8000/api/v1";
+const API_BASE_URL = "http://localhost:8002/api/v1";
 
 // Create axios instance with default config
 const apiClient = axios.create({

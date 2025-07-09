@@ -97,7 +97,7 @@ const useOrderWebSocket = () => {
       setConnectionStatus("connecting");
       setConnectionError(null);
 
-      const wsUrl = `ws://localhost:8000/api/v1/ws/orders?token=${token}`;
+      const wsUrl = `ws://localhost:8002/api/v1/ws/orders?token=${token}`;
       console.log("🔗 Connecting to WebSocket:", wsUrl);
 
       const ws = new WebSocket(wsUrl);

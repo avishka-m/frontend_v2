@@ -2,7 +2,7 @@
 
 ## 🏗️ API Architecture Overview
 
-**Base URL**: `http://localhost:8000/api/v1`  
+**Base URL**: `http://localhost:8002/api/v1`  
 **Authentication**: JWT Bearer Token  
 **Response Format**: JSON  
 **Total Endpoints**: 83 endpoints across 15 modules

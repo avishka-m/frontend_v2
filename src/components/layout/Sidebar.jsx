@@ -42,13 +42,10 @@ const ROLE_NAVIGATION = {
   ],
   ReceivingClerk: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
-    { path: '/workflow', name: 'Workflow', icon: Activity },
-    { path: '/inventory', name: 'Inventory', icon: Package },
-    { path: '/receiving', name: 'Receiving', icon: ArrowLeftRight },
-    { path: '/locations', name: 'Locations', icon: MapPin },
-    { path: '/returns', name: 'Returns', icon: RotateCcw },
-    { path: '/orders', name: 'View Orders', icon: ShoppingCart }
+    { path: '/inventory/update', name: 'Update Inventory', icon: Package },
+    { path: '/receiving/return-item', name: 'Return Item', icon: RotateCcw },
+    { path: '/returns', name: 'Returns Management', icon: RotateCcw },
+    { path: '/inventory', name: 'Inventory', icon: Archive }
   ],
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },

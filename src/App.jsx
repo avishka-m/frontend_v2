@@ -41,6 +41,9 @@ import Locations from './pages/Locations';
 import Receiving from './pages/Receiving';
 import CreateReceiving from './pages/CreateReceiving';
 import ReceivingDetail from './pages/ReceivingDetail';
+import UpdateItem from './pages/receiving/UpdateItem';
+import ReturnItem from './pages/receiving/ReturnItem';
+import UpdateInventory from './pages/UpdateInventory';
 import Picking from './pages/Picking';
 import Packing from './pages/Packing';
 import CreatePacking from './pages/CreatePacking';
@@ -97,6 +100,11 @@ function App() {
                   <Route path="/inventory/edit/:id" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
                       <EditInventoryItem />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/inventory/update" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
+                      <UpdateInventory />
                     </RoleBasedRoute>
                   } />
                   
@@ -167,6 +175,16 @@ function App() {
                   <Route path="/receiving/create" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
                       <CreateReceiving />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/receiving/update-item" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
+                      <UpdateItem />
+                    </RoleBasedRoute>
+                  } />
+                  <Route path="/receiving/return-item" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
+                      <ReturnItem />
                     </RoleBasedRoute>
                   } />
                   <Route path="/receiving/:id" element={
