@@ -67,6 +67,9 @@ import WorkflowManagement from './pages/WorkflowManagement';
 // Enhanced Chatbot Components
 import RoleBasedChatbot from './pages/chatbot/RoleBasedChatbot';
 
+// Warehouse Map Component
+import WarehouseMapPage from './pages/WarehouseMap';
+
 function App() {
   return (
     <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
@@ -314,6 +317,13 @@ function App() {
                   
                   {/* Enhanced Chatbot - All roles */}
                   <Route path="/chatbot/enhanced" element={<RoleBasedChatbot />} />
+                  
+                  {/* Warehouse Map - Picker role */}
+                  <Route path="/warehouse-map" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Picker']}>
+                      <WarehouseMapPage />
+                    </RoleBasedRoute>
+                  } />
                   
                   {/* Common routes */}
                   <Route path="/profile" element={<UserProfile />} />

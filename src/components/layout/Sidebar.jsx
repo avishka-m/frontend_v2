@@ -49,12 +49,8 @@ const ROLE_NAVIGATION = {
   ],
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
-    { path: '/workflow', name: 'Workflow', icon: Activity },
-    { path: '/inventory', name: 'Inventory', icon: Package },
-    { path: '/picking', name: 'Picking Tasks', icon: ClipboardCheck },
-    { path: '/orders', name: 'Orders', icon: ShoppingCart },
-    { path: '/locations', name: 'Locations', icon: MapPin }
+    { path: '/history', name: 'History', icon: ClipboardCheck },
+    { path: '/warehouse-map', name: 'Warehouse Map', icon: MapPin }
   ],
   Packer: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
