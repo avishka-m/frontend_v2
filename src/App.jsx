@@ -85,7 +85,7 @@ function App() {
                   
                   {/* Inventory routes - Manager, ReceivingClerk, Picker */}
                   <Route path="/inventory" element={
-                    <RoleBasedRoute allowedRoles={['Manager']}>
+                    <RoleBasedRoute allowedRoles={['Manager','ReceivingClerk']}>
                       <Inventory />
                     </RoleBasedRoute>
                   } />
