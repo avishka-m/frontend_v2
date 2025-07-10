@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { Package, Archive, MapPin, Check, AlertCircle, Loader, Eye, Maximize2, Minimize2 } from 'lucide-react';
+import { Package, Archive, MapPin, Check, AlertCircle, Eye, Maximize2, Minimize2, ClipboardList, ChevronRight } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import WarehouseMap, { STORAGE_CAPACITY } from '../warehouse/WarehouseMap';
+import inventoryIncreaseService from '../../services/inventoryIncreaseService';
+import orderService from '../../services/orderService';
 
 const PickerDashboard = () => {
   const { currentUser } = useAuth();
-  const [loading, setLoading] = useState(true);
   const [itemsData, setItemsData] = useState({
     available_for_storing: [],
-    available_for_picking: []
+    available_for_picking: [],
+    pending_orders: []
   });
   const [selectedStoringItem, setSelectedStoringItem] = useState(null);
   const [locationId, setLocationId] = useState('');
@@ -20,115 +22,253 @@ const PickerDashboard = () => {
   const [actionMode, setActionMode] = useState('storing'); // 'storing' or 'collecting'
   const [isFullscreen, setIsFullscreen] = useState(false);
   const modalRef = useRef(null);
+  const [loadingItems, setLoadingItems] = useState(true);
+  const [currentPickingOrder, setCurrentPickingOrder] = useState(null);
+  const [currentItemIndex, setCurrentItemIndex] = useState(0);
+  const [pickingMode, setPickingMode] = useState(false);
 
-  // Fetch items by status
-  useEffect(() => {
-    fetchItemsByStatus();
-    
-    // Refresh data every 30 seconds
-    const interval = setInterval(fetchItemsByStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchItemsByStatus = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem('token');
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/receiving/items/by-status`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
+  // Fetch items from inventory_increases collection
+  const fetchInventoryIncreases = async () => {
+      try {
+        setLoadingItems(true);
+        
+        // Get recent inventory increases
+        const increases = await inventoryIncreaseService.getIncreases({
+          limit: 100 // Get last 100 increases
+        });
+        
+        console.log('Fetched inventory increases:', increases);
+        
+        // Transform inventory increases to items available for storing
+        // Group by item and sum quantities
+        const itemMap = new Map();
+        
+        increases.forEach(increase => {
+          // Skip processed items
+          if (increase.processed) return;
+          
+          const key = `${increase.itemID}_${increase.item_name}`;
+          if (itemMap.has(key)) {
+            const existing = itemMap.get(key);
+            // For partially processed items, only add the unprocessed quantity
+            if (increase.partially_processed) {
+              const unprocessedQty = increase.quantity_increased - (increase.quantity_processed || 0);
+              existing.quantity += unprocessedQty;
+            } else {
+              existing.quantity += increase.quantity_increased;
+            }
+          } else {
+            let quantity = increase.quantity_increased;
+            // For partially processed items, only show the unprocessed quantity
+            if (increase.partially_processed) {
+              quantity = increase.quantity_increased - (increase.quantity_processed || 0);
+            }
+            
+            if (quantity > 0) {
+              itemMap.set(key, {
+                itemID: increase.itemID,
+                itemName: increase.item_name,
+                quantity: quantity,
+                category: increase.size || 'Medium', // Use size as category
+                condition: 'good',
+                receivingID: increase.reference_id || `INC-${increase.id}`,
+                lastIncreaseDate: increase.timestamp,
+                source: increase.source,
+                reason: increase.reason
+              });
+            }
           }
-        }
-      );
-      
-      console.log('Items by status response:', response.data); // Debug log
-      
-      if (response.data) {
-        // Ensure the data structure matches what the component expects
-        const formattedData = {
-          available_for_storing: response.data.available_for_storing || [],
-          available_for_picking: response.data.available_for_picking || []
-        };
-        setItemsData(formattedData);
+        });
+        
+        // Convert map to array
+        const availableForStoring = Array.from(itemMap.values());
+        
+        setItemsData(prevData => ({
+          ...prevData,
+          available_for_storing: availableForStoring
+        }));
+        
+      } catch (error) {
+        console.error('Error fetching inventory increases:', error);
+        toast.error('Failed to load items for storing');
+      } finally {
+        setLoadingItems(false);
       }
+    };
+
+  // Fetch pending orders
+  const fetchPendingOrders = async () => {
+    try {
+      const orders = await orderService.getOrders({ status: 'pending' });
+      setItemsData(prevData => ({
+        ...prevData,
+        pending_orders: orders
+      }));
     } catch (error) {
-      console.error('Error fetching items by status:', error);
-      // Show more detailed error message
-      if (error.response) {
-        toast.error(`Failed to load items: ${error.response.data.detail || error.message}`);
-      } else {
-        toast.error('Failed to load items data - check console for details');
-      }
-    } finally {
-      setLoading(false);
+      console.error('Error fetching pending orders:', error);
+      toast.error('Failed to load pending orders');
     }
   };
 
-  const handleMarkAsStored = async (item) => {
-    if (!locationId || !selectedMapLocation) {
-      toast.error('Please select a location from the map');
-      return;
-    }
+  useEffect(() => {
+    fetchInventoryIncreases();
+    fetchPendingOrders();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      fetchInventoryIncreases();
+      fetchPendingOrders();
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
+  const handleMarkAsStored = async (item) => {
     try {
       setMarkingAsStored(true);
       const token = localStorage.getItem('token');
       
-      // Call the storage history API
-      const storageData = {
-        itemID: item.itemID,
-        itemName: item.itemName,
-        quantity: item.quantity,
-        locationID: locationId,
-        locationCoordinates: {
-          x: selectedMapLocation.x,
-          y: selectedMapLocation.y,
-          floor: selectedMapLocation.floor || 1
-        },
-        category: item.category,
-        condition: item.condition,
-        receivingID: item.receivingID
-      };
+      if (pickingMode && currentPickingOrder) {
+        // Collecting items for an order
+        const storageData = {
+          itemID: item.itemID,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          locationID: item.locationID || 'PICKED',
+          locationCoordinates: { x: 0, y: 0, floor: 1 }, // Default coordinates for picked items
+          category: item.category || 'General',
+          action: 'collected',
+          orderID: currentPickingOrder.orderID,
+          collectedBy: currentUser?.username || 'Unknown'
+        };
 
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/storage-history/store-item`,
-        storageData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-      
-      if (response.data) {
-        // Also update the receiving status
+        // Record collection in storage history
         await axios.post(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/receiving/${item.receivingID}/items/${item.itemID}/store`,
-          { location_id: locationId },
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/storage-history/collect-item`,
+          storageData,
           {
             headers: {
               Authorization: `Bearer ${token}`
             }
           }
         );
-
-        toast.success(`Item ${item.itemName} marked as stored at ${locationId}`);
-        setSelectedStoringItem(null);
-        setLocationId('');
-        setSelectedMapLocation(null);
-        setSuggestedLocations([]);
-        fetchItemsByStatus(); // Refresh data
         
-        // Close fullscreen if open
-        if (isFullscreen) {
-          document.exitFullscreen();
+        toast.success(`Item ${item.itemName} collected for order #${currentPickingOrder.orderID}`);
+        
+        // Move to next item
+        if (currentItemIndex < currentPickingOrder.items.length - 1) {
+          const nextIndex = currentItemIndex + 1;
+          setCurrentItemIndex(nextIndex);
+          
+          // Load next item
+          const nextItem = currentPickingOrder.items[nextIndex];
+          const nextItemData = {
+            itemID: nextItem.itemID,
+            itemName: nextItem.item_name || `Item ${nextItem.itemID}`,
+            quantity: nextItem.quantity,
+            locationID: nextItem.locationID,
+            orderID: currentPickingOrder.orderID
+          };
+          setSelectedStoringItem(nextItemData);
+        } else {
+          // All items collected, update order status to packing
+          try {
+            await orderService.updateOrderStatus(currentPickingOrder.orderID, 'packing');
+            toast.success(`Order #${currentPickingOrder.orderID} completed and marked as ready for packing!`);
+          } catch (error) {
+            console.error('Error updating order status:', error);
+          }
+          
+          // Reset picking mode and close modal
+          setPickingMode(false);
+          setCurrentPickingOrder(null);
+          setCurrentItemIndex(0);
+          setSelectedStoringItem(null);
+          fetchPendingOrders();
+          
+          if (isFullscreen) {
+            document.exitFullscreen();
+          }
+        }
+      } else {
+        // Original storing logic for inventory increases
+        if (!locationId || !selectedMapLocation) {
+          toast.error('Please select a location from the map');
+          return;
+        }
+        
+        const storageData = {
+          itemID: item.itemID,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          locationID: locationId,
+          locationCoordinates: {
+            x: selectedMapLocation.x,
+            y: selectedMapLocation.y,
+            floor: selectedMapLocation.floor || 1
+          },
+          category: item.category,
+          condition: item.condition,
+          receivingID: item.receivingID,
+          storedBy: currentUser?.username || 'Unknown'
+        };
+
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/storage-history/store-item`,
+          storageData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+        
+        if (response.data) {
+          // Mark the inventory increases as stored
+          try {
+            await axios.post(
+              `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/inventory-increases/mark-as-stored`,
+              {
+                itemID: item.itemID,
+                item_name: item.itemName,
+                quantity_stored: item.quantity
+              },
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
+              }
+            );
+          } catch (error) {
+            console.error('Error marking inventory increases as stored:', error);
+          }
+          
+          toast.success(`Item ${item.itemName} marked as stored at ${locationId}`);
+          
+          // Update local state to remove the stored item
+          setItemsData(prevData => ({
+            ...prevData,
+            available_for_storing: prevData.available_for_storing.filter(
+              i => !(i.itemID === item.itemID && i.itemName === item.itemName)
+            )
+          }));
+          
+          // Refresh the inventory increases
+          fetchInventoryIncreases();
+          
+          setSelectedStoringItem(null);
+          setLocationId('');
+          setSelectedMapLocation(null);
+          setSuggestedLocations([]);
+          
+          // Close fullscreen if open
+          if (isFullscreen) {
+            document.exitFullscreen();
+          }
         }
       }
     } catch (error) {
-      console.error('Error marking item as stored:', error);
-      toast.error('Failed to mark item as stored');
+      console.error('Error marking item as stored/collected:', error);
+      toast.error('Failed to process item');
     } finally {
       setMarkingAsStored(false);
     }
@@ -224,27 +364,52 @@ const PickerDashboard = () => {
     setSelectedMapLocation(null);
   };
 
+  // Handle starting order picking
+  const handleStartPicking = (order) => {
+    setCurrentPickingOrder(order);
+    setCurrentItemIndex(0);
+    setPickingMode(true);
+    
+    // Get first item details from inventory
+    if (order.items && order.items.length > 0) {
+      const firstItem = order.items[0];
+      // You might need to fetch the actual item details from inventory
+      const itemData = {
+        itemID: firstItem.itemID,
+        itemName: firstItem.item_name || `Item ${firstItem.itemID}`,
+        quantity: firstItem.quantity,
+        locationID: firstItem.locationID,
+        orderID: order.orderID
+      };
+      setSelectedStoringItem(itemData);
+      setActionMode('collecting');
+      handleOpenCollectModal(itemData);
+    }
+  };
+
   // Handle opening collect modal
   const handleOpenCollectModal = (item) => {
     setSelectedStoringItem(item);
     setActionMode('collecting');
     setSuggestedLocations([]);
-    // Set the item's current location as the path destination
-    if (item.locationID) {
-      // Parse location ID to get coordinates (assuming format like "B1-12-F1")
+    
+    // When in picking mode, set the path destination from item location
+    if (pickingMode && item.locationID) {
+      // Parse location ID to get coordinates (assuming format like "B1-12-F1" or "P1-21-F1")
       const locationParts = item.locationID.split('-');
       if (locationParts.length >= 2) {
         const rackName = locationParts[0];
         const position = locationParts[1];
+        const floor = locationParts[2] ? parseInt(locationParts[2].replace('F', '')) : 1;
         
-        // Map rack names to coordinates
+        // Map rack names to coordinates (0-indexed)
         const rackCoordinates = {
-          'P1': { x: 7, yStart: 2, yEnd: 8 },
-          'P2': { x: 9, yStart: 2, yEnd: 8 },
-          'B1': { x: 1, yStart: 2, yEnd: 8 },
-          'B2': { x: 3, yStart: 2, yEnd: 8 },
-          'B3': { x: 5, yStart: 2, yEnd: 8 },
-          'D': { xStart: 3, xEnd: 9, y: 10 }
+          'P1': { x: 6, yStart: 1, yEnd: 7 }, // x=7 becomes 6 in 0-indexed
+          'P2': { x: 8, yStart: 1, yEnd: 7 }, // x=9 becomes 8
+          'B1': { x: 0, yStart: 1, yEnd: 7 }, // x=1 becomes 0
+          'B2': { x: 2, yStart: 1, yEnd: 7 }, // x=3 becomes 2
+          'B3': { x: 4, yStart: 1, yEnd: 7 }, // x=5 becomes 4
+          'D': { xStart: 2, xEnd: 8, y: 9 }   // y=10 becomes 9
         };
         
         const rack = rackCoordinates[rackName];
@@ -253,7 +418,7 @@ const PickerDashboard = () => {
           if (rack.yStart !== undefined) {
             // Vertical rack
             x = rack.x;
-            // Extract y from position (e.g., "12" -> row 1, col 2)
+            // Extract y from position (e.g., "21" means row 2)
             const row = parseInt(position[0]) - 1;
             y = rack.yStart + row;
           } else {
@@ -262,7 +427,7 @@ const PickerDashboard = () => {
             x = rack.xStart + col;
             y = rack.y;
           }
-          setSelectedMapLocation({ x, y, floor: 1 });
+          setSelectedMapLocation({ x, y, floor });
           setLocationId(item.locationID);
         }
       }
@@ -302,61 +467,9 @@ const PickerDashboard = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-  // Seed dummy data function
-  const seedDummyData = async () => {
-    try {
-      toast.loading('Seeding dummy data...');
-      const token = localStorage.getItem('token');
-      const response = await axios.post(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/seed-data/seed-all`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        }
-      );
-      
-      console.log('Seed data response:', response.data); // Debug log
-      
-      if (response.data) {
-        toast.dismiss();
-        toast.success(`Seeded ${response.data.receiving_items || 0} items for storing and ${response.data.inventory_items || 0} items for picking!`);
-        // Wait a moment before refreshing to ensure data is saved
-        setTimeout(() => {
-          fetchItemsByStatus(); // Refresh the data
-        }, 500);
-      }
-    } catch (error) {
-      console.error('Error seeding dummy data:', error);
-      toast.dismiss();
-      if (error.response) {
-        toast.error(`Failed to seed data: ${error.response.data.detail || error.message}`);
-      } else {
-        toast.error('Failed to seed dummy data - check console');
-      }
-    }
-  };
 
   return (
     <div className="space-y-6">
-      {/* Development Tools */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-medium text-yellow-800">Development Tools</h3>
-              <p className="text-xs text-yellow-600 mt-1">Seed dummy data for testing</p>
-            </div>
-            <button
-              onClick={seedDummyData}
-              className="px-4 py-2 bg-yellow-600 text-white rounded-md text-sm font-medium hover:bg-yellow-700"
-            >
-              Seed Dummy Data
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -373,25 +486,25 @@ const PickerDashboard = () => {
               </div>
             </div>
             <div className="text-2xl font-bold text-yellow-600">
-              {loading ? '...' : itemsData.available_for_storing.length}
+              {itemsData.available_for_storing.length}
             </div>
           </div>
         </div>
 
-        {/* Available for Picking */}
+        {/* Pending Orders */}
         <div className="bg-white rounded-lg shadow p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-lg">
-                <Package className="h-6 w-6 text-green-600" />
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <ClipboardList className="h-6 w-6 text-blue-600" />
               </div>
               <div className="ml-4">
-                <h3 className="text-lg font-semibold text-gray-900">Available for Picking</h3>
-                <p className="text-sm text-gray-600">Items stored and ready to pick</p>
+                <h3 className="text-lg font-semibold text-gray-900">Pending Orders</h3>
+                <p className="text-sm text-gray-600">Orders ready for picking</p>
               </div>
             </div>
-            <div className="text-2xl font-bold text-green-600">
-              {loading ? '...' : itemsData.available_for_picking.length}
+            <div className="text-2xl font-bold text-blue-600">
+              {itemsData.pending_orders.length}
             </div>
           </div>
         </div>
@@ -408,9 +521,15 @@ const PickerDashboard = () => {
             </h3>
           </div>
           <div className="overflow-x-auto">
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader className="h-8 w-8 animate-spin text-gray-400" />
+            {loadingItems ? (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center">
+                  <svg className="animate-spin h-5 w-5 mr-3 text-gray-500" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span className="text-gray-500">Loading items...</span>
+                </div>
               </div>
             ) : itemsData.available_for_storing.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
@@ -427,7 +546,7 @@ const PickerDashboard = () => {
                       Quantity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Condition
+                      Source
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
@@ -451,13 +570,10 @@ const PickerDashboard = () => {
                         {item.quantity}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          item.condition === 'good' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
-                          {item.condition}
-                        </span>
+                        <div>
+                          <div className="text-sm text-gray-900">{item.source}</div>
+                          <div className="text-xs text-gray-500">{item.reason}</div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
@@ -475,68 +591,67 @@ const PickerDashboard = () => {
           </div>
         </div>
 
-        {/* Available for Picking Table */}
+        {/* Pending Orders Table */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Package className="h-5 w-5 text-green-600 mr-2" />
-              Items Available for Picking
+              <ClipboardList className="h-5 w-5 text-blue-600 mr-2" />
+              Pending Orders for Picking
             </h3>
           </div>
           <div className="overflow-x-auto">
-            {loading ? (
-              <div className="flex justify-center items-center h-64">
-                <Loader className="h-8 w-8 animate-spin text-gray-400" />
-              </div>
-            ) : itemsData.available_for_picking.length === 0 ? (
+            {itemsData.pending_orders.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
-                No items available for picking
+                No pending orders available
               </div>
             ) : (
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Item
+                      Order ID
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Stock
+                      Customer
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Location
+                      Items
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-Action                    </th>
+                      Total Qty
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {itemsData.available_for_picking.map((item, index) => (
-                    <tr key={`${item.itemID}-${index}`}>
+                  {itemsData.pending_orders.map((order) => (
+                    <tr key={order.orderID}>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">
-                            {item.itemName}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            ID: {item.itemID}
-                          </div>
+                        <div className="text-sm font-medium text-gray-900">
+                          #{order.orderID}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(order.order_date).toLocaleDateString()}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {item.stockLevel}
+                        {order.customer_name || `Customer ${order.customerID}`}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="flex items-center text-sm text-gray-900">
-                          <MapPin className="h-4 w-4 text-gray-400 mr-1" />
-                          {item.locationID}
-                        </span>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.items?.length || 0} items
                       </td>
-                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {order.items?.reduce((sum, item) => sum + item.quantity, 0) || 0}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
-                          onClick={() => handleOpenCollectModal(item)}
-                          className="text-green-600 hover:text-green-900"
+                          onClick={() => handleStartPicking(order)}
+                          className="flex items-center text-blue-600 hover:text-blue-900"
                         >
-                          Collect
+                          <span>Start Picking</span>
+                          <ChevronRight className="h-4 w-4 ml-1" />
                         </button>
                       </td>
                     </tr>
@@ -561,9 +676,31 @@ Action                    </th>
           } flex flex-col`}>
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 pb-4 border-b">
-              <h3 className="text-lg font-medium text-gray-900">
-                {actionMode === 'storing' ? 'Store Item in Location' : 'Collect Item from Location'}
-              </h3>
+              <div>
+                <h3 className="text-lg font-medium text-gray-900">
+                  {pickingMode ? `Collecting Order #${currentPickingOrder?.orderID} - Item ${currentItemIndex + 1} of ${currentPickingOrder?.items?.length}` : 
+                   actionMode === 'storing' ? 'Store Item in Location' : 'Collect Item from Location'}
+                </h3>
+                {pickingMode && (
+                  <div className="mt-2 flex items-center space-x-4">
+                    <div className="flex space-x-1">
+                      {currentPickingOrder?.items?.map((_, index) => (
+                        <div
+                          key={index}
+                          className={`h-2 w-8 rounded ${
+                            index < currentItemIndex ? 'bg-green-500' :
+                            index === currentItemIndex ? 'bg-blue-500' :
+                            'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-sm text-gray-600">
+                      Progress: {currentItemIndex}/{currentPickingOrder?.items?.length}
+                    </span>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={toggleFullscreen}
                 className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -625,11 +762,16 @@ Action                    </th>
                   <div className="bg-green-50 p-4 rounded-lg">
                     <h4 className="text-sm font-medium text-green-900 mb-2">Collection Path</h4>
                     <p className="text-sm text-green-700">
-                      Path shown from item location to packing point
+                      {pickingMode ? 'Navigate to item location shown on map' : 'Path shown from item location to packing point'}
                     </p>
                     <p className="text-sm text-green-600 mt-2">
-                      Current Location: {selectedStoringItem.locationID || 'Unknown'}
+                      Item Location: {selectedStoringItem.locationID || 'Unknown'}
                     </p>
+                    {pickingMode && (
+                      <p className="text-xs text-green-600 mt-1">
+                        Blue circle = Receiving point | Orange circle = Item location
+                      </p>
+                    )}
                   </div>
                 )}
                 
@@ -665,6 +807,12 @@ Action                    </th>
               <div className="flex justify-end space-x-3">
                 <button
                   onClick={() => {
+                    if (pickingMode) {
+                      // Cancel entire picking process
+                      setPickingMode(false);
+                      setCurrentPickingOrder(null);
+                      setCurrentItemIndex(0);
+                    }
                     setSelectedStoringItem(null);
                     setLocationId('');
                     setSuggestedLocations([]);
@@ -675,20 +823,26 @@ Action                    </th>
                   }}
                   className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
                 >
-                  Cancel
+                  {pickingMode ? 'Cancel Order' : 'Cancel'}
                 </button>
                 <button
                   onClick={() => handleMarkAsStored(selectedStoringItem)}
-                  disabled={actionMode === 'collecting' || !locationId || markingAsStored}
+                  disabled={(!pickingMode && actionMode === 'storing' && !locationId) || markingAsStored}
                   className={`px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                    pickingMode ? 'bg-green-600 text-white hover:bg-green-700' :
                     actionMode === 'storing' 
                       ? 'bg-blue-600 text-white hover:bg-blue-700' 
                       : 'bg-green-600 text-white hover:bg-green-700'
                   }`}
                 >
-                  {actionMode === 'storing' 
-                    ? (markingAsStored ? 'Storing...' : 'Mark as Stored')
-                    : 'Confirm Collection'
+                  {pickingMode ? 
+                    (currentItemIndex < currentPickingOrder?.items?.length - 1 ? 
+                      (markingAsStored ? 'Processing...' : 'Collect & Next Item') : 
+                      (markingAsStored ? 'Completing Order...' : 'Collect & Complete Order')
+                    ) :
+                    actionMode === 'storing' 
+                      ? (markingAsStored ? 'Storing...' : 'Mark as Stored')
+                      : 'Confirm Collection'
                   }
                 </button>
               </div>

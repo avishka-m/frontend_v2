@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
 import inventoryService from '../services/inventoryService';
+import inventoryIncreaseService from '../services/inventoryIncreaseService';
 import { Package, X, Save } from 'lucide-react';
 
 const UpdateInventory = () => {
@@ -121,15 +122,44 @@ const UpdateInventory = () => {
     try {
       setLoading(true);
       
+      console.log('Starting inventory update process...');
+      console.log('Form Data:', formData);
+      
       // Calculate total stock (existing + newly received)
       const totalStock = formData.existingQuantity + parseInt(formData.newQuantity);
       
       // Call inventory update API with the total
+      console.log('Updating inventory stock level to:', totalStock);
       const result = await inventoryService.updateInventory(formData.itemId, {
         stock_level: totalStock
       });
 
       if (result.success) {
+        console.log('Inventory stock level updated successfully');
+        
+        // Record the inventory increase
+        const increaseData = {
+          itemID: formData.itemId,
+          item_name: formData.itemName,
+          size: 'N/A', // You might want to add size to the form if needed
+          quantity: parseInt(formData.newQuantity),
+          reason: 'stock_arrival',
+          source: 'Direct Stock Update',
+          reference_id: null,
+          notes: `Stock increased from ${formData.existingQuantity} to ${totalStock}`,
+          performed_by: currentUser?.username || 'system'
+        };
+        
+        console.log('Recording inventory increase with data:', increaseData);
+        try {
+          const increaseResponse = await inventoryIncreaseService.recordIncrease(increaseData);
+          console.log('Inventory increase recorded successfully:', increaseResponse);
+        } catch (error) {
+          console.error('Error recording inventory increase:', error);
+          console.error('Error details:', error.response?.data || error.message);
+          // Don't throw here, just log the error so the main update still succeeds
+        }
+        
         toast.success(`Inventory updated! Added ${formData.newQuantity} units. New total: ${totalStock}`);
         
         // Clear form after successful update
@@ -142,6 +172,7 @@ const UpdateInventory = () => {
       }
     } catch (error) {
       console.error('Error updating inventory:', error);
+      console.error('Full error details:', error.response?.data || error.message);
       toast.error('Failed to update inventory');
     } finally {
       setLoading(false);

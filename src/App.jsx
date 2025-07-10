@@ -69,6 +69,7 @@ import RoleBasedChatbot from './pages/chatbot/RoleBasedChatbot';
 
 // Warehouse Map Component
 import WarehouseMapPage from './pages/WarehouseMap';
+import History from './pages/History';
 
 function App() {
   return (
@@ -322,6 +323,13 @@ function App() {
                   <Route path="/warehouse-map" element={
                     <RoleBasedRoute allowedRoles={['Manager', 'Picker']}>
                       <WarehouseMapPage />
+                    </RoleBasedRoute>
+                  } />
+                  
+                  {/* History route - Manager, Picker */}
+                  <Route path="/history" element={
+                    <RoleBasedRoute allowedRoles={['Manager', 'Picker']}>
+                      <History />
                     </RoleBasedRoute>
                   } />
                   

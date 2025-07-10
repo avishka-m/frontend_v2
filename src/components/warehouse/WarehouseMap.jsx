@@ -143,6 +143,28 @@ const WarehouseMap = ({
       loc.coordinates.floor === floor
     );
   };
+  
+  // Get occupancy percentage for a location
+  const getOccupancyPercentage = (occupiedInfo, cellInfo) => {
+    if (!occupiedInfo || !occupiedInfo.quantity) return 0;
+    
+    let capacity = STORAGE_CAPACITY.BIN_PER_SQUARE; // Default
+    if (cellInfo) {
+      if (cellInfo.type === 'S') capacity = STORAGE_CAPACITY.PELLET_PER_SQUARE;
+      else if (cellInfo.type === 'M') capacity = STORAGE_CAPACITY.BIN_PER_SQUARE;
+      else if (cellInfo.type === 'D') capacity = STORAGE_CAPACITY.LARGE_PER_SQUARE;
+    }
+    
+    return Math.min(100, Math.round((occupiedInfo.quantity / capacity) * 100));
+  };
+  
+  // Get color based on occupancy
+  const getOccupancyColor = (percentage) => {
+    if (percentage === 0) return '';
+    if (percentage < 50) return 'bg-yellow-500'; // Partially filled
+    if (percentage < 80) return 'bg-orange-500'; // Getting full
+    return 'bg-red-600'; // Full or nearly full
+  };
 
   // Calculate pixel position for a grid cell (for drawing lines)
   const getCellCenter = (x, y) => {
@@ -336,6 +358,8 @@ const WarehouseMap = ({
         const isSuggested = showSuggestions && isSuggestedLocation(x, y, selectedFloor);
         const isOccupied = isOccupiedLocation(x, y, selectedFloor);
         const occupiedInfo = isOccupied ? getOccupiedInfo(x, y, selectedFloor) : null;
+        const occupancyPercentage = occupiedInfo ? getOccupancyPercentage(occupiedInfo, cellInfo) : 0;
+        const occupancyColor = getOccupancyColor(occupancyPercentage);
 
         row.push(
           <div
@@ -346,7 +370,7 @@ const WarehouseMap = ({
               ${isReceiving ? 'bg-red-500 text-white' : ''}
               ${isPacking ? 'bg-orange-500 text-white' : ''}
               ${cellInfo && !isReceiving && !isPacking && !isOccupied ? `${cellInfo.color} text-white ${cellInfo.hoverColor}` : ''}
-              ${cellInfo && isOccupied ? 'bg-red-600 text-white' : ''}
+              ${cellInfo && isOccupied ? `${occupancyColor} text-white` : ''}
               ${!cellInfo && !isReceiving && !isPacking ? 'bg-gray-100 hover:bg-gray-200' : ''}
               ${isSelected ? 'ring-2 ring-yellow-400 ring-offset-1' : ''}
               ${isHovered && cellInfo ? 'transform scale-105' : ''}
@@ -367,7 +391,7 @@ const WarehouseMap = ({
             title={
               cellInfo 
                 ? (isOccupied && occupiedInfo 
-                    ? `${cellInfo.locationCode} - ${occupiedInfo.itemName} (${occupiedInfo.quantity} units)` 
+                    ? `${cellInfo.locationCode} - ${occupiedInfo.itemName} (${occupiedInfo.quantity} units - ${occupancyPercentage}% full)` 
                     : cellInfo.locationCode)
                 : isReceiving 
                   ? 'Receiving Point' 
@@ -636,6 +660,37 @@ const WarehouseMap = ({
           </div>
         </div>
       )}
+
+      {/* Legend */}
+      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+        <h4 className="font-semibold text-gray-700 mb-2">Color Legend</h4>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
+            <span>Small (Pellet) Rack</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
+            <span>Medium (Bin) Rack</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-purple-500 rounded mr-2"></div>
+            <span>Large Rack</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-yellow-500 rounded mr-2"></div>
+            <span>Partially Filled (&lt;50%)</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-orange-500 rounded mr-2"></div>
+            <span>Getting Full (50-80%)</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-4 h-4 bg-red-600 rounded mr-2"></div>
+            <span>Full/Nearly Full (&gt;80%)</span>
+          </div>
+        </div>
+      </div>
 
       {/* Instructions */}
       <div className="mt-4 text-sm text-gray-600">
