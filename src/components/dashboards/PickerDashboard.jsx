@@ -27,6 +27,24 @@ const PickerDashboard = () => {
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [pickingMode, setPickingMode] = useState(false);
 
+  // Helper function to generate dummy location based on item ID
+  const generateDummyLocation = (itemId) => {
+    const id = itemId || 1;
+    if (id % 3 === 0) {
+      const rack = id % 2 === 0 ? 'P1' : 'P2';
+      const position = Math.floor((id / 3) % 7) + 1;
+      return `${rack}-${position}1-F1`;
+    } else if (id % 3 === 1) {
+      const rackNum = Math.floor((id / 3) % 3) + 1;
+      const rack = `B${rackNum}`;
+      const position = Math.floor((id / 3) % 7) + 1;
+      return `${rack}-${position}1-F1`;
+    } else {
+      const position = Math.floor((id / 2) % 7) + 1;
+      return `D-${position}-F1`;
+    }
+  };
+
   // Fetch items from inventory_increases collection
   const fetchInventoryIncreases = async () => {
       try {
@@ -161,14 +179,19 @@ const PickerDashboard = () => {
           
           // Load next item
           const nextItem = currentPickingOrder.items[nextIndex];
+          // Generate dummy location if not present
+          const nextLocationID = nextItem.locationID || generateDummyLocation(nextItem.itemID);
+          
           const nextItemData = {
             itemID: nextItem.itemID,
             itemName: nextItem.item_name || `Item ${nextItem.itemID}`,
             quantity: nextItem.quantity,
-            locationID: nextItem.locationID,
+            locationID: nextLocationID,
             orderID: currentPickingOrder.orderID
           };
           setSelectedStoringItem(nextItemData);
+          // Update the map with the new location
+          handleOpenCollectModal(nextItemData);
         } else {
           // All items collected, update order status to packing
           try {
@@ -374,11 +397,14 @@ const PickerDashboard = () => {
     if (order.items && order.items.length > 0) {
       const firstItem = order.items[0];
       // You might need to fetch the actual item details from inventory
+      // Generate dummy location if not present
+      const locationID = firstItem.locationID || generateDummyLocation(firstItem.itemID);
+      
       const itemData = {
         itemID: firstItem.itemID,
         itemName: firstItem.item_name || `Item ${firstItem.itemID}`,
         quantity: firstItem.quantity,
-        locationID: firstItem.locationID,
+        locationID: locationID,
         orderID: order.orderID
       };
       setSelectedStoringItem(itemData);
