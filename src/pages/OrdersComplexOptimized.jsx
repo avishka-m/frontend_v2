@@ -12,11 +12,7 @@ import {
   ORDER_STATUS_COLORS,
   ORDER_PRIORITY_COLORS
 } from '../services/orderService';
-
-// Simple placeholder components for now (these components don't exist yet)
-const OrdersTable = () => <div className="p-4 text-gray-600">Orders table component will be displayed here.</div>;
-const OrdersFilters = () => <div className="p-4 text-gray-600">Orders filters component will be displayed here.</div>;
-const OrdersPagination = () => <div className="p-4 text-gray-600">Orders pagination component will be displayed here.</div>;
+import { FixedSizeList } from 'react-window';
 
 /**
  * Optimized Orders page using DetailPageTemplate
@@ -131,48 +127,12 @@ const OrdersComplexOptimized = () => {
               onClearFilters={clearFilters}
             />
           ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Order ID
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Customer
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Status
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Priority
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Total
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Date
-                    </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {orders.map((order) => (
-                    <OrderRow
-                      key={order.order_id}
-                      order={order}
-                      onStatusUpdate={handleStatusUpdate}
-                      onDelete={handleDeleteOrder}
-                      onView={() => navigate(`/orders/${order.order_id}`)}
-                      onEdit={() => navigate(`/orders/${order.order_id}/edit`)}
-                      canManage={canManageOrders}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <OrdersTable 
+              orders={orders} 
+              onView={() => navigate(`/orders/${order.order_id}`)} 
+              onEdit={() => navigate(`/orders/${order.order_id}/edit`)} 
+              onDelete={handleDeleteOrder} 
+            />
           )}
         </div>
 
@@ -443,5 +403,46 @@ const EmptyOrdersState = ({ hasFilters, onClearFilters }) => (
     </div>
   </div>
 );
+
+const OrdersTable = ({ orders, onView, onEdit, onDelete }) => {
+  const Row = ({ index, style }) => {
+    const order = orders[index];
+    return (
+      <div style={style} className="flex items-center border-b border-gray-200 px-4 py-2 hover:bg-gray-50">
+        <div className="w-1/6">#{order.order_id}</div>
+        <div className="w-1/6">{order.customer_name}</div>
+        <div className="w-1/6">{ORDER_STATUS_DISPLAY[order.order_status]}</div>
+        <div className="w-1/6">{ORDER_PRIORITY_DISPLAY[order.priority]}</div>
+        <div className="w-1/6">{new Date(order.created_at).toLocaleDateString()}</div>
+        <div className="w-1/6 flex space-x-2">
+          <button onClick={() => onView(order)} className="text-blue-500 hover:text-blue-700"><Eye size={16} /></button>
+          <button onClick={() => onEdit(order)} className="text-green-500 hover:text-green-700"><Edit size={16} /></button>
+          <button onClick={() => onDelete(order)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow overflow-hidden">
+      <div className="flex font-semibold bg-gray-100 px-4 py-2 border-b border-gray-200">
+        <div className="w-1/6">Order ID</div>
+        <div className="w-1/6">Customer</div>
+        <div className="w-1/6">Status</div>
+        <div className="w-1/6">Priority</div>
+        <div className="w-1/6">Date</div>
+        <div className="w-1/6">Actions</div>
+      </div>
+      <FixedSizeList
+        height={400} // Adjust based on your layout
+        itemCount={orders.length}
+        itemSize={50} // Fixed row height
+        width="100%"
+      >
+        {Row}
+      </FixedSizeList>
+    </div>
+  );
+};
 
 export default OrdersComplexOptimized; 
