@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import orderService from '../../services/orderService';
 
 /**
@@ -143,30 +143,34 @@ export const useOrdersListData = () => {
     setLoadingState('filtering', true);
     
     try {
-      let filtered = [...orders];
-      
-      // Apply search filter
-      if (searchTerm) {
-        filtered = filtered.filter(order => {
-          const searchLower = searchTerm.toLowerCase();
-          return (
-            order.order_id?.toString().includes(searchTerm) ||
-            order.customer_name?.toLowerCase().includes(searchLower) ||
-            order.shipping_address?.toLowerCase().includes(searchLower) ||
-            order.customer_email?.toLowerCase().includes(searchLower)
-          );
-        });
-      }
-      
-      // Apply status filter
-      if (statusFilter) {
-        filtered = filtered.filter(order => order.order_status === statusFilter);
-      }
-      
-      // Apply priority filter
-      if (priorityFilter) {
-        filtered = filtered.filter(order => order.priority?.toString() === priorityFilter);
-      }
+      const filtered = useMemo(() => {
+        let result = [...orders];
+        
+        // Apply search filter
+        if (searchTerm) {
+          result = result.filter(order => {
+            const searchLower = searchTerm.toLowerCase();
+            return (
+              order.order_id?.toString().includes(searchTerm) ||
+              order.customer_name?.toLowerCase().includes(searchLower) ||
+              order.shipping_address?.toLowerCase().includes(searchLower) ||
+              order.customer_email?.toLowerCase().includes(searchLower)
+            );
+          });
+        }
+        
+        // Apply status filter
+        if (statusFilter) {
+          result = result.filter(order => order.order_status === statusFilter);
+        }
+        
+        // Apply priority filter
+        if (priorityFilter) {
+          result = result.filter(order => order.priority?.toString() === priorityFilter);
+        }
+        
+        return result;
+      }, [orders, searchTerm, statusFilter, priorityFilter]);
       
       setFilteredOrders(filtered);
       setError('filtering', null);
