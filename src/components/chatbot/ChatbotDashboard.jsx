@@ -185,8 +185,17 @@ const ChatbotDashboard = ({
         setSelectedAgent(conversation.agent_role);
       }
     } catch (error) {
-      console.error('Failed to load conversation:', error);
-      toast.error('Failed to load conversation');
+      if (error?.response?.status === 404) {
+        // Remove from UI and cache
+        setConversations(prev => prev.filter(conv => conv.conversation_id !== conversation.conversation_id));
+        localStorage.removeItem(CACHE_MESSAGES_KEY + conversation.conversation_id);
+        toast.error('This conversation no longer exists.');
+        setActiveConversation(null);
+        setMessages([]);
+      } else {
+        console.error('Failed to load conversation:', error);
+        toast.error('Failed to load conversation');
+      }
     } finally {
       setLoading(false);
     }
