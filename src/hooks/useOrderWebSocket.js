@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from './useAuth';
-import { authService } from '../services/authService';
+import { authService } from '../services/auth/authService';
 
 const useOrderWebSocket = () => {
   const { isAuthenticated } = useAuth();
@@ -111,7 +111,7 @@ const useOrderWebSocket = () => {
         const heartbeatInterval = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send('ping');
-            console.log('📡 Heartbeat sent');
+            console.log('�� Heartbeat sent');
           } else {
             clearInterval(heartbeatInterval);
           }

@@ -40,11 +40,11 @@ import WorkerDetail from './pages/WorkerDetail';
 import CreateWorker from './pages/CreateWorker';
 import Locations from './pages/Locations';
 import Receiving from './pages/Receiving';
-import CreateReceiving from './pages/CreateReceiving';
+import ReceivingCreateForm from './components/forms/ReceivingCreateForm';
 import ReceivingDetailOptimized from './pages/ReceivingDetailOptimized';
 import Picking from './pages/Picking';
 import Packing from './pages/Packing';
-import CreatePacking from './pages/CreatePacking';
+import PackingCreateForm from './components/forms/PackingCreateForm';
 import PackingDetailOptimized from './pages/PackingDetailOptimized';
 import Shipping from './pages/Shipping';
 import CreateShipping from './pages/CreateShipping';
@@ -55,7 +55,7 @@ import ReturnDetail from './pages/ReturnDetail';
 import Vehicles from './pages/Vehicles';
 import CreateVehicle from './pages/CreateVehicle';
 import VehicleDetail from './pages/VehicleDetail';
-import Analytics from './pages/Analytics';
+import Analytics from './pages/analytics/AnalyticsPage';
 import Settings from './pages/Settings';
 
 // Workflow Components
@@ -176,11 +176,7 @@ function App() {
                         <Receiving />
                       </RoleBasedRoute>
                     } />
-                    <Route path="/receiving/create" element={
-                      <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
-                        <CreateReceiving />
-                      </RoleBasedRoute>
-                    } />
+                    <Route path="/receiving/create" element={<ReceivingCreateForm />} />
                     <Route path="/receiving/:id" element={
                       <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
                         <LazyReceivingDetailOptimized />
@@ -200,11 +196,7 @@ function App() {
                         <Packing />
                       </RoleBasedRoute>
                     } />
-                    <Route path="/packing/create" element={
-                      <RoleBasedRoute allowedRoles={['Manager']}>
-                        <CreatePacking />
-                      </RoleBasedRoute>
-                    } />
+                    <Route path="/packing/create" element={<PackingCreateForm />} />
                     <Route path="/packing/:id" element={
                       <RoleBasedRoute allowedRoles={['Manager', 'Packer']}>
                         <LazyPackingDetailOptimized />
@@ -261,11 +253,7 @@ function App() {
                         <Vehicles />
                       </RoleBasedRoute>
                     } />
-                    <Route path="/vehicles/create" element={
-                      <RoleBasedRoute allowedRoles={['Manager']}>
-                        <CreateVehicle />
-                      </RoleBasedRoute>
-                    } />
+                    <Route path="/vehicles/create" element={<CreateVehicle />} />
                     <Route path="/vehicles/:vehicleId" element={
                       <RoleBasedRoute allowedRoles={['Manager', 'Driver']}>
                         <VehicleDetail />
