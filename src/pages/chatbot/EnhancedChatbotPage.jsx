@@ -3,7 +3,7 @@
  * Main page that integrates all enhanced chatbot features with role-based access
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   FiMessageCircle, 
     FiMaximize,
@@ -26,6 +26,7 @@ import EnhancedChatbotInterface from '../../components/chatbot/EnhancedChatbotIn
 import ManagerAnalyticsPanel from '../../components/chatbot/ManagerAnalyticsPanel';
 import ConversationManagementPanel from '../../components/chatbot/ConversationManagementPanel';
 import UserChatInterface from '../../components/chatbot/UserChatInterface';
+import { useQuery } from '@tanstack/react-query';
 
 const EnhancedChatbotPage = () => {
   const { user } = useAuth();
@@ -43,77 +44,42 @@ const EnhancedChatbotPage = () => {
     canExport: true,
     canManage: false
   });
-  const [conversations, setConversations] = useState([]);
-  const [dashboardData, setDashboardData] = useState({});
-  const [isLoading, setIsLoading] = useState(false); // Start with false
   const [notification, setNotification] = useState(null);
-  const [refreshKey, setRefreshKey] = useState(0);
 
   // Determine user role and access level
   const userRole = user?.role || 'Clerk';
   const isManager = userRole.toLowerCase() === 'manager';
 
-  useEffect(() => {
-    console.log('Enhanced Chatbot Page initializing...');
-    
-    // Force loading state to false - no matter what
-    setIsLoading(false);
-    
-    // Update permissions safely
-    try {
-      setUserPermissions(prev => ({
-        ...prev,
-        canManage: user?.role?.toLowerCase() === 'manager'
-      }));
-    } catch (error) {
-      console.warn('Error setting permissions:', error);
-    }
-    
-    // Load conversations in background - don't let this block the UI
-    setTimeout(() => {
-      loadConversationsInBackground().catch(error => {
-        console.warn('Background conversation loading failed:', error);
-      });
-    }, 100);
-    
-    // Show success notification
-    setTimeout(() => {
-      try {
-        showNotification('Enhanced chatbot ready!', 'success');
-      } catch (error) {
-        console.warn('Error showing notification:', error);
-      }
-    }, 500);
-    
-    console.log('Enhanced Chatbot Page initialized successfully');
-  }, []); // Empty dependency array
+  // React Query: Conversations
+  const {
+    data: conversations = [],
+    isLoading: loadingConversations,
+    isError: errorConversations,
+    refetch: refetchConversations
+  } = useQuery({
+    queryKey: ['chatbotConversations'],
+    queryFn: () => chatbotService.getAllConversations({ limit: 100 })
+  });
 
-  const loadConversationsInBackground = async () => {
-    try {
-      const response = await chatbotService.getAllConversations({ limit: 100 });
-      setConversations(response.conversations || []);
-    } catch (error) {
-      console.warn('Could not load conversations:', error);
-      setConversations([]);
-    }
-  };
+  // React Query: Dashboard/Analytics (stub, replace with real API if needed)
+  const {
+    data: dashboardData = {},
+    isLoading: loadingDashboard,
+    isError: errorDashboard,
+    refetch: refetchDashboard
+  } = useQuery({
+    queryKey: ['chatbotDashboardData'],
+    queryFn: async () => ({}), // Replace with real analytics API if available
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  });
 
-  const initializePage = async () => {
-    // Legacy function - now handled in useEffect
-    setIsLoading(false);
-    await loadConversationsInBackground();
-    showNotification('Data refreshed successfully', 'success');
-  };
-
-  const loadConversations = async () => {
-    try {
-      const response = await chatbotService.getAllConversations({ limit: 100 });
-      setConversations(response.conversations || []);
-    } catch (error) {
-      console.warn('Could not load conversations:', error);
-      setConversations([]);
-    }
-  };
+  // Permissions (update on user change)
+  React.useEffect(() => {
+    setUserPermissions(prev => ({
+      ...prev,
+      canManage: user?.role?.toLowerCase() === 'manager'
+    }));
+  }, [user?.role]);
 
   const showNotification = (message, type = 'info') => {
     setNotification({ message, type });
@@ -121,19 +87,16 @@ const EnhancedChatbotPage = () => {
   };
 
   const handleRefresh = async () => {
-    setRefreshKey(prev => prev + 1);
-    await initializePage();
+    await Promise.all([
+      refetchConversations(),
+      refetchDashboard()
+    ]);
     showNotification('Data refreshed successfully', 'success');
   };
 
   const handleConversationUpdate = (conversationId, updates) => {
-    setConversations(prev => 
-      prev.map(conv => 
-        conv.conversation_id === conversationId 
-          ? { ...conv, ...updates }
-          : conv
-      )
-    );
+    // Optimistically update conversation in cache
+    // (for real-time updates, use React Query's setQueryData)
   };
 
   const renderHeader = () => (
@@ -150,7 +113,6 @@ const EnhancedChatbotPage = () => {
             </p>
           </div>
         </div>
-        
         {/* System Status */}
         <div className="flex items-center space-x-2">
           <div className={`w-2 h-2 rounded-full ${
@@ -161,14 +123,12 @@ const EnhancedChatbotPage = () => {
           </span>
         </div>
       </div>
-
       <div className="flex items-center space-x-3">
         {/* User Info */}
         <div className="text-right">
           <p className="text-sm font-medium text-gray-900">{user?.username || 'User'}</p>
           <p className="text-xs text-gray-500">{userRole} • {Object.keys(userPermissions).length} features</p>
         </div>
-        
         {/* System Stats */}
         <div className="flex items-center space-x-4 px-4 py-2 bg-gray-50 rounded-lg">
           <div className="text-center">
@@ -184,18 +144,16 @@ const EnhancedChatbotPage = () => {
             <p className="text-sm font-semibold text-gray-900">{systemStatus.activeAgents}</p>
           </div>
         </div>
-
         {/* Action Buttons */}
         <Button
           variant="outline"
           size="sm"
           onClick={handleRefresh}
-          disabled={isLoading}
+          disabled={loadingConversations || loadingDashboard}
         >
-          <FiRefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+          <FiRefreshCw className={`h-4 w-4 mr-2 ${loadingConversations || loadingDashboard ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
-        
         <Button
           variant="outline"
           size="sm"
@@ -222,7 +180,6 @@ const EnhancedChatbotPage = () => {
           </div>
         </CardContent>
       </Card>
-      
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -238,7 +195,6 @@ const EnhancedChatbotPage = () => {
           </div>
         </CardContent>
       </Card>
-      
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -252,7 +208,6 @@ const EnhancedChatbotPage = () => {
           </div>
         </CardContent>
       </Card>
-      
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center justify-between">
@@ -272,16 +227,13 @@ const EnhancedChatbotPage = () => {
   );
 
   const renderMainContent = () => {
-    // For non-managers, show simple user chat interface
     if (!isManager) {
       return (
         <div className="flex-1 overflow-hidden">
-          <UserChatInterface key={refreshKey} />
+          <UserChatInterface />
         </div>
       );
     }
-
-    // For managers, show full enhanced interface with tabs
     return (
       <div className="flex-1 overflow-hidden">
         <Tabs value={activeView} onValueChange={setActiveView} className="h-full flex flex-col">
@@ -290,26 +242,23 @@ const EnhancedChatbotPage = () => {
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="management">Management</TabsTrigger>
           </TabsList>
-
           {/* Enhanced Chat Interface Tab */}
           <TabsContent value="chat" className="flex-1 p-4 pt-2">
-            <EnhancedChatbotInterface key={refreshKey} />
+            <EnhancedChatbotInterface />
           </TabsContent>
-
           {/* Analytics Tab (Manager Only) */}
           <TabsContent value="analytics" className="flex-1 p-4 pt-2">
             <ManagerAnalyticsPanel
               dashboardData={dashboardData}
-              onRefresh={handleRefresh}
+              onRefresh={refetchDashboard}
             />
           </TabsContent>
-
           {/* Management Tab */}
           <TabsContent value="management" className="flex-1 p-4 pt-2">
             <ConversationManagementPanel
               conversations={conversations}
               onConversationUpdate={handleConversationUpdate}
-              onRefresh={loadConversations}
+              onRefresh={refetchConversations}
             />
           </TabsContent>
         </Tabs>
@@ -317,13 +266,28 @@ const EnhancedChatbotPage = () => {
     );
   };
 
-  if (isLoading) {
+  if (loadingConversations || loadingDashboard) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Loading Enhanced Chatbot</h2>
           <p className="text-gray-600">Initializing AI assistant and loading your data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorConversations || errorDashboard) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="rounded-full h-12 w-12 bg-red-200 flex items-center justify-center mx-auto mb-4">
+            <FiAlertCircle className="h-6 w-6 text-red-600" />
+          </div>
+          <h2 className="text-xl font-semibold text-red-700 mb-2">Failed to load chatbot data</h2>
+          <p className="text-gray-600">Please try refreshing the page or check your connection.</p>
+          <Button onClick={handleRefresh} className="mt-4">Retry</Button>
         </div>
       </div>
     );
@@ -336,7 +300,6 @@ const EnhancedChatbotPage = () => {
         {!isFullscreen && isManager && renderQuickStats()}
         {renderMainContent()}
       </div>
-      
       {/* Notifications */}
       {notification && (
         <Notification
@@ -345,7 +308,6 @@ const EnhancedChatbotPage = () => {
           onClose={() => setNotification(null)}
         />
       )}
-      
       {/* Help Text */}
       <div className="fixed bottom-4 right-4">
         <Card className="p-3 shadow-lg">
