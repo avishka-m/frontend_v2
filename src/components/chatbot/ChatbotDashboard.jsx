@@ -1,10 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotifications } from '../../context/NotificationContext';
 import { chatbotService } from '../../services/chatbotService';
-import ChatHistorySidebar from './ChatHistorySidebar';
-import AssistantSelectionPanel from './AssistantSelectionPanel';
-import ChatWindow from './ChatWindow';
 import { toast } from 'react-hot-toast';
 import {
   MessageSquare,
@@ -17,6 +14,11 @@ import {
   Minimize2,
   Bot
 } from 'lucide-react';
+
+// Lazy load heavy subcomponents
+const ChatHistorySidebar = lazy(() => import('./ChatHistorySidebar'));
+const AssistantSelectionPanel = lazy(() => import('./AssistantSelectionPanel'));
+const ChatWindow = lazy(() => import('./ChatWindow'));
 
 const ChatbotDashboard = ({ 
   title = "WMS Chatbot",
@@ -97,11 +99,45 @@ const ChatbotDashboard = ({
     scrollToBottom();
   }, [messages]);
 
+  // Helper functions for caching
+  const CACHE_CONVERSATIONS_KEY = 'chatbot_conversations_cache';
+  const CACHE_MESSAGES_KEY = 'chatbot_messages_cache';
+  const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
+
+  function getCache(key) {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return null;
+      const { data, timestamp } = JSON.parse(item);
+      if (Date.now() - timestamp > CACHE_EXPIRY_MS) {
+        localStorage.removeItem(key);
+        return null;
+      }
+      return data;
+    } catch {
+      return null;
+    }
+  }
+
+  function setCache(key, data) {
+    localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+  }
+
   const initializeChatbot = async () => {
     try {
       setLoading(true);
-      await loadConversations();
-      toast.success(`${title} initialized successfully!`);
+      // Try to load from cache first
+      const cachedConversations = getCache(CACHE_CONVERSATIONS_KEY);
+      if (cachedConversations) {
+        setConversations(cachedConversations);
+        if (cachedConversations.length > 0 && !activeConversation) {
+          selectConversation(cachedConversations[0], true); // true = fromCache
+        }
+        toast.success(`${title} loaded from cache!`);
+      } else {
+        await loadConversations();
+        toast.success(`${title} initialized successfully!`);
+      }
     } catch (error) {
       console.error('Failed to initialize chatbot:', error);
       toast.error('Failed to initialize chatbot');
@@ -114,6 +150,7 @@ const ChatbotDashboard = ({
     try {
       const response = await chatbotService.getAllConversations({ limit: 50 });
       setConversations(response.conversations || []);
+      setCache(CACHE_CONVERSATIONS_KEY, response.conversations || []);
       
       // Auto-select first conversation if available
       if (response.conversations?.length > 0 && !activeConversation) {
@@ -125,18 +162,24 @@ const ChatbotDashboard = ({
     }
   };
 
-  const selectConversation = async (conversation) => {
+  const selectConversation = async (conversation, fromCache = false) => {
     try {
       setActiveConversation(conversation);
       setLoading(true);
-      
+      // Always check cache first
+      const cachedMessages = getCache(CACHE_MESSAGES_KEY + conversation.conversation_id);
+      if (cachedMessages) {
+        setMessages(cachedMessages);
+        setLoading(false);
+        return;
+      }
+      // If not cached, fetch from API
       const response = await chatbotService.getConversation(
         conversation.conversation_id,
         { include_context: true, limit: 100 }
       );
-      
       setMessages(response.messages || []);
-      
+      setCache(CACHE_MESSAGES_KEY + conversation.conversation_id, response.messages || []);
       // Set agent based on conversation or current selection
       if (conversation.agent_role && showAssistantSelection) {
         setSelectedAgent(conversation.agent_role);
@@ -187,7 +230,11 @@ const ChatbotDashboard = ({
         timestamp: new Date().toISOString(),
         sender: 'user'
       };
-      setMessages(prev => [...prev, userMessage]);
+      setMessages(prev => {
+        const updated = [...prev, userMessage];
+        if (activeConversation) setCache(CACHE_MESSAGES_KEY + activeConversation.conversation_id, updated);
+        return updated;
+      });
 
       // Send to backend
       let conversationId = activeConversation?.conversation_id;
@@ -211,7 +258,11 @@ const ChatbotDashboard = ({
         timestamp: response.timestamp,
         sender: 'assistant'
       };
-      setMessages(prev => [...prev, aiMessage]);
+      setMessages(prev => {
+        const updated = [...prev, aiMessage];
+        if (activeConversation) setCache(CACHE_MESSAGES_KEY + activeConversation.conversation_id, updated);
+        return updated;
+      });
       
       // Update conversation count
       if (activeConversation) {
@@ -236,6 +287,11 @@ const ChatbotDashboard = ({
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
+      // Invalidate cache for all conversations and messages
+      localStorage.removeItem(CACHE_CONVERSATIONS_KEY);
+      if (activeConversation) localStorage.removeItem(CACHE_MESSAGES_KEY + activeConversation.conversation_id);
+      // Optionally, clear all message caches for all conversations
+      conversations.forEach(conv => localStorage.removeItem(CACHE_MESSAGES_KEY + conv.conversation_id));
       await loadConversations();
       toast.success('Conversations refreshed');
     } catch (error) {
@@ -258,6 +314,8 @@ const ChatbotDashboard = ({
         setMessages([]);
       }
       
+      // Invalidate cache for this conversation
+      localStorage.removeItem(CACHE_MESSAGES_KEY + conversationId);
       toast.success('Conversation deleted successfully');
     } catch (error) {
       console.error('Failed to delete conversation:', error);
@@ -279,6 +337,8 @@ const ChatbotDashboard = ({
         setMessages([]);
       }
       
+      // Invalidate cache for this conversation
+      localStorage.removeItem(CACHE_MESSAGES_KEY + conversationId);
       toast.success('Conversation archived successfully');
     } catch (error) {
       console.error('Failed to archive conversation:', error);
@@ -437,44 +497,49 @@ const ChatbotDashboard = ({
         )}
 
         {/* Left Sidebar - Chat History */}
-        <div className={`
-          transition-all duration-300 ease-in-out z-50
-          ${sidebarCollapsed 
-            ? 'w-0 min-w-0 -translate-x-full md:translate-x-0' 
-            : 'w-80 min-w-80 translate-x-0'
-          } 
-          ${sidebarCollapsed ? 'md:w-0' : 'md:w-72 lg:w-80'}
-          bg-white border-r border-gray-200 
-          flex flex-col overflow-hidden
-          fixed md:relative top-0 left-0 h-full md:h-auto
-          ${sidebarCollapsed ? 'opacity-0 pointer-events-none md:pointer-events-auto' : 'opacity-100'}
-          shadow-xl md:shadow-none
-        `}>
-          <div className="flex flex-col h-full overflow-hidden">
-            <ChatHistorySidebar
-              conversations={conversations}
-              activeConversation={activeConversation}
-              onSelectConversation={selectConversation}
-              onNewConversation={createNewConversation}
-              onRefresh={handleRefresh}
-              onDeleteConversation={handleDeleteConversation}
-              onArchiveConversation={handleArchiveConversation}
-              loading={loading}
-            />
+        <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+          <div className={
+            `
+            transition-all duration-300 ease-in-out z-50
+            ${sidebarCollapsed 
+              ? 'w-0 min-w-0 -translate-x-full md:translate-x-0' 
+              : 'w-80 min-w-80 translate-x-0'
+            } 
+            ${sidebarCollapsed ? 'md:w-0' : 'md:w-72 lg:w-80'}
+            bg-white border-r border-gray-200 
+            flex flex-col overflow-hidden
+            fixed md:relative top-0 left-0 h-full md:h-auto
+            ${sidebarCollapsed ? 'opacity-0 pointer-events-none md:pointer-events-auto' : 'opacity-100'}
+            shadow-xl md:shadow-none
+          `}>
+            <div className="flex flex-col h-full overflow-hidden">
+              <ChatHistorySidebar
+                conversations={conversations}
+                activeConversation={activeConversation}
+                onSelectConversation={selectConversation}
+                onNewConversation={createNewConversation}
+                onRefresh={handleRefresh}
+                onDeleteConversation={handleDeleteConversation}
+                onArchiveConversation={handleArchiveConversation}
+                loading={loading}
+              />
+            </div>
           </div>
-        </div>
+        </Suspense>
 
         {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-          <ChatWindow
-            messages={messages}
-            onSendMessage={sendMessage}
-            sending={sending}
-            selectedAgent={availableAgents.find(a => a.id === selectedAgent)}
-            activeConversation={activeConversation}
-            messagesEndRef={messagesEndRef}
-          />
-        </div>
+        <Suspense fallback={<div className="flex-1 flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+          <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+            <ChatWindow
+              messages={messages}
+              onSendMessage={sendMessage}
+              sending={sending}
+              selectedAgent={availableAgents.find(a => a.id === selectedAgent)}
+              activeConversation={activeConversation}
+              messagesEndRef={messagesEndRef}
+            />
+          </div>
+        </Suspense>
       </div>
     </div>
   );
