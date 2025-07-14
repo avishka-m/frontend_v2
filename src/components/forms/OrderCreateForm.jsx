@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { NOTIFICATION_TYPES } from '../../context/NotificationContext';
 
-const CreateOrder = () => {
+const OrderCreateForm = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
@@ -297,4 +297,4 @@ const CreateOrder = () => {
   );
 };
 
-export default CreateOrder;
+export default OrderCreateForm; 

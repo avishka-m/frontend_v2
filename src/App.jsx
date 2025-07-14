@@ -24,7 +24,7 @@ import InventoryEditForm from './components/forms/InventoryEditForm';
 
 // Order Components
 import OrderDetailOptimized from './pages/OrderDetailOptimized';
-import CreateOrder from './pages/CreateOrder';
+import OrderCreateForm from './components/forms/OrderCreateForm';
 
 // Common Components  
 import UserProfile from './pages/UserProfile';
@@ -120,7 +120,7 @@ function App() {
                     } />
                     <Route path="/orders/create" element={
                       <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
-                        <CreateOrder />
+                        <OrderCreateForm />
                       </RoleBasedRoute>
                     } />
                     <Route path="/orders/:id" element={
