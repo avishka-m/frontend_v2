@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { NOTIFICATION_TYPES } from '../../context/NotificationContext';
 
-const EditInventoryItem = () => {
+const InventoryEditForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { addNotification } = useNotification();
@@ -131,4 +131,4 @@ const EditInventoryItem = () => {
   );
 };
 
-export default EditInventoryItem;
+export default InventoryEditForm; 

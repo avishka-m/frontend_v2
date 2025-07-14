@@ -19,8 +19,8 @@ import OrdersComplexOptimized from './pages/OrdersComplexOptimized';
 import NotFound from './pages/NotFound';
 
 // Inventory Components
-import AddInventoryItem from './components/inventory/AddInventoryItem';
-import EditInventoryItem from './components/inventory/EditInventoryItem';
+import InventoryAddForm from './components/forms/InventoryAddForm';
+import InventoryEditForm from './components/forms/InventoryEditForm';
 
 // Order Components
 import OrderDetailOptimized from './pages/OrderDetailOptimized';
@@ -103,12 +103,12 @@ function App() {
                     } />
                     <Route path="/inventory/add" element={
                       <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
-                        <AddInventoryItem />
+                        <InventoryAddForm />
                       </RoleBasedRoute>
                     } />
                     <Route path="/inventory/edit/:id" element={
                       <RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}>
-                        <EditInventoryItem />
+                        <InventoryEditForm />
                       </RoleBasedRoute>
                     } />
                     

@@ -194,4 +194,4 @@ const InventoryForm = ({ locations, categories, isSubmitting }) => {
   );
 };
 
-export default InventoryForm;
+export default InventoryForm; 

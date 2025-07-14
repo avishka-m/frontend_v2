@@ -5,7 +5,7 @@ import { NOTIFICATION_TYPES } from '../../context/NotificationContext';
 import { inventoryService } from '../../services/inventoryService';
 import { locationService, supplierService, categoryService } from '../../services/masterDataService';
 
-const AddInventoryItem = () => {
+const InventoryAddForm = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
@@ -434,4 +434,4 @@ const AddInventoryItem = () => {
   );
 };
 
-export default AddInventoryItem;
+export default InventoryAddForm; 
