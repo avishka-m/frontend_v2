@@ -45,7 +45,8 @@ const ROLE_NAVIGATION = {
     { path: '/inventory/update', name: 'Update Inventory', icon: Package },
     { path: '/receiving/return-item', name: 'Return Item', icon: RotateCcw },
     { path: '/returns', name: 'Returns Management', icon: RotateCcw },
-    { path: '/inventory', name: 'Inventory', icon: Archive }
+    { path: '/inventory', name: 'Inventory', icon: Archive },
+    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle }
   ],
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },

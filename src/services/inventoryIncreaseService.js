@@ -8,13 +8,8 @@ export const inventoryIncreaseService = {
         itemID: increaseData.itemID,
         item_name: increaseData.item_name,
         size: increaseData.size,
-        quantity_increased: increaseData.quantity,
-        reason: increaseData.reason || 'stock_arrival',
-        source: increaseData.source || 'Direct Stock Update',
-        reference_id: increaseData.reference_id || null,
-        performed_by: increaseData.performed_by || 'system',
+        quantity: increaseData.quantity,
         notes: increaseData.notes || '',
-        timestamp: new Date().toISOString()
       });
       return response.data;
     } catch (error) {
