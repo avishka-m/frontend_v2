@@ -1,6 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useAuth } from './useAuth';
-import { authService } from '../services/authService';
 
 // Singleton WebSocket instance and listeners
 let sharedWsRef = null;
@@ -38,48 +36,106 @@ function connectSharedWebSocket(getAuthData) {
     console.debug('[WebSocket] Already connected');
     return;
   }
+  
   const { token, isAuth } = getAuthData();
-  console.debug('[WebSocket] Attempting to connect. Token:', token, 'Is Authenticated:', isAuth);
+  console.debug('[WebSocket] Attempting to connect. Token available:', !!token, 'Is Authenticated:', isAuth);
+  
   if (!token || !isAuth) {
     sharedConnectionStatus = 'disconnected';
     sharedConnectionError = 'Not authenticated';
     console.debug('[WebSocket] Not authenticated. Aborting connection.');
     return;
   }
+  
   try {
     sharedConnectionStatus = 'connecting';
     sharedConnectionError = null;
-    const wsUrl = `ws://localhost:8002/ws/orders?token=${token}`;
+    const wsUrl = `ws://localhost:8002/api/v1/ws/orders?token=${encodeURIComponent(token)}`;
     console.debug('[WebSocket] Connecting to', wsUrl);
+    
     const ws = new WebSocket(wsUrl);
     sharedWsRef = ws;
+    
+    // Set a connection timeout
+    const connectionTimeout = setTimeout(() => {
+      if (ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+        sharedConnectionStatus = 'error';
+        sharedConnectionError = 'Connection timeout';
+        console.debug('[WebSocket] Connection timeout');
+      }
+    }, 10000);
+    
     ws.onopen = () => {
+      clearTimeout(connectionTimeout);
       sharedIsConnected = true;
       sharedConnectionStatus = 'connected';
       sharedConnectionError = null;
       sharedReconnectAttempts = 0;
-      console.debug('[WebSocket] Connection opened');
-      // Heartbeat
+      console.debug('[WebSocket] Connection opened successfully');
+      
+      // Send initial status check
+      ws.send(JSON.stringify({ type: 'status' }));
+      
+      // Setup heartbeat
       const heartbeatInterval = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          ws.send('ping');
+          ws.send(JSON.stringify({ type: 'ping', timestamp: Date.now() }));
           console.debug('[WebSocket] Heartbeat sent');
         } else {
           clearInterval(heartbeatInterval);
         }
       }, 30000);
+      
+      // Store interval reference for cleanup
+      ws._heartbeatInterval = heartbeatInterval;
     };
+    
     ws.onmessage = (event) => {
       console.debug('[WebSocket] Message received:', event.data);
-      if (event.data === 'pong' || event.data.includes('pong')) return;
+      
+      // Handle simple pong responses
+      if (event.data === 'pong') return;
+      
       let data;
-      try { data = JSON.parse(event.data); } catch { return; }
-      if (data.type === 'connection_established') return;
+      try { 
+        data = JSON.parse(event.data); 
+      } catch (e) { 
+        console.warn('[WebSocket] Failed to parse message:', event.data);
+        return; 
+      }
+      
+      // Handle different message types
+      if (data.type === 'connection_established') {
+        console.debug('[WebSocket] Connection established confirmation received');
+        return;
+      }
+      
+      if (data.type === 'pong') {
+        console.debug('[WebSocket] Pong received');
+        return;
+      }
+      
+      if (data.type === 'status_response') {
+        console.debug('[WebSocket] Status response received:', data);
+        return;
+      }
+      
+      if (data.type === 'error') {
+        console.error('[WebSocket] Server error:', data.message);
+        sharedConnectionError = data.message;
+        return;
+      }
+      
+      // Check for duplicate messages
       if (isDuplicateMessage(data)) return;
+      
+      // Handle order updates
       if (data.type === 'order_update') {
         const statusHistory = data.data.order_data?.status_history || {};
         const statusKeys = Object.keys(statusHistory);
         const oldStatus = statusKeys.length > 1 ? statusKeys[statusKeys.length - 2] : null;
+        
         const updateInfo = {
           orderId: data.data.order_id,
           oldStatus,
@@ -88,18 +144,22 @@ function connectSharedWebSocket(getAuthData) {
           timestamp: new Date(),
           updateType: 'status_change'
         };
+        
         sharedLastUpdate = updateInfo;
         notifyAllListeners(updateInfo);
-      } else if (data.type === 'bulk_order_update') {
+      } 
+      else if (data.type === 'bulk_order_update') {
         const updateInfo = {
           orderIds: data.order_ids,
           updateType: 'bulk_update',
           timestamp: new Date(),
           details: data.details
         };
+        
         sharedLastUpdate = updateInfo;
         notifyAllListeners(updateInfo);
-      } else if (data.type === 'assignment_update') {
+      } 
+      else if (data.type === 'assignment_update') {
         const updateInfo = {
           orderId: data.data?.order_id,
           workerId: data.data?.worker_id,
@@ -108,26 +168,44 @@ function connectSharedWebSocket(getAuthData) {
           timestamp: new Date(),
           updateType: 'assignment'
         };
+        
         sharedLastUpdate = updateInfo;
         notifyAllListeners(updateInfo);
       }
     };
+    
     ws.onclose = (event) => {
+      clearTimeout(connectionTimeout);
+      if (ws._heartbeatInterval) {
+        clearInterval(ws._heartbeatInterval);
+      }
+      
       sharedIsConnected = false;
       sharedConnectionStatus = 'disconnected';
       sharedWsRef = null;
+      
       console.debug('[WebSocket] Connection closed. Code:', event.code, 'Reason:', event.reason);
+      
+      // Only attempt to reconnect if not a normal closure and under max attempts
       if (event.code !== 1000 && sharedReconnectAttempts < maxReconnectAttempts) {
         sharedReconnectAttempts++;
         console.debug('[WebSocket] Attempting to reconnect. Attempt:', sharedReconnectAttempts);
         setTimeout(() => connectSharedWebSocket(getAuthData), reconnectDelay);
+      } else if (event.code === 1000) {
+        console.debug('[WebSocket] Normal closure, not reconnecting');
+      } else {
+        console.debug('[WebSocket] Max reconnection attempts reached');
+        sharedConnectionError = 'Failed to reconnect after multiple attempts';
       }
     };
+    
     ws.onerror = (err) => {
+      clearTimeout(connectionTimeout);
       sharedConnectionStatus = 'error';
       sharedConnectionError = 'Connection error occurred';
       console.debug('[WebSocket] Connection error:', err);
     };
+    
   } catch (e) {
     sharedConnectionStatus = 'error';
     sharedConnectionError = 'Failed to create connection';
@@ -150,10 +228,10 @@ function disconnectSharedWebSocket() {
 }
 
 const useOrderWebSocket = () => {
-  const { isAuthenticated } = useAuth();
+  // Temporarily simplified to avoid dependency issues
   const getAuthData = () => {
-    const token = authService.getToken();
-    const isAuth = isAuthenticated();
+    const token = localStorage.getItem('token');
+    const isAuth = !!token;
     return { token, isAuth };
   };
   // Connect on first use

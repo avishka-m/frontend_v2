@@ -308,6 +308,74 @@ export const chatbotService = {
     }
   },
 
+  // Clear all chatbot cache on user logout
+  clearAllCache: () => {
+    try {
+      // Remove all chatbot-related localStorage items
+      const keysToRemove = [
+        'wms_chat_conversations',
+        'wms_chat_preferences',
+        'chatbot_conversations_cache',
+        'chatbot_messages_cache'
+      ];
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
+      });
+      
+      // Remove all user-specific cache entries (they have dynamic keys)
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('chatbot_messages_cache') || 
+            key.startsWith('chatbot_conversations_cache') ||
+            key.startsWith('wms_chat_') ||
+            key.startsWith('wms_search_history_') ||
+            key.includes('_cache_') ||
+            key.includes('chatbot_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      console.log('Chatbot cache cleared successfully');
+    } catch (error) {
+      console.warn('Failed to clear chatbot cache:', error);
+    }
+  },
+
+  // Clear cache for specific user (more targeted clearing)
+  clearUserCache: (userId) => {
+    try {
+      // Clear conversation and message caches for specific user
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('chatbot_') || 
+            key.startsWith('wms_chat_') ||
+            key.startsWith('wms_search_history_') ||
+            (userId && (key.includes(userId) || key.includes(`_${userId}_`)))) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      console.log(`Cache cleared for user: ${userId || 'current'}`);
+    } catch (error) {
+      console.warn('Failed to clear user cache:', error);
+    }
+  },
+
+  // Clear role-specific cache when switching roles
+  clearRoleSpecificCache: (userId, oldRole, newRole) => {
+    try {
+      Object.keys(localStorage).forEach(key => {
+        // Clear old role specific caches
+        if (oldRole && key.includes(`_${userId}_${oldRole}`)) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      console.log(`Role-specific cache cleared for user ${userId}: ${oldRole} -> ${newRole}`);
+    } catch (error) {
+      console.warn('Failed to clear role-specific cache:', error);
+    }
+  },
+
   // === UTILITIES ===
   formatConversationTitle: (conversation) => {
     if (conversation.title && conversation.title.trim() !== '') {

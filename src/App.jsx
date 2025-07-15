@@ -9,6 +9,7 @@ import RoleBasedRoute from './components/common/RoleBasedRoute';
 import Notification from './components/common/Notification';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import FloatingChatWidget from './components/common/FloatingChatWidget';
+// import WebSocketMonitor from './components/WebSocketMonitor';
 import { Toaster } from 'react-hot-toast';
 
 // Lazy load pages
@@ -135,6 +136,8 @@ function App() {
               </Suspense>
               {/* Enhanced Personal Assistant */}
               <FloatingChatWidget />
+              {/* WebSocket Connection Monitor
+              <WebSocketMonitor /> */}
             </EnhancedChatbotProvider>
           </AuthProvider>
         </NotificationProvider>

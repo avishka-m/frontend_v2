@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../../hooks/useAuth';
 import { 
   Card, 
   CardHeader, 
@@ -46,6 +47,7 @@ const ConversationSearchPanel = ({
   onSearch, 
   onConversationSelect 
 }) => {
+  const { currentUser } = useAuth();
   const searchInputRef = useRef(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchType, setSearchType] = useState('smart');
@@ -75,7 +77,9 @@ const ConversationSearchPanel = ({
 
   const loadSearchHistory = () => {
     try {
-      const history = JSON.parse(localStorage.getItem('wms_search_history') || '[]');
+      const userId = currentUser?.username || currentUser?.id || 'anonymous';
+      const historyKey = `wms_search_history_${userId}`;
+      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
       setSearchHistory(history.slice(0, 5)); // Keep only last 5 searches
     } catch (error) {
       console.warn('Failed to load search history:', error);
@@ -84,9 +88,11 @@ const ConversationSearchPanel = ({
 
   const saveSearchHistory = (query) => {
     try {
-      const history = JSON.parse(localStorage.getItem('wms_search_history') || '[]');
+      const userId = currentUser?.username || currentUser?.id || 'anonymous';
+      const historyKey = `wms_search_history_${userId}`;
+      const history = JSON.parse(localStorage.getItem(historyKey) || '[]');
       const newHistory = [query, ...history.filter(h => h !== query)].slice(0, 10);
-      localStorage.setItem('wms_search_history', JSON.stringify(newHistory));
+      localStorage.setItem(historyKey, JSON.stringify(newHistory));
       setSearchHistory(newHistory.slice(0, 5));
     } catch (error) {
       console.warn('Failed to save search history:', error);

@@ -99,9 +99,11 @@ const ChatbotDashboard = ({
     scrollToBottom();
   }, [messages]);
 
-  // Helper functions for caching
-  const CACHE_CONVERSATIONS_KEY = 'chatbot_conversations_cache';
-  const CACHE_MESSAGES_KEY = 'chatbot_messages_cache';
+  // Helper functions for caching - make them user-specific
+  const userId = currentUser?.username || currentUser?.id || 'anonymous';
+  const userRole = currentUser?.role || 'default';
+  const CACHE_CONVERSATIONS_KEY = `chatbot_conversations_cache_${userId}_${userRole}`;
+  const CACHE_MESSAGES_KEY = `chatbot_messages_cache_${userId}_${userRole}_`;
   const CACHE_EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 
   function getCache(key) {
