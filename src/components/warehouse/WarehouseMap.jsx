@@ -28,6 +28,95 @@ const WarehouseMap = ({
   const WAREHOUSE_HEIGHT = 12;
   const FLOORS = 4;
 
+  // ✨ NEW: Individual slot mapping according to your requirements
+  const getSlotMapping = () => {
+    const slots = [];
+    
+    // B slots (Medium/Bin) - 3 columns: B01-B07, B08-B14, B15-B21
+    // Column 1: x=1, y=2-8 (B01-B07)
+    for (let i = 0; i < 7; i++) {
+      slots.push({
+        code: `B${String(i + 1).padStart(2, '0')}`, // B01, B02, ..., B07
+        x: 1,
+        y: 2 + i,
+        type: 'M',
+        rackGroup: 'B1'
+      });
+    }
+    
+    // Column 2: x=3, y=2-8 (B08-B14) 
+    for (let i = 0; i < 7; i++) {
+      slots.push({
+        code: `B${String(i + 8).padStart(2, '0')}`, // B08, B09, ..., B14
+        x: 3,
+        y: 2 + i,
+        type: 'M',
+        rackGroup: 'B2'
+      });
+    }
+    
+    // Column 3: x=5, y=2-8 (B15-B21)
+    for (let i = 0; i < 7; i++) {
+      slots.push({
+        code: `B${String(i + 15).padStart(2, '0')}`, // B15, B16, ..., B21
+        x: 5,
+        y: 2 + i,
+        type: 'M',
+        rackGroup: 'B3'
+      });
+    }
+    
+    // P slots (Small/Pellet) - 2 columns: P01-P07, P08-P14
+    // Column 1: x=7, y=2-8 (P01-P07)
+    for (let i = 0; i < 7; i++) {
+      slots.push({
+        code: `P${String(i + 1).padStart(2, '0')}`, // P01, P02, ..., P07
+        x: 7,
+        y: 2 + i,
+        type: 'S',
+        rackGroup: 'P1'
+      });
+    }
+    
+    // Column 2: x=9, y=2-8 (P08-P14)
+    for (let i = 0; i < 7; i++) {
+      slots.push({
+        code: `P${String(i + 8).padStart(2, '0')}`, // P08, P09, ..., P14
+        x: 9,
+        y: 2 + i,
+        type: 'S',
+        rackGroup: 'P2'
+      });
+    }
+    
+    // D slots (Large) - 2 rows: D01-D07, D08-D14
+    // Row 1: y=10, x=3-9 (D01-D07)
+    for (let i = 0; i < 7; i++) {
+      slots.push({
+        code: `D${String(i + 1).padStart(2, '0')}`, // D01, D02, ..., D07
+        x: 3 + i,
+        y: 10,
+        type: 'D',
+        rackGroup: 'D1'
+      });
+    }
+    
+    // Row 2: y=11, x=3-9 (D08-D14)
+    for (let i = 0; i < 7; i++) {
+      slots.push({
+        code: `D${String(i + 8).padStart(2, '0')}`, // D08, D09, ..., D14
+        x: 3 + i,
+        y: 11,
+        type: 'D',
+        rackGroup: 'D2'
+      });
+    }
+    
+    return slots;
+  };
+
+  const slotMapping = getSlotMapping();
+
   // Update selected suggestions when suggestedLocations changes
   useEffect(() => {
     if (suggestedLocations && showSuggestions) {
@@ -62,61 +151,14 @@ const WarehouseMap = ({
     }
   };
 
-  // Define rack configurations
-  const racks = {
-    // Small racks (Pellets)
-    P1: {
-      type: 'S',
-      name: 'P1',
-      color: 'bg-blue-500',
-      hoverColor: 'hover:bg-blue-600',
-      bounds: { x1: 7, y1: 2, x2: 7, y2: 8 }, // 7-8 in 1-indexed becomes 6-7 in 0-indexed
-    },
-    P2: {
-      type: 'S',
-      name: 'P2',
-      color: 'bg-blue-500',
-      hoverColor: 'hover:bg-blue-600',
-      bounds: { x1: 9, y1: 2, x2: 9, y2: 8 }, // 9-10 becomes 8-9
-    },
-    // Medium racks (Bin)
-    B1: {
-      type: 'M',
-      name: 'B1',
-      color: 'bg-green-500',
-      hoverColor: 'hover:bg-green-600',
-      bounds: { x1: 1, y1: 2, x2: 1, y2: 8 }, // 1-2 becomes 0-1
-    },
-    B2: {
-      type: 'M',
-      name: 'B2',
-      color: 'bg-green-500',
-      hoverColor: 'hover:bg-green-600',
-      bounds: { x1: 3, y1: 2, x2: 3, y2: 8 }, // 3-4 becomes 2-3
-    },
-    B3: {
-      type: 'M',
-      name: 'B3',
-      color: 'bg-green-500',
-      hoverColor: 'hover:bg-green-600',
-      bounds: { x1: 5, y1: 2, x2: 5, y2: 8 }, // 5-6 becomes 4-5
-    },
-    // Large rack
-    D: {
-      type: 'D',
-      name: 'D',
-      color: 'bg-purple-500',
-      hoverColor: 'hover:bg-purple-600',
-      bounds: { x1: 3, y1: 10, x2: 9, y2: 11 }, // Adjusted to fit within 10x12 grid
-    },
+  // ✨ NEW: Get slot info by coordinates
+  const getSlotInfo = (x, y) => {
+    return slotMapping.find(slot => slot.x === x && slot.y === y);
   };
 
-  // Generate location code based on rack, position, and floor
-  const getLocationCode = (rackName, x, y, floor) => {
-    const rack = racks[rackName];
-    const relativeX = x - rack.bounds.x1 + 1;
-    const relativeY = y - rack.bounds.y1 + 1;
-    return `${rackName}-${relativeX}${relativeY}-F${floor}`;
+  // ✨ NEW: Generate location code for individual slots with floors
+  const getLocationCode = (slotCode, floor) => {
+    return `${slotCode}.${floor}`; // e.g., B01.1, B01.2, P01.3, D01.4
   };
 
   // Check if a location is suggested
@@ -145,14 +187,14 @@ const WarehouseMap = ({
   };
   
   // Get occupancy percentage for a location
-  const getOccupancyPercentage = (occupiedInfo, cellInfo) => {
+  const getOccupancyPercentage = (occupiedInfo, slotInfo) => {
     if (!occupiedInfo || !occupiedInfo.quantity) return 0;
     
     let capacity = STORAGE_CAPACITY.BIN_PER_SQUARE; // Default
-    if (cellInfo) {
-      if (cellInfo.type === 'S') capacity = STORAGE_CAPACITY.PELLET_PER_SQUARE;
-      else if (cellInfo.type === 'M') capacity = STORAGE_CAPACITY.BIN_PER_SQUARE;
-      else if (cellInfo.type === 'D') capacity = STORAGE_CAPACITY.LARGE_PER_SQUARE;
+    if (slotInfo) {
+      if (slotInfo.type === 'S') capacity = STORAGE_CAPACITY.PELLET_PER_SQUARE;
+      else if (slotInfo.type === 'M') capacity = STORAGE_CAPACITY.BIN_PER_SQUARE;
+      else if (slotInfo.type === 'D') capacity = STORAGE_CAPACITY.LARGE_PER_SQUARE;
     }
     
     return Math.min(100, Math.round((occupiedInfo.quantity / capacity) * 100));
@@ -166,9 +208,28 @@ const WarehouseMap = ({
     return 'bg-red-600'; // Full or nearly full
   };
 
+  // ✨ NEW: Get slot color based on type
+  const getSlotColor = (slotType) => {
+    switch (slotType) {
+      case 'S': return 'bg-blue-500'; // Small/Pellet
+      case 'M': return 'bg-green-500'; // Medium/Bin
+      case 'D': return 'bg-purple-500'; // Large
+      default: return 'bg-gray-500';
+    }
+  };
+
+  // ✨ NEW: Get slot hover color based on type
+  const getSlotHoverColor = (slotType) => {
+    switch (slotType) {
+      case 'S': return 'hover:bg-blue-600';
+      case 'M': return 'hover:bg-green-600';
+      case 'D': return 'hover:bg-purple-600';
+      default: return 'hover:bg-gray-600';
+    }
+  };
+
   // Calculate pixel position for a grid cell (for drawing lines)
   const getCellCenter = (x, y) => {
-    // Each cell is 40px (w-10 h-10), plus borders
     const cellSize = 40;
     const centerX = x * cellSize + cellSize / 2;
     const centerY = (WAREHOUSE_HEIGHT - 1 - y) * cellSize + cellSize / 2;
@@ -177,40 +238,34 @@ const WarehouseMap = ({
 
   // Check if a cell is walkable (not a rack and not occupied)
   const isWalkable = (x, y) => {
-    // Check bounds
     if (x < 0 || x >= WAREHOUSE_WIDTH || y < 0 || y >= WAREHOUSE_HEIGHT) {
       return false;
     }
     
-    // Check if it's a rack
-    const cellInfo = getCellInfo(x, y);
-    if (cellInfo) return false;
+    // Check if it's a slot
+    const slotInfo = getSlotInfo(x, y);
+    if (slotInfo) return false;
     
-    // Check if it's occupied (for pathfinding purposes)
-    // Note: We allow walking through occupied empty spaces for navigation
     return true;
   };
 
   // A* pathfinding algorithm
   const findPath = (startX, startY, endX, endY) => {
-    // Node class for A*
     class Node {
       constructor(x, y, g = 0, h = 0, parent = null) {
         this.x = x;
         this.y = y;
-        this.g = g; // Cost from start
-        this.h = h; // Heuristic cost to end
-        this.f = g + h; // Total cost
+        this.g = g;
+        this.h = h;
+        this.f = g + h;
         this.parent = parent;
       }
     }
 
-    // Heuristic function (Manhattan distance)
     const heuristic = (x1, y1, x2, y2) => {
       return Math.abs(x1 - x2) + Math.abs(y1 - y2);
     };
 
-    // Get neighbors
     const getNeighbors = (node) => {
       const neighbors = [];
       const directions = [
@@ -224,7 +279,6 @@ const WarehouseMap = ({
         const newX = node.x + dir.x;
         const newY = node.y + dir.y;
         
-        // Check if the neighbor is walkable or is the destination
         if ((newX === endX && newY === endY) || isWalkable(newX, newY)) {
           neighbors.push({ x: newX, y: newY });
         }
@@ -233,16 +287,13 @@ const WarehouseMap = ({
       return neighbors;
     };
 
-    // Initialize open and closed lists
     const openList = [];
     const closedList = new Set();
     
-    // Create start node
     const startNode = new Node(startX, startY, 0, heuristic(startX, startY, endX, endY));
     openList.push(startNode);
 
     while (openList.length > 0) {
-      // Find node with lowest f cost
       let currentIndex = 0;
       for (let i = 1; i < openList.length; i++) {
         if (openList[i].f < openList[currentIndex].f) {
@@ -252,9 +303,7 @@ const WarehouseMap = ({
 
       const currentNode = openList.splice(currentIndex, 1)[0];
       
-      // Check if we reached the end
       if (currentNode.x === endX && currentNode.y === endY) {
-        // Reconstruct path
         const path = [];
         let node = currentNode;
         while (node) {
@@ -264,28 +313,22 @@ const WarehouseMap = ({
         return path;
       }
 
-      // Add to closed list
       closedList.add(`${currentNode.x},${currentNode.y}`);
 
-      // Check neighbors
       const neighbors = getNeighbors(currentNode);
       for (const neighbor of neighbors) {
         const key = `${neighbor.x},${neighbor.y}`;
         
-        // Skip if in closed list
         if (closedList.has(key)) continue;
 
         const g = currentNode.g + 1;
         const h = heuristic(neighbor.x, neighbor.y, endX, endY);
         
-        // Check if neighbor is already in open list
         const existingIndex = openList.findIndex(n => n.x === neighbor.x && n.y === neighbor.y);
         
         if (existingIndex === -1) {
-          // Add new node
           openList.push(new Node(neighbor.x, neighbor.y, g, h, currentNode));
         } else if (g < openList[existingIndex].g) {
-          // Update existing node if this path is better
           openList[existingIndex].g = g;
           openList[existingIndex].f = g + h;
           openList[existingIndex].parent = currentNode;
@@ -293,41 +336,25 @@ const WarehouseMap = ({
       }
     }
 
-    // No path found - return direct line as fallback
     return [{ x: startX, y: startY }, { x: endX, y: endY }];
-  };
-
-  // Check if a cell is part of a rack
-  const getCellInfo = (x, y) => {
-    for (const [rackName, rack] of Object.entries(racks)) {
-      if (x >= rack.bounds.x1 && x <= rack.bounds.x2 && 
-          y >= rack.bounds.y1 && y <= rack.bounds.y2) {
-        return {
-          rack: rackName,
-          type: rack.type,
-          color: rack.color,
-          hoverColor: rack.hoverColor,
-          locationCode: getLocationCode(rackName, x, y, selectedFloor),
-        };
-      }
-    }
-    return null;
   };
 
   // Handle cell click
   const handleCellClick = (x, y) => {
-    // Don't allow selecting occupied locations when storing
     if (mode === 'storing' && isOccupiedLocation(x, y, selectedFloor)) {
       return;
     }
     
-    const cellInfo = getCellInfo(x, y);
-    if (cellInfo) {
+    const slotInfo = getSlotInfo(x, y);
+    if (slotInfo) {
       const location = {
         x,
         y,
         floor: selectedFloor,
-        ...cellInfo,
+        locationCode: getLocationCode(slotInfo.code, selectedFloor),
+        slotCode: slotInfo.code,
+        type: slotInfo.type,
+        rackGroup: slotInfo.rackGroup
       };
       setSelectedLocation(location);
       if (onLocationSelect) {
@@ -340,11 +367,10 @@ const WarehouseMap = ({
   const renderGrid = () => {
     const grid = [];
     
-    // Start from top-left and go down (to match Cartesian coordinates)
     for (let y = WAREHOUSE_HEIGHT - 1; y >= 0; y--) {
       const row = [];
       for (let x = 0; x < WAREHOUSE_WIDTH; x++) {
-        const cellInfo = getCellInfo(x, y);
+        const slotInfo = getSlotInfo(x, y);
         const isReceiving = x === 0 && y === 0;
         const isPacking = x === 0 && y === 11;
 
@@ -358,7 +384,7 @@ const WarehouseMap = ({
         const isSuggested = showSuggestions && isSuggestedLocation(x, y, selectedFloor);
         const isOccupied = isOccupiedLocation(x, y, selectedFloor);
         const occupiedInfo = isOccupied ? getOccupiedInfo(x, y, selectedFloor) : null;
-        const occupancyPercentage = occupiedInfo ? getOccupancyPercentage(occupiedInfo, cellInfo) : 0;
+        const occupancyPercentage = occupiedInfo ? getOccupancyPercentage(occupiedInfo, slotInfo) : 0;
         const occupancyColor = getOccupancyColor(occupancyPercentage);
 
         row.push(
@@ -369,11 +395,11 @@ const WarehouseMap = ({
               transition-all duration-150
               ${isReceiving ? 'bg-red-500 text-white' : ''}
               ${isPacking ? 'bg-orange-500 text-white' : ''}
-              ${cellInfo && !isReceiving && !isPacking && !isOccupied ? `${cellInfo.color} text-white ${cellInfo.hoverColor}` : ''}
-              ${cellInfo && isOccupied ? `${occupancyColor} text-white` : ''}
-              ${!cellInfo && !isReceiving && !isPacking ? 'bg-gray-100 hover:bg-gray-200' : ''}
+              ${slotInfo && !isReceiving && !isPacking && !isOccupied ? `${getSlotColor(slotInfo.type)} text-white ${getSlotHoverColor(slotInfo.type)}` : ''}
+              ${slotInfo && isOccupied ? `${occupancyColor} text-white` : ''}
+              ${!slotInfo && !isReceiving && !isPacking ? 'bg-gray-100 hover:bg-gray-200' : ''}
               ${isSelected ? 'ring-2 ring-yellow-400 ring-offset-1' : ''}
-              ${isHovered && cellInfo ? 'transform scale-105' : ''}
+              ${isHovered && slotInfo ? 'transform scale-105' : ''}
               ${isSuggested ? 'ring-2 ring-green-400 ring-offset-1 animate-pulse' : ''}
               ${mode === 'storing' && isOccupied ? 'cursor-not-allowed opacity-75' : ''}
             `}
@@ -389,25 +415,34 @@ const WarehouseMap = ({
               setHoveredOccupiedInfo(null);
             }}
             title={
-              cellInfo 
+              slotInfo 
                 ? (isOccupied && occupiedInfo 
-                    ? `${cellInfo.locationCode} - ${occupiedInfo.itemName} (${occupiedInfo.quantity} units - ${occupancyPercentage}% full)` 
-                    : cellInfo.locationCode)
+                    ? `${getLocationCode(slotInfo.code, selectedFloor)} - ${occupiedInfo.itemName} (${occupiedInfo.quantity} units - ${occupancyPercentage}% full)` 
+                    : getLocationCode(slotInfo.code, selectedFloor))
                 : isReceiving 
-                  ? 'Receiving Point' 
+                  ? 'Receiving Point (R)' 
                   : isPacking 
-                    ? 'Packing Point' 
+                    ? 'Packing Point (P)' 
                     : `Empty (${x},${y})`
             }
           >
-            {isReceiving && <Archive className="w-6 h-6" />}
-            {isPacking && <Package className="w-6 h-6" />}
-            {cellInfo && !isReceiving && !isPacking && (
-              <span className="font-semibold text-[10px]">
-                {cellInfo.rack}
+            {isReceiving && (
+              <div className="flex flex-col items-center">
+                <Archive className="w-6 h-6" />
+                <span className="text-[8px] font-bold">R</span>
+              </div>
+            )}
+            {isPacking && (
+              <div className="flex flex-col items-center">
+                <Package className="w-6 h-6" />
+                <span className="text-[8px] font-bold">P</span>
+              </div>
+            )}
+            {slotInfo && !isReceiving && !isPacking && (
+              <span className="font-semibold text-[8px] leading-none">
+                {slotInfo.code}
               </span>
             )}
-            
           </div>
         );
       }
@@ -446,7 +481,7 @@ const WarehouseMap = ({
           </div>
           <div className="flex items-center text-sm text-gray-600">
             <Layers className="w-4 h-4 mr-1" />
-            <span>4 floors per rack</span>
+             <span>4 floors per slot (e.g., B01.1, B01.2, B01.3, B01.4)</span>
           </div>
         </div>
 
@@ -454,27 +489,23 @@ const WarehouseMap = ({
         <div className="flex flex-wrap gap-4 mb-4">
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-red-500 rounded"></div>
-            <span className="text-sm text-gray-600">Receiving Point</span>
+            <span className="text-sm text-gray-600">Receiving Point (R)</span>
           </div>
            <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-orange-500 rounded"></div>
-            <span className="text-sm text-gray-600">Packing Point</span>
+            <span className="text-sm text-gray-600">Packing Point (P)</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-blue-500 rounded"></div>
-            <span className="text-sm text-gray-600">Small (S) - Pellets</span>
+            <span className="text-sm text-gray-600">Small (P01-P14) - Pellets</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-green-500 rounded"></div>
-            <span className="text-sm text-gray-600">Medium (M) - Bin</span>
+            <span className="text-sm text-gray-600">Medium (B01-B21) - Bin</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-purple-500 rounded"></div>
-            <span className="text-sm text-gray-600">Large (D)</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-4 h-4 bg-gray-100 border border-gray-300 rounded"></div>
-            <span className="text-sm text-gray-600">Empty Space</span>
+            <span className="text-sm text-gray-600">Large (D01-D14)</span>
           </div>
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-red-600 rounded"></div>
@@ -500,7 +531,7 @@ const WarehouseMap = ({
             <div className="relative">
               {renderGrid()}
               
-              {/* SVG Overlay for drawing paths */}
+              {/* ✨ FIXED: SVG Overlay for drawing paths directly to storage slots */}
               {(mode === 'storing' || mode === 'collecting') && pathDestination && (
                 <svg 
                   className="absolute top-0 left-0 pointer-events-none"
@@ -527,18 +558,16 @@ const WarehouseMap = ({
                     let pathPoints = [];
                     
                     if (mode === 'storing') {
-                      // From receiving (0,0) to destination
+                      // ✨ FIXED: From receiving (0,0) directly to storage destination
                       pathPoints = findPath(0, 0, pathDestination.x, pathDestination.y);
                     } else if (mode === 'collecting') {
-                      // From source to packing (0,11)
+                      // ✨ FIXED: From storage location directly to packing (0,11)
                       pathPoints = findPath(pathDestination.x, pathDestination.y, 0, 11);
                     }
                     
                     if (pathPoints && pathPoints.length > 1) {
-                      // Convert grid coordinates to pixel coordinates
                       const pixelPath = pathPoints.map(point => getCellCenter(point.x, point.y));
                       
-                      // Create SVG path string
                       let pathString = `M ${pixelPath[0].x} ${pixelPath[0].y}`;
                       for (let i = 1; i < pixelPath.length; i++) {
                         pathString += ` L ${pixelPath[i].x} ${pixelPath[i].y}`;
@@ -549,7 +578,7 @@ const WarehouseMap = ({
                       
                       return (
                         <g>
-                          {/* Path segments for visualization */}
+                          {/* Path visualization dots */}
                           {pathPoints.map((point, index) => {
                             if (index === 0 || index === pathPoints.length - 1) return null;
                             const center = getCellCenter(point.x, point.y);
@@ -575,7 +604,7 @@ const WarehouseMap = ({
                             strokeLinejoin="round"
                           />
                           
-                          {/* Colored path line */}
+                          {/* Main colored path line with arrow */}
                           <path
                             d={pathString}
                             stroke={mode === 'storing' ? '#3B82F6' : '#10B981'}
@@ -594,7 +623,7 @@ const WarehouseMap = ({
                             />
                           </path>
                           
-                          {/* Start and end point circles */}
+                          {/* Start point (Red circle for receiving, Blue for storage location) */}
                           <circle
                             cx={startPoint.x}
                             cy={startPoint.y}
@@ -603,6 +632,8 @@ const WarehouseMap = ({
                             stroke="white"
                             strokeWidth="2"
                           />
+                          
+                          {/* End point (Blue circle for storage location, Orange for packing) */}
                           <circle
                             cx={endPoint.x}
                             cy={endPoint.y}
@@ -642,8 +673,8 @@ const WarehouseMap = ({
               <span className="ml-2 font-medium">{selectedLocation.locationCode}</span>
             </div>
             <div>
-              <span className="text-gray-600">Rack:</span>
-              <span className="ml-2 font-medium">{selectedLocation.rack}</span>
+              <span className="text-gray-600">Slot:</span>
+              <span className="ml-2 font-medium">{selectedLocation.slotCode}</span>
             </div>
             <div>
               <span className="text-gray-600">Type:</span>
@@ -657,25 +688,29 @@ const WarehouseMap = ({
               <span className="text-gray-600">Floor:</span>
               <span className="ml-2 font-medium">F{selectedLocation.floor}</span>
             </div>
+            <div>
+              <span className="text-gray-600">Rack Group:</span>
+              <span className="ml-2 font-medium">{selectedLocation.rackGroup}</span>
+            </div>
           </div>
         </div>
       )}
 
       {/* Legend */}
       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-        <h4 className="font-semibold text-gray-700 mb-2">Color Legend</h4>
+        <h4 className="font-semibold text-gray-700 mb-2">Individual Slot Legend</h4>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="flex items-center">
             <div className="w-4 h-4 bg-blue-500 rounded mr-2"></div>
-            <span>Small (Pellet) Rack</span>
+            <span>P01-P14 (Small/Pellet)</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-green-500 rounded mr-2"></div>
-            <span>Medium (Bin) Rack</span>
+            <span>B01-B21 (Medium/Bin)</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-purple-500 rounded mr-2"></div>
-            <span>Large Rack</span>
+            <span>D01-D14 (Large)</span>
           </div>
           <div className="flex items-center">
             <div className="w-4 h-4 bg-yellow-500 rounded mr-2"></div>
@@ -690,14 +725,30 @@ const WarehouseMap = ({
             <span>Full/Nearly Full (&gt;80%)</span>
           </div>
         </div>
+        <div className="mt-2 text-xs text-gray-600">
+          <p>Each slot has 4 floors: e.g., B01.1, B01.2, B01.3, B01.4</p>
+          <p>All floors of same slot share coordinates but different storage levels</p>
+        </div>
       </div>
 
       {/* Instructions */}
       <div className="mt-4 text-sm text-gray-600">
         <p className="flex items-center">
           <MapPin className="w-4 h-4 mr-1" />
-          Click on any rack location to select it. Use floor buttons to view different levels.
+          Click on any storage slot to select it. Use floor buttons to view different levels.
         </p>
+        {mode === 'storing' && (
+          <p className="flex items-center mt-1">
+            <Archive className="w-4 h-4 mr-1" />
+            Blue path shows route from Receiving Point (R) to selected storage location.
+          </p>
+        )}
+        {mode === 'collecting' && (
+          <p className="flex items-center mt-1">
+            <Package className="w-4 h-4 mr-1" />
+            Green path shows route from storage location to Packing Point (P).
+          </p>
+        )}
       </div>
 
       {/* Hover Info for Occupied Items */}

@@ -22,7 +22,12 @@ const PickerDashboard = () => {
   const [actionMode, setActionMode] = useState('storing'); // 'storing' or 'collecting'
   const [isFullscreen, setIsFullscreen] = useState(false);
   const modalRef = useRef(null);
-  const [loadingItems, setLoadingItems] = useState(true);
+  
+  // ✨ UPDATED: Separate loading states
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(null);
+  
   const [currentPickingOrder, setCurrentPickingOrder] = useState(null);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [pickingMode, setPickingMode] = useState(false);
@@ -45,14 +50,18 @@ const PickerDashboard = () => {
     }
   };
 
-  // Fetch items from inventory_increases collection
-  // Replace this function in PickerDashboard.jsx
-  const fetchInventoryIncreases = async () => {
+  // ✨ UPDATED: fetchInventoryIncreases with background loading
+  const fetchInventoryIncreases = async (isBackgroundRefresh = false) => {
     try {
-      setLoadingItems(true);
+      // Only show loading spinner on initial load, not background refreshes
+      if (!isBackgroundRefresh) {
+        setInitialLoading(true);
+      } else {
+        setBackgroundRefreshing(true);
+      }
+      
       const token = localStorage.getItem('token');
       
-      // ✨ FIXED: Call the correct endpoint with ML predictions
       const response = await axios.get(
         `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/inventory-increases/`,
         {
@@ -65,25 +74,28 @@ const PickerDashboard = () => {
         }
       );
       
-      console.log('Fetched inventory increases with ML predictions:', response.data);
+      // ✨ UPDATED: Only log when there are changes
+      const newItemsCount = response.data.length;
+      const currentItemsCount = itemsData.available_for_storing.length;
       
-      // Transform the data to match your existing format
+      if (newItemsCount !== currentItemsCount || !isBackgroundRefresh) {
+        console.log(`📦 Items update: ${newItemsCount} items (was ${currentItemsCount})`);
+      }
+      
+      // Transform the data
       const availableForStoring = response.data.map(item => ({
         itemID: item.itemID,
         itemName: item.item_name,
         quantity: item.quantity_increased,
         category: item.size || 'Medium',
+        size: item.size || 'M',
         condition: 'good',
         receivingID: item.reference_id,
         lastIncreaseDate: item.timestamp,
         source: item.source,
         reason: item.reason,
-        // ✨ ADD: ML prediction data
-        predicted_location: item.predicted_location,
-        predicted_coordinates: item.predicted_coordinates,
-        prediction_confidence: item.prediction_confidence,
-        allocation_reason: item.allocation_reason,
-        suggested_location: item.suggested_location
+        awaiting_prediction: true,
+        notes: item.notes || ''
       }));
       
       setItemsData(prevData => ({
@@ -91,39 +103,70 @@ const PickerDashboard = () => {
         available_for_storing: availableForStoring
       }));
       
+      setLastRefreshTime(new Date().toLocaleTimeString());
+      
     } catch (error) {
       console.error('Error fetching inventory increases:', error);
-      toast.error('Failed to load items for storing');
+      // Only show error toast on initial load, not background refreshes
+      if (!isBackgroundRefresh) {
+        toast.error('Failed to load items for storing');
+      }
     } finally {
-      setLoadingItems(false);
+      setInitialLoading(false);
+      setBackgroundRefreshing(false);
     }
   };
 
-  // Fetch pending orders
-  const fetchPendingOrders = async () => {
+  // ✨ UPDATED: fetchPendingOrders with background loading
+  const fetchPendingOrders = async (isBackgroundRefresh = false) => {
     try {
       const orders = await orderService.getOrders({ status: 'pending' });
+      
       setItemsData(prevData => ({
         ...prevData,
         pending_orders: orders
       }));
+      
     } catch (error) {
       console.error('Error fetching pending orders:', error);
-      toast.error('Failed to load pending orders');
+      if (!isBackgroundRefresh) {
+        toast.error('Failed to load pending orders');
+      }
     }
   };
 
+  // ✨ UPDATED: Initial load and background refresh logic
   useEffect(() => {
-    fetchInventoryIncreases();
-    fetchPendingOrders();
+    // Initial load (with loading spinner)
+    const initialLoad = async () => {
+      await Promise.all([
+        fetchInventoryIncreases(false),
+        fetchPendingOrders(false)
+      ]);
+    };
     
-    // Refresh every 30 seconds
-    const interval = setInterval(() => {
-      fetchInventoryIncreases();
-      fetchPendingOrders();
+    initialLoad();
+    
+    // ✨ UPDATED: Background refresh every 30 seconds (without disrupting UI)
+    const refreshInterval = setInterval(() => {
+      // Only do background refresh if no modal is open
+      if (!selectedStoringItem) {
+        fetchInventoryIncreases(true);
+        fetchPendingOrders(true);
+      }
     }, 30000);
-    return () => clearInterval(interval);
+    
+    return () => clearInterval(refreshInterval);
   }, []);
+
+  // ✨ NEW: Manual refresh function
+  const handleManualRefresh = async () => {
+    await Promise.all([
+      fetchInventoryIncreases(true),
+      fetchPendingOrders(true)
+    ]);
+    toast.success('Data refreshed!', { duration: 2000 });
+  };
 
   const handleMarkAsStored = async (item) => {
   try {
@@ -131,9 +174,96 @@ const PickerDashboard = () => {
     const token = localStorage.getItem('token');
     
     if (pickingMode && currentPickingOrder) {
-      // ... existing picking logic remains the same
+      // ✨ COMPLETE: Picking logic for order collection
+      try {
+        // Mark item as collected from storage
+        const collectData = {
+          itemID: item.itemID,
+          itemName: item.itemName,
+          quantity: item.quantity,
+          locationID: item.locationID,
+          orderID: currentPickingOrder.orderID,
+          collectedBy: currentUser?.username || 'Unknown'
+        };
+
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/storage-history/collect-item`,
+          collectData,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`
+            }
+          }
+        );
+        
+        if (response.data) {
+          toast.success(`Item ${item.itemName} collected from ${item.locationID}`);
+          
+          // Move to next item or complete order
+          if (currentItemIndex < currentPickingOrder.items.length - 1) {
+            // Move to next item
+            const nextIndex = currentItemIndex + 1;
+            setCurrentItemIndex(nextIndex);
+            
+            const nextItem = currentPickingOrder.items[nextIndex];
+            const nextLocationID = nextItem.locationID || generateDummyLocation(nextItem.itemID);
+            
+            const nextItemData = {
+              itemID: nextItem.itemID,
+              itemName: nextItem.item_name || `Item ${nextItem.itemID}`,
+              quantity: nextItem.quantity,
+              locationID: nextLocationID,
+              orderID: currentPickingOrder.orderID
+            };
+            
+            setSelectedStoringItem(nextItemData);
+            handleOpenCollectModal(nextItemData);
+            
+            toast.info(`Moving to item ${nextIndex + 1} of ${currentPickingOrder.items.length}`);
+          } else {
+            // Complete the order
+            try {
+              await axios.put(
+                `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/orders/${currentPickingOrder.orderID}`,
+                { status: 'picked' },
+                {
+                  headers: {
+                    Authorization: `Bearer ${token}`
+                  }
+                }
+              );
+              
+              toast.success(`Order #${currentPickingOrder.orderID} completed successfully!`);
+              
+              // Reset picking mode
+              setPickingMode(false);
+              setCurrentPickingOrder(null);
+              setCurrentItemIndex(0);
+              setSelectedStoringItem(null);
+              setLocationId('');
+              setSuggestedLocations([]);
+              setSelectedMapLocation(null);
+              
+              // Refresh orders list
+              fetchPendingOrders(true);
+              
+              if (isFullscreen) {
+                document.exitFullscreen();
+              }
+              
+            } catch (orderError) {
+              console.error('Error completing order:', orderError);
+              toast.error('Failed to complete order status update');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error collecting item:', error);
+        toast.error('Failed to collect item');
+      }
+      
     } else {
-      // Original storing logic for inventory increases
+      // ✨ COMPLETE: Original storing logic for inventory increases
       if (!locationId || !selectedMapLocation) {
         toast.error('Please select a location from the map');
         return;
@@ -183,21 +313,25 @@ const PickerDashboard = () => {
             }
           );
           
-          // Show success message with location info
-          const predictionAccurate = item.predicted_location === locationId;
-          const accuracyMessage = predictionAccurate 
-            ? " (ML prediction was accurate!)" 
-            : item.predicted_location 
-              ? ` (ML predicted ${item.predicted_location}, but you chose ${locationId})`
-              : "";
-              
-          toast.success(`Item ${item.itemName} stored at ${locationId}${accuracyMessage}`);
+          toast.success(`Item ${item.itemName} stored at ${locationId}`);
           
         } catch (error) {
           console.error('Error marking inventory increases as stored:', error);
+          toast.warning('Item stored but failed to update inventory records');
         }
         
-        // ... rest of existing logic remains the same
+        // Clear selections and close modal
+        setSelectedStoringItem(null);
+        setLocationId('');
+        setSuggestedLocations([]);
+        setSelectedMapLocation(null);
+        
+        // Refresh the items list
+        fetchInventoryIncreases(true);
+        
+        if (isFullscreen) {
+          document.exitFullscreen();
+        }
       }
     }
   } catch (error) {
@@ -217,7 +351,6 @@ const PickerDashboard = () => {
     let rackType = '';
     
     // Determine item size based on category or other logic
-    // For now, let's use a simple mapping - you can customize this
     const itemCategory = item.category?.toLowerCase() || '';
     
     if (itemCategory.includes('small') || itemCategory.includes('pellet')) {
@@ -289,40 +422,101 @@ const PickerDashboard = () => {
     return suggestions;
   };
 
-  // Handle opening store modal
-  const handleOpenStoreModal = (item) => {
-  setSelectedStoringItem(item);
-  setActionMode('storing');
-  const suggestions = calculateSuggestedLocations(item);
-  setSuggestedLocations(suggestions);
-
-  // Use ML-predicted location if available
-  if (item.predicted_location && item.predicted_coordinates) {
-    console.log('Using ML-predicted location:', item.predicted_location);
+  // ✨ UPDATED: Handle opening store modal with real-time ML prediction
+  const handleOpenStoreModal = async (item) => {
+    setSelectedStoringItem(item);
+    setActionMode('storing');
     
-    setSelectedMapLocation({
-      x: item.predicted_coordinates.x - 1,  // Convert to 0-indexed for map
-      y: item.predicted_coordinates.y - 1,  // Convert to 0-indexed for map
-      floor: item.predicted_coordinates.floor,
-      locationCode: item.predicted_location
-    });
-    setLocationId(item.predicted_location);
-    
-    // Show prediction info to user
-    toast.success(`ML predicted optimal location: ${item.predicted_location} (${(item.prediction_confidence * 100).toFixed(1)}% confidence)`);
-  } else if (item.suggested_location) {
-    // Fallback to old suggested location logic
-    setSelectedMapLocation({
-      x: item.suggested_location.x,
-      y: item.suggested_location.y,
-      floor: item.suggested_location.floor,
-      locationCode: item.suggested_location.locationCode
-    });
-    setLocationId(item.suggested_location.locationCode);
-  } else {
+    // Clear previous selections
     setSelectedMapLocation(null);
-  }
-};
+    setLocationId('');
+    setSuggestedLocations([]);
+
+    // Show loading state
+    toast.loading('Finding the optimal location for the item...', { id: 'ml-prediction' });
+
+    try {
+      // ✨ NEW: Call real-time ML prediction when "Store" is clicked
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/ai/predict-location`,
+        {
+          itemID: item.itemID,
+          item_name: item.itemName,
+          category: item.category || 'General',
+          size: item.size || 'M',
+          quantity: item.quantity
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      if (response.data && response.data.success) {
+        const prediction = response.data;
+        
+        console.log('Real-time ML prediction:', prediction);
+
+        // Set the predicted location
+        setSelectedMapLocation({
+          x: prediction.coordinates.x,
+          y: prediction.coordinates.y,
+          floor: prediction.coordinates.floor,
+          locationCode: prediction.allocated_location
+        });
+        setLocationId(prediction.allocated_location);
+
+        // Clear loading and show success
+        toast.success(
+          `AI recommends: ${prediction.allocated_location} (${(prediction.confidence * 100).toFixed(1)}% confidence)`,
+          { id: 'ml-prediction', duration: 4000 }
+        );
+
+        // Also show detailed prediction info
+        setTimeout(() => {
+          toast.info(
+            `Reason: ${prediction.allocation_reason}`,
+            { duration: 3000 }
+          );
+        }, 1000);
+
+      } else {
+        throw new Error(response.data?.error || 'ML prediction failed');
+      }
+
+    } catch (error) {
+      console.error('Real-time ML prediction failed:', error);
+      
+      // Clear loading toast
+      toast.dismiss('ml-prediction');
+      
+      // Show fallback message
+      toast.error('AI prediction unavailable - please select location manually', {
+        duration: 4000
+      });
+
+      // Use fallback location suggestions (your existing logic)
+      const suggestions = calculateSuggestedLocations(item);
+      setSuggestedLocations(suggestions);
+      
+      if (suggestions.length > 0) {
+        setSelectedMapLocation({
+          x: suggestions[0].x,
+          y: suggestions[0].y,
+          floor: suggestions[0].floor,
+          locationCode: `${suggestions[0].rack}.1` // Default to floor 1
+        });
+        setLocationId(`${suggestions[0].rack}.1`);
+        
+        toast.info(`Using fallback suggestion: ${suggestions[0].rack}.1`, {
+          duration: 3000
+        });
+      }
+    }
+  };
 
   // Handle starting order picking
   const handleStartPicking = (order) => {
@@ -430,27 +624,38 @@ const PickerDashboard = () => {
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
-// function to show prediction details
-const showPredictionDetails = (item) => {
-  if (!item.predicted_location) {
-    toast.error('No ML prediction available for this item');
-    return;
-  }
-  
-  const details = `
-    Predicted Location: ${item.predicted_location}
-    Confidence: ${(item.prediction_confidence * 100).toFixed(1)}%
-    Reason: ${item.allocation_reason || 'ML model prediction'}
-    Coordinates: (${item.predicted_coordinates?.x}, ${item.predicted_coordinates?.y})
-  `;
-  
-  // You can show this in a modal or alert
-  alert(details);
-};
-
-
   return (
     <div className="space-y-6">
+      {/* ✨ NEW: Refresh indicator and manual refresh button */}
+      <div className="flex justify-between items-center">
+        <div className="flex items-center space-x-4">
+          <h1 className="text-2xl font-bold text-gray-900">Picker Dashboard</h1>
+          {backgroundRefreshing && (
+            <div className="flex items-center text-sm text-blue-600">
+              <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+              </svg>
+              Refreshing...
+            </div>
+          )}
+        </div>
+        
+        <div className="flex items-center space-x-3">
+          {lastRefreshTime && (
+            <span className="text-sm text-gray-500">
+              Last updated: {lastRefreshTime}
+            </span>
+          )}
+          <button
+            onClick={handleManualRefresh}
+            disabled={backgroundRefreshing}
+            className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 disabled:opacity-50 transition-colors"
+          >
+            ↻ Refresh
+          </button>
+        </div>
+      </div>
 
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -491,18 +696,35 @@ const showPredictionDetails = (item) => {
         </div>
       </div>
 
-      {/* Tables Section */}
+      {/* ✨ UPDATED: Tables Section with improved loading */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Available for Storing Table */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <Archive className="h-5 w-5 text-yellow-600 mr-2" />
-              Items Available for Storing
-            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                  <Archive className="h-5 w-5 text-yellow-600 mr-2" />
+                  Items Available for Storing
+                </h3>
+              </div>
+              
+              {/* ✨ NEW: Small refresh indicator */}
+              {backgroundRefreshing && (
+                <div className="flex items-center text-xs text-blue-600">
+                  <svg className="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Checking for updates...
+                </div>
+              )}
+            </div>
           </div>
+          
           <div className="overflow-x-auto">
-            {loadingItems ? (
+            {/* ✨ UPDATED: Only show loading spinner on initial load */}
+            {initialLoading ? (
               <div className="text-center py-12">
                 <div className="inline-flex items-center">
                   <svg className="animate-spin h-5 w-5 mr-3 text-gray-500" viewBox="0 0 24 24">
@@ -527,13 +749,13 @@ const showPredictionDetails = (item) => {
                       Quantity
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Category
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Source
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Action
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      ML Prediction
                     </th>
                   </tr>
                 </thead>
@@ -555,6 +777,12 @@ const showPredictionDetails = (item) => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
+                          <div className="text-sm text-gray-900">{item.category}</div>
+                          <div className="text-xs text-gray-500">Size: {item.size || 'M'}</div>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div>
                           <div className="text-sm text-gray-900">{item.source}</div>
                           <div className="text-xs text-gray-500">{item.reason}</div>
                         </div>
@@ -562,32 +790,11 @@ const showPredictionDetails = (item) => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
                           onClick={() => handleOpenStoreModal(item)}
-                          className="text-blue-600 hover:text-blue-900"
+                          disabled={backgroundRefreshing && selectedStoringItem}
+                          className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
                         >
                           Store
                         </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {item.predicted_location ? (
-                          <div>
-                            <div className="text-sm font-medium text-green-700">
-                              {item.predicted_location}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {(item.prediction_confidence * 100).toFixed(1)}% confidence
-                            </div>
-                            <button
-                              onClick={() => showPredictionDetails(item)}
-                              className="text-xs text-blue-600 hover:text-blue-800"
-                            >
-                              Details
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="text-sm text-gray-400">
-                            No prediction
-                          </div>
-                        )}
                       </td>
                     </tr>
                   ))}
@@ -721,78 +928,78 @@ const showPredictionDetails = (item) => {
               <div className={`grid grid-cols-1 ${isFullscreen ? 'xl:grid-cols-2' : 'lg:grid-cols-2'} gap-6`}>
                 {/* Left side - Item details and input */}
                 <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Item</label>
-                  <p className="text-sm text-gray-900">{selectedStoringItem.itemName} (ID: {selectedStoringItem.itemID})</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Quantity</label>
-                  <p className="text-sm text-gray-900">{selectedStoringItem.quantity}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Category</label>
-                  <p className="text-sm text-gray-900">{selectedStoringItem.category || 'Not specified'}</p>
-                </div>
-                
-                {/* Storage calculation info - only for storing mode */}
-                {actionMode === 'storing' && (
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-blue-900 mb-2">Storage Requirements</h4>
-                    <p className="text-sm text-blue-700">
-                      {(() => {
-                        const quantity = selectedStoringItem.quantity || 0;
-                        const category = selectedStoringItem.category?.toLowerCase() || '';
-                        let capacity = STORAGE_CAPACITY.BIN_PER_SQUARE;
-                        let type = 'Medium (Bin)';
-                        
-                        if (category.includes('small') || category.includes('pellet')) {
-                          capacity = STORAGE_CAPACITY.PELLET_PER_SQUARE;
-                          type = 'Small (Pellet)';
-                        } else if (category.includes('large')) {
-                          capacity = STORAGE_CAPACITY.LARGE_PER_SQUARE;
-                          type = 'Large';
-                        }
-                        
-                        const requiredSquares = Math.ceil(quantity / capacity);
-                        return `${type} - ${requiredSquares} square(s) needed (${capacity} items per square)`;
-                      })()}
-                    </p>
-                    <p className="text-sm text-green-700 mt-2">
-                      {suggestedLocations.length} location(s) highlighted on map
-                    </p>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Item</label>
+                    <p className="text-sm text-gray-900">{selectedStoringItem.itemName} (ID: {selectedStoringItem.itemID})</p>
                   </div>
-                )}
-                
-                {/* Collection info - only for collecting mode */}
-                {actionMode === 'collecting' && (
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <h4 className="text-sm font-medium text-green-900 mb-2">Collection Path</h4>
-                    <p className="text-sm text-green-700">
-                      {pickingMode ? 'Navigate to item location shown on map' : 'Path shown from item location to packing point'}
-                    </p>
-                    <p className="text-sm text-green-600 mt-2">
-                      Item Location: {selectedStoringItem.locationID || 'Unknown'}
-                    </p>
-                    {pickingMode && (
-                      <p className="text-xs text-green-600 mt-1">
-                        Blue circle = Receiving point | Orange circle = Item location
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Quantity</label>
+                    <p className="text-sm text-gray-900">{selectedStoringItem.quantity}</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Category</label>
+                    <p className="text-sm text-gray-900">{selectedStoringItem.category || 'Not specified'}</p>
+                  </div>
+                  
+                  {/* Storage calculation info - only for storing mode */}
+                  {actionMode === 'storing' && (
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">Storage Requirements</h4>
+                      <p className="text-sm text-blue-700">
+                        {(() => {
+                          const quantity = selectedStoringItem.quantity || 0;
+                          const category = selectedStoringItem.category?.toLowerCase() || '';
+                          let capacity = STORAGE_CAPACITY.BIN_PER_SQUARE;
+                          let type = 'Medium (Bin)';
+                          
+                          if (category.includes('small') || category.includes('pellet')) {
+                            capacity = STORAGE_CAPACITY.PELLET_PER_SQUARE;
+                            type = 'Small (Pellet)';
+                          } else if (category.includes('large')) {
+                            capacity = STORAGE_CAPACITY.LARGE_PER_SQUARE;
+                            type = 'Large';
+                          }
+                          
+                          const requiredSquares = Math.ceil(quantity / capacity);
+                          return `${type} - ${requiredSquares} square(s) needed (${capacity} items per square)`;
+                        })()}
                       </p>
-                    )}
+                      <p className="text-sm text-green-700 mt-2">
+                        AI has selected the optimal available location
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Collection info - only for collecting mode */}
+                  {actionMode === 'collecting' && (
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-green-900 mb-2">Collection Path</h4>
+                      <p className="text-sm text-green-700">
+                        {pickingMode ? 'Navigate to item location shown on map' : 'Path shown from item location to packing point'}
+                      </p>
+                      <p className="text-sm text-green-600 mt-2">
+                        Item Location: {selectedStoringItem.locationID || 'Unknown'}
+                      </p>
+                      {pickingMode && (
+                        <p className="text-xs text-green-600 mt-1">
+                          Blue circle = Receiving point | Orange circle = Item location
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">Selected Location Code</label>
+                    <input
+                      type="text"
+                      value={locationId}
+                      onChange={(e) => setLocationId(e.target.value)}
+                      placeholder="AI will predict optimal location"
+                      className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    />
                   </div>
-                )}
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Selected Location Code</label>
-                  <input
-                    type="text"
-                    value={locationId}
-                    onChange={(e) => setLocationId(e.target.value)}
-                    placeholder="Click on map or enter location code"
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                  />
                 </div>
-              </div>
-              
+                
                 {/* Right side - Warehouse Map */}
                 <div className={`border border-gray-200 rounded-lg overflow-hidden ${
                   isFullscreen ? 'h-[calc(100vh-300px)]' : ''
