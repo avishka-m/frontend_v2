@@ -1,114 +1,84 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../context/NotificationContext';
 import { NOTIFICATION_TYPES } from '../context/NotificationContext';
-import orderService, { 
-  ORDER_STATUS, 
-  ORDER_PRIORITY, 
-  ORDER_STATUS_DISPLAY, 
+import orderService, {
+  ORDER_STATUS,
+  ORDER_PRIORITY,
+  ORDER_STATUS_DISPLAY,
   ORDER_PRIORITY_DISPLAY,
   ORDER_STATUS_COLORS,
   ORDER_PRIORITY_COLORS
 } from '../services/orderService';
 import { ShoppingCart, Plus, Search, Filter, Eye, Edit, Trash2, User, Calendar, Package, Truck } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const Orders = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotification();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [stats, setStats] = useState(null);
+  const queryClient = useQueryClient();
 
-  // Load orders on component mount
-  useEffect(() => {
-    loadOrders();
-    loadOrderStats();
-  }, []);
-
-  const loadOrders = async () => {
-    try {
-      setLoading(true);
-      const ordersData = await orderService.getOrders({
-        limit: 100,
-        ...(statusFilter && { status: statusFilter })
-      });
-      setOrders(ordersData);
-    } catch (error) {
-      console.error('Error loading orders:', error);
-      addNotification({
-        type: NOTIFICATION_TYPES.ERROR,
-        message: 'Failed to load orders',
-        description: error.message || 'Unable to fetch orders from the server.'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadOrderStats = async () => {
-    try {
-      const statsData = await orderService.getOrderStats();
-      setStats(statsData);
-    } catch (error) {
-      console.error('Error loading order stats:', error);
-    }
-  };
-
-  // Filter orders based on search term and filters
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = !searchTerm || 
-      order.order_id.toString().includes(searchTerm) ||
-      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.shipping_address.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesStatus = !statusFilter || order.order_status === statusFilter;
-    const matchesPriority = !priorityFilter || order.priority.toString() === priorityFilter;
-    
-    return matchesSearch && matchesStatus && matchesPriority;
+  // Fetch orders with React Query
+  const {
+    data: orders = [],
+    isLoading: loadingOrders,
+    isError: errorOrders
+  } = useQuery({
+    queryKey: ['orders', { statusFilter }],
+    queryFn: () => orderService.getOrders({ limit: 100, ...(statusFilter && { status: statusFilter }) })
   });
 
-  const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Are you sure you want to delete this order?')) {
-      return;
-    }
+  // Fetch order stats with React Query
+  const {
+    data: stats,
+    isLoading: loadingStats,
+    isError: errorStats
+  } = useQuery({
+    queryKey: ['orderStats'],
+    queryFn: () => orderService.getOrderStats()
+  });
 
-    try {
-      await orderService.deleteOrder(orderId);
+  // Delete order mutation
+  const deleteOrderMutation = useMutation({
+    mutationFn: (orderId) => orderService.deleteOrder(orderId),
+    onSuccess: (_, orderId) => {
       addNotification({
         type: NOTIFICATION_TYPES.SUCCESS,
         message: 'Order deleted successfully',
         description: `Order ${orderId} has been removed.`
       });
-      loadOrders(); // Reload orders
-    } catch (error) {
+      queryClient.invalidateQueries(['orders']);
+      queryClient.invalidateQueries(['orderStats']);
+    },
+    onError: (error) => {
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Failed to delete order',
         description: error.message || 'Unable to delete the order.'
       });
     }
-  };
+  });
 
-  const handleStatusUpdate = async (orderId, newStatus) => {
-    try {
-      await orderService.updateOrderStatus(orderId, newStatus);
+  // Update order status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ orderId, newStatus }) => orderService.updateOrderStatus(orderId, newStatus),
+    onSuccess: (_, { orderId, newStatus }) => {
       addNotification({
         type: NOTIFICATION_TYPES.SUCCESS,
         message: 'Order status updated',
         description: `Order ${orderId} status changed to ${ORDER_STATUS_DISPLAY[newStatus]}.`
       });
-      loadOrders(); // Reload orders
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      
-      // Extract error message properly
+      queryClient.invalidateQueries(['orders']);
+      queryClient.invalidateQueries(['orderStats']);
+    },
+    onError: (error) => {
       let errorMessage = 'Unable to update order status.';
       if (error.response?.data?.detail) {
         if (Array.isArray(error.response.data.detail)) {
-          errorMessage = error.response.data.detail.map(err => 
+          errorMessage = error.response.data.detail.map(err =>
             typeof err === 'object' ? err.msg || err.message || 'Validation error' : err
           ).join(', ');
         } else {
@@ -117,16 +87,37 @@ const Orders = () => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Failed to update status',
         description: errorMessage
       });
     }
+  });
+
+  // Filter orders based on search term and filters
+  const filteredOrders = (orders || []).filter(order => {
+    const matchesSearch = !searchTerm ||
+      order.order_id.toString().includes(searchTerm) ||
+      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.shipping_address.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = !statusFilter || order.order_status === statusFilter;
+    const matchesPriority = !priorityFilter || order.priority.toString() === priorityFilter;
+    return matchesSearch && matchesStatus && matchesPriority;
+  });
+
+  const handleDeleteOrder = (orderId) => {
+    if (!window.confirm('Are you sure you want to delete this order?')) {
+      return;
+    }
+    deleteOrderMutation.mutate(orderId);
   };
 
-  if (loading) {
+  const handleStatusUpdate = (orderId, newStatus) => {
+    updateStatusMutation.mutate({ orderId, newStatus });
+  };
+
+  if (loadingOrders || loadingStats) {
     return (
       <div className="p-6">
         <div className="animate-pulse">
@@ -143,6 +134,16 @@ const Orders = () => {
     );
   }
 
+  if (errorOrders || errorStats) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-100 text-red-800 p-4 rounded-lg">
+          Failed to load orders or stats. Please try again later.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -151,7 +152,7 @@ const Orders = () => {
           <h1 className="text-3xl font-bold text-gray-900">Order Management</h1>
           <p className="text-gray-600 mt-1">Manage and track customer orders</p>
         </div>
-        <button 
+        <button
           onClick={() => navigate('/orders/create')}
           className="bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700 transition-colors flex items-center space-x-2"
         >
@@ -174,7 +175,7 @@ const Orders = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center">
               <div className="p-3 bg-yellow-100 rounded-full">
@@ -186,7 +187,7 @@ const Orders = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center">
               <div className="p-3 bg-purple-100 rounded-full">
@@ -198,7 +199,7 @@ const Orders = () => {
               </div>
             </div>
           </div>
-          
+
           <div className="bg-white p-6 rounded-lg shadow">
             <div className="flex items-center">
               <div className="p-3 bg-green-100 rounded-full">
@@ -226,7 +227,7 @@ const Orders = () => {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
             />
           </div>
-          
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -237,7 +238,7 @@ const Orders = () => {
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
-          
+
           <select
             value={priorityFilter}
             onChange={(e) => setPriorityFilter(e.target.value)}
@@ -248,13 +249,14 @@ const Orders = () => {
               <option key={value} value={value}>{label}</option>
             ))}
           </select>
-          
+
           <button
             onClick={() => {
               setSearchTerm('');
               setStatusFilter('');
               setPriorityFilter('');
-              loadOrders();
+              queryClient.invalidateQueries(['orders']);
+              queryClient.invalidateQueries(['orderStats']);
             }}
             className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
           >
@@ -370,7 +372,7 @@ const Orders = () => {
               ))}
             </tbody>
           </table>
-          
+
           {filteredOrders.length === 0 && (
             <div className="text-center py-12">
               <ShoppingCart className="mx-auto h-12 w-12 text-gray-400" />

@@ -1,5 +1,6 @@
 import { createContext, useState, useEffect } from 'react';
 import { authService } from '../services';
+import { chatbotService } from '../services/chatbotService';
 import { useNotifications } from './NotificationContext';
 
 // Create the auth context
@@ -89,6 +90,14 @@ export const AuthProvider = ({ children }) => {
       const userData = await authService.login(username, password);
       console.log('AuthContext: Login service returned:', userData);
       
+      // Clear any existing chatbot cache before setting new user
+      try {
+        chatbotService.clearAllCache();
+        console.log('AuthContext: Previous user cache cleared on new login');
+      } catch (error) {
+        console.warn('AuthContext: Failed to clear cache on login:', error);
+      }
+      
       // Store user data in localStorage - handle both complete and partial user data
       const userFirstName = userData.firstName || userData.name?.split(' ')[0] || '';
       const userLastName = userData.lastName || userData.name?.split(' ').slice(1).join(' ') || '';
@@ -144,6 +153,14 @@ export const AuthProvider = ({ children }) => {
 
   // Logout function
   const logout = () => {
+    // Clear all chatbot cache before logout
+    try {
+      chatbotService.clearAllCache();
+      console.log('AuthContext: Chatbot cache cleared on logout');
+    } catch (error) {
+      console.warn('AuthContext: Failed to clear chatbot cache on logout:', error);
+    }
+    
     authService.logout();
     localStorage.removeItem('username');
     localStorage.removeItem('userRole');
@@ -153,10 +170,32 @@ export const AuthProvider = ({ children }) => {
     setCurrentUser(null);
     setAuthenticated(false);
     setError(null);
+    
+    // Show logout notification
+    addNotification({
+      type: 'success',
+      message: 'Logged Out Successfully',
+      description: 'All session data has been cleared.'
+    });
   };
 
   // Update user function
   const updateUser = (userData) => {
+    const previousUser = currentUser;
+    const previousRole = previousUser?.role;
+    const newRole = userData?.role;
+    const userId = userData?.username || previousUser?.username;
+    
+    // Check if role has changed
+    if (previousRole && newRole && previousRole !== newRole && userId) {
+      try {
+        chatbotService.clearRoleSpecificCache(userId, previousRole, newRole);
+        console.log('AuthContext: Role-specific cache cleared on role change');
+      } catch (error) {
+        console.warn('AuthContext: Failed to clear role-specific cache:', error);
+      }
+    }
+    
     setCurrentUser(prev => ({
       ...prev,
       ...userData,
