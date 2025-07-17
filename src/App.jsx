@@ -52,6 +52,8 @@ const Settings = lazy(() => import('./pages/Settings'));
 const OrderWorkflowTracker = lazy(() => import('./pages/OrderWorkflowTracker'));
 const WorkflowManagement = lazy(() => import('./pages/WorkflowManagement'));
 const RoleBasedChatbot = lazy(() => import('./pages/chatbot/RoleBasedChatbot'));
+const SeasonalInventoryDashboard = lazy(() => import('./pages/SeasonalInventoryDashboard'));
+const SeasonalInventoryDemo = lazy(() => import('./pages/SeasonalInventoryDemo'));
 
 function App() {
   return (
@@ -116,6 +118,9 @@ function App() {
                     <Route path="/vehicles/:vehicleId/edit" element={<RoleBasedRoute allowedRoles={['Manager']}><VehicleDetail /></RoleBasedRoute>} />
                     {/* Analytics routes - Manager only */}
                     <Route path="/analytics" element={<RoleBasedRoute allowedRoles={['Manager']}><Analytics /></RoleBasedRoute>} />
+                    {/* Seasonal Inventory routes - Manager only */}
+                    <Route path="/seasonal-inventory" element={<RoleBasedRoute allowedRoles={['Manager']}><SeasonalInventoryDashboard /></RoleBasedRoute>} />
+                    <Route path="/seasonal-inventory/demo" element={<RoleBasedRoute allowedRoles={['Manager']}><SeasonalInventoryDemo /></RoleBasedRoute>} />
                     {/* Workflow routes - Manager, Picker, Packer, Driver */}
                     <Route path="/workflow" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}><WorkflowManagement /></RoleBasedRoute>} />
                     <Route path="/workflow/dashboard" element={<Navigate to="/dashboard" replace />} />
