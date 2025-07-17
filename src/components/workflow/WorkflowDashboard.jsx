@@ -223,19 +223,19 @@ const WorkflowDashboard = ({
       orderId: orderId,
       status: newStatus,
       updateType: updateType,
-      duration: 8000, // 8 seconds
+      duration: 5000, // 8 seconds
       autoHide: true
     });
   }, [isOrderUpdateRelevant, getRoleNotificationMessage, addNotification, userRole]);
 
   // Handle targeted order updates from WebSocket
   const handleOrderUpdate = useCallback((updateData) => {
-    console.log('🔄 Handling targeted order update:', updateData);
-    console.log('🧑‍💼 Current user context:', { userRole, workerId });
+    console.log('Handling targeted order update:', updateData);
+    console.log('Current user context:', { userRole, workerId });
     
     // Filter notifications based on role relevance
     if (!isOrderUpdateRelevant(updateData)) {
-      console.log('🚫 Order update not relevant to current role, skipping notification');
+      console.log('Order update not relevant to current role, skipping notification');
       // Still process the update for data consistency, but no notification
     }
     
@@ -398,7 +398,7 @@ const WorkflowDashboard = ({
             }
             break;
           case 'Driver':
-            if (currentStatus === 'ready_for_shipping') {
+            if (currentStatus === 'ready_for_shipping' || currentStatus === 'shipping') {
               result = await workflowOrderService.takeForDelivery(orderId, workerId);
             } else if (currentStatus === 'shipped') {
               result = await workflowOrderService.markAsDelivered(orderId);
@@ -520,7 +520,7 @@ const WorkflowDashboard = ({
       'receiving_clerk': 'processing',
       'Picker': 'picking',
       'Packer': 'packing',
-      'Driver': 'ready_for_shipping'
+      'Driver': 'shipping',
     };
 
     const roleStatus = roleStatusMap[userRole];

@@ -8,14 +8,20 @@ export const inventoryService = {
       
       // Add query parameters that match backend API
       if (params.skip) queryParams.append('skip', params.skip);
-      if (params.limit) queryParams.append('limit', params.limit);
+      // Use reasonable limit that doesn't exceed backend maximum of 100
+      if (params.limit) queryParams.append('limit', Math.min(params.limit, 100));
       if (params.category && params.category !== 'All') queryParams.append('category', params.category);
       if (params.low_stock) queryParams.append('low_stock', params.low_stock);
 
       const response = await api.get(`/inventory/?${queryParams.toString()}`);
       
+      // Backend returns {items: [...], pagination: {...}}
+      // Access the items array from the response
+      const items = response.data.items || [];
+      const pagination = response.data.pagination || {};
+      
       // Transform backend data to frontend format for compatibility
-      const transformedData = response.data.map(item => ({
+      const transformedData = items.map(item => ({
         id: item.itemID,
         itemID: item.itemID,
         name: item.name,
@@ -45,7 +51,15 @@ export const inventoryService = {
         last_updated: item.updated_at?.split('T')[0] || new Date().toISOString().split('T')[0]
       }));
       
-      return transformedData;
+      // Return both transformed items and pagination metadata
+      return {
+        items: transformedData,
+        total: pagination.total_items || transformedData.length,
+        total_pages: Math.ceil((pagination.total_items || transformedData.length) / (params.limit || 50)),
+        current_page: pagination.current_page || 1,
+        has_next: pagination.has_next || false,
+        has_prev: pagination.has_prev || false
+      };
     } catch (error) {
       console.error('Error fetching inventory:', error);
       throw error;
@@ -242,13 +256,26 @@ export const inventoryService = {
     try {
       // Backend doesn't have a specific categories endpoint, 
       // so we get all inventory and extract unique categories
-      const allInventory = await inventoryService.getInventory({ limit: 1000 });
-      const categories = [...new Set(allInventory.map(item => item.category))];
-      return categories.length > 0 ? categories : ['Electronics', 'Clothing', 'Food', 'Other'];
+      // Use reasonable limit and fetch multiple pages if needed
+      let allInventory = [];
+      let skip = 0;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await inventoryService.getInventory({ skip, limit });
+        allInventory = [...allInventory, ...batch.items];
+        hasMore = batch.has_next;
+        skip += limit;
+        // Safety limit to prevent infinite loops
+        if (skip > 1000) break;
+      }
+
+      const categories = [...new Set(allInventory.map(item => item.category).filter(Boolean))];
+      return categories.sort();
     } catch (error) {
       console.error('Error fetching categories:', error);
-      // Return default categories as fallback based on backend sample data
-      return ['Electronics', 'Clothing', 'Food', 'Other'];
+      throw error;
     }
   },
 
@@ -256,7 +283,9 @@ export const inventoryService = {
   getLowStockItems: async () => {
     try {
       const response = await api.get('/inventory/low-stock');
-      return response.data.map(item => ({
+      // Backend returns {items: [...], pagination: {...}}
+      const items = response.data.items || [];
+      return items.map(item => ({
         id: item.itemID,
         itemID: item.itemID,
         name: item.name,
@@ -319,7 +348,21 @@ export const inventoryService = {
   // Get inventory statistics (computed from current data)
   getInventoryStats: async () => {
     try {
-      const allInventory = await this.getInventory({ limit: 1000 });
+      // Get inventory data with reasonable pagination
+      let allInventory = [];
+      let skip = 0;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await this.getInventory({ skip, limit });
+        allInventory = [...allInventory, ...batch.items];
+        hasMore = batch.has_next;
+        skip += limit;
+        // Safety limit to prevent infinite loops
+        if (skip > 1000) break;
+      }
+
       const lowStockItems = await this.getLowStockItems();
       
       const stats = {
@@ -348,8 +391,21 @@ export const inventoryService = {
       return response.data;
     } catch (error) {
       console.error('Error exporting inventory:', error);
-      // Fallback: create CSV from current data
-      const inventory = await this.getInventory({ limit: 1000 });
+      // Fallback: create CSV from current data with pagination
+      let inventory = [];
+      let skip = 0;
+      const limit = 100;
+      let hasMore = true;
+
+      while (hasMore) {
+        const batch = await this.getInventory({ skip, limit });
+        inventory = [...inventory, ...batch.items];
+        hasMore = batch.has_next;
+        skip += limit;
+        // Safety limit to prevent infinite loops
+        if (skip > 1000) break;
+      }
+
       const csvContent = this.convertToCSV(inventory);
       const blob = new Blob([csvContent], { type: 'text/csv' });
       return blob;

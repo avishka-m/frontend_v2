@@ -275,6 +275,11 @@ const Inventory = () => {
 
   // Local filtering and sorting (when API doesn't handle it server-side)
   const filteredAndSortedInventory = useMemo(() => {
+    // Safety check: ensure inventory is an array before processing
+    if (!inventory || !Array.isArray(inventory)) {
+      return [];
+    }
+    
     let filtered = [...inventory];
 
     // Apply client-side filtering if needed (fallback when API doesn't support it)
