@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Layers, MapPin, Archive, Info } from 'lucide-react';
+import { Package, Layers, MapPin, Archive, Info, Navigation } from 'lucide-react';
 import axios from 'axios';
 
 // Storage capacity constants - easy to modify
@@ -14,7 +14,14 @@ const WarehouseMap = ({
   suggestedLocations = null, 
   showSuggestions = false,
   mode = 'normal', // 'storing' or 'collecting'
-  pathDestination = null 
+  pathDestination = null,
+  // ✨ NEW: Pathfinding props
+  workerLocation = null,
+  pickingPath = null,
+  currentDestination = null,
+  pickingMode = false,
+  pickingProgress = null,
+  showPathfinding = false
 }) => {
   const [selectedFloor, setSelectedFloor] = useState(1);
   const [selectedLocation, setSelectedLocation] = useState(null);
@@ -28,7 +35,7 @@ const WarehouseMap = ({
   const WAREHOUSE_HEIGHT = 12;
   const FLOORS = 4;
 
-  // ✨ NEW: Individual slot mapping according to your requirements
+  // ✨ Individual slot mapping according to your requirements
   const getSlotMapping = () => {
     const slots = [];
     
@@ -151,12 +158,12 @@ const WarehouseMap = ({
     }
   };
 
-  // ✨ NEW: Get slot info by coordinates
+  // Get slot info by coordinates
   const getSlotInfo = (x, y) => {
     return slotMapping.find(slot => slot.x === x && slot.y === y);
   };
 
-  // ✨ NEW: Generate location code for individual slots with floors
+  // Generate location code for individual slots with floors
   const getLocationCode = (slotCode, floor) => {
     return `${slotCode}.${floor}`; // e.g., B01.1, B01.2, P01.3, D01.4
   };
@@ -208,7 +215,7 @@ const WarehouseMap = ({
     return 'bg-red-600'; // Full or nearly full
   };
 
-  // ✨ NEW: Get slot color based on type
+  // Get slot color based on type
   const getSlotColor = (slotType) => {
     switch (slotType) {
       case 'S': return 'bg-blue-500'; // Small/Pellet
@@ -218,7 +225,7 @@ const WarehouseMap = ({
     }
   };
 
-  // ✨ NEW: Get slot hover color based on type
+  // Get slot hover color based on type
   const getSlotHoverColor = (slotType) => {
     switch (slotType) {
       case 'S': return 'hover:bg-blue-600';
@@ -249,7 +256,7 @@ const WarehouseMap = ({
     return true;
   };
 
-  // A* pathfinding algorithm
+  // ✨ ENHANCED: A* pathfinding algorithm
   const findPath = (startX, startY, endX, endY) => {
     class Node {
       constructor(x, y, g = 0, h = 0, parent = null) {
@@ -339,6 +346,137 @@ const WarehouseMap = ({
     return [{ x: startX, y: startY }, { x: endX, y: endY }];
   };
 
+  // ✨ NEW: Render picking path visualization
+  const renderPickingPath = () => {
+    if (!showPathfinding || !currentDestination) return null;
+
+    const pathPoints = findPath(
+      currentDestination.from.x, 
+      currentDestination.from.y, 
+      currentDestination.to.x, 
+      currentDestination.to.y
+    );
+
+    if (!pathPoints || pathPoints.length < 2) return null;
+
+    const pixelPath = pathPoints.map(point => getCellCenter(point.x, point.y));
+    
+    let pathString = `M ${pixelPath[0].x} ${pixelPath[0].y}`;
+    for (let i = 1; i < pixelPath.length; i++) {
+      pathString += ` L ${pixelPath[i].x} ${pixelPath[i].y}`;
+    }
+    
+    const startPoint = pixelPath[0];
+    const endPoint = pixelPath[pixelPath.length - 1];
+    
+    return (
+      <g>
+        {/* Path visualization dots */}
+        {pathPoints.map((point, index) => {
+          if (index === 0 || index === pathPoints.length - 1) return null;
+          const center = getCellCenter(point.x, point.y);
+          return (
+            <circle
+              key={`picking-path-${index}`}
+              cx={center.x}
+              cy={center.y}
+              r="3"
+              fill="#8B5CF6"
+              opacity="0.7"
+            />
+          );
+        })}
+        
+        {/* Background white line for contrast */}
+        <path
+          d={pathString}
+          stroke="white"
+          strokeWidth="6"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        
+        {/* Main colored path line with arrow */}
+        <path
+          d={pathString}
+          stroke="#8B5CF6"
+          strokeWidth="4"
+          fill="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeDasharray="8,4"
+          markerEnd="url(#picking-arrowhead)"
+        >
+          <animate
+            attributeName="stroke-dashoffset"
+            values="0;12"
+            dur="1.5s"
+            repeatCount="indefinite"
+          />
+        </path>
+        
+        {/* Worker position (Start point) */}
+        <circle
+          cx={startPoint.x}
+          cy={startPoint.y}
+          r="8"
+          fill="#3B82F6"
+          stroke="white"
+          strokeWidth="3"
+        >
+          <animate
+            attributeName="r"
+            values="8;10;8"
+            dur="2s"
+            repeatCount="indefinite"
+          />
+        </circle>
+        
+        {/* Target position (End point) */}
+        <circle
+          cx={endPoint.x}
+          cy={endPoint.y}
+          r="8"
+          fill="#10B981"
+          stroke="white"
+          strokeWidth="3"
+        >
+          <animate
+            attributeName="r"
+            values="8;10;8"
+            dur="2s"
+            repeatCount="indefinite"
+          />
+        </circle>
+        
+        {/* Step number indicator */}
+        {currentDestination.stepNumber && (
+          <g>
+            <circle
+              cx={endPoint.x}
+              cy={endPoint.y - 15}
+              r="10"
+              fill="#F59E0B"
+              stroke="white"
+              strokeWidth="2"
+            />
+            <text
+              x={endPoint.x}
+              y={endPoint.y - 11}
+              textAnchor="middle"
+              fontSize="10"
+              fontWeight="bold"
+              fill="white"
+            >
+              {currentDestination.stepNumber}
+            </text>
+          </g>
+        )}
+      </g>
+    );
+  };
+
   // Handle cell click
   const handleCellClick = (x, y) => {
     if (mode === 'storing' && isOccupiedLocation(x, y, selectedFloor)) {
@@ -387,6 +525,11 @@ const WarehouseMap = ({
         const occupancyPercentage = occupiedInfo ? getOccupancyPercentage(occupiedInfo, slotInfo) : 0;
         const occupancyColor = getOccupancyColor(occupancyPercentage);
 
+        // ✨ NEW: Check if this is the worker location
+        const isWorkerLocation = workerLocation && 
+          workerLocation.x === x && 
+          workerLocation.y === y;
+
         row.push(
           <div
             key={`${x}-${y}`}
@@ -395,9 +538,10 @@ const WarehouseMap = ({
               transition-all duration-150
               ${isReceiving ? 'bg-red-500 text-white' : ''}
               ${isPacking ? 'bg-orange-500 text-white' : ''}
-              ${slotInfo && !isReceiving && !isPacking && !isOccupied ? `${getSlotColor(slotInfo.type)} text-white ${getSlotHoverColor(slotInfo.type)}` : ''}
+              ${isWorkerLocation ? 'bg-blue-600 text-white ring-2 ring-blue-300' : ''}
+              ${slotInfo && !isReceiving && !isPacking && !isOccupied && !isWorkerLocation ? `${getSlotColor(slotInfo.type)} text-white ${getSlotHoverColor(slotInfo.type)}` : ''}
               ${slotInfo && isOccupied ? `${occupancyColor} text-white` : ''}
-              ${!slotInfo && !isReceiving && !isPacking ? 'bg-gray-100 hover:bg-gray-200' : ''}
+              ${!slotInfo && !isReceiving && !isPacking && !isWorkerLocation ? 'bg-gray-100 hover:bg-gray-200' : ''}
               ${isSelected ? 'ring-2 ring-yellow-400 ring-offset-1' : ''}
               ${isHovered && slotInfo ? 'transform scale-105' : ''}
               ${isSuggested ? 'ring-2 ring-green-400 ring-offset-1 animate-pulse' : ''}
@@ -415,15 +559,17 @@ const WarehouseMap = ({
               setHoveredOccupiedInfo(null);
             }}
             title={
-              slotInfo 
-                ? (isOccupied && occupiedInfo 
-                    ? `${getLocationCode(slotInfo.code, selectedFloor)} - ${occupiedInfo.itemName} (${occupiedInfo.quantity} units - ${occupancyPercentage}% full)` 
-                    : getLocationCode(slotInfo.code, selectedFloor))
-                : isReceiving 
-                  ? 'Receiving Point (R)' 
-                  : isPacking 
-                    ? 'Packing Point (P)' 
-                    : `Empty (${x},${y})`
+              isWorkerLocation 
+                ? `Worker Location (${x},${y})`
+                : slotInfo 
+                  ? (isOccupied && occupiedInfo 
+                      ? `${getLocationCode(slotInfo.code, selectedFloor)} - ${occupiedInfo.itemName} (${occupiedInfo.quantity} units - ${occupancyPercentage}% full)` 
+                      : getLocationCode(slotInfo.code, selectedFloor))
+                  : isReceiving 
+                    ? 'Receiving Point (R)' 
+                    : isPacking 
+                      ? 'Packing Point (P)' 
+                      : `Empty (${x},${y})`
             }
           >
             {isReceiving && (
@@ -438,7 +584,13 @@ const WarehouseMap = ({
                 <span className="text-[8px] font-bold">P</span>
               </div>
             )}
-            {slotInfo && !isReceiving && !isPacking && (
+            {isWorkerLocation && (
+              <div className="flex flex-col items-center">
+                <Navigation className="w-6 h-6" />
+                <span className="text-[8px] font-bold">W</span>
+              </div>
+            )}
+            {slotInfo && !isReceiving && !isPacking && !isWorkerLocation && (
               <span className="font-semibold text-[8px] leading-none">
                 {slotInfo.code}
               </span>
@@ -459,6 +611,28 @@ const WarehouseMap = ({
   return (
     <div className="bg-white rounded-lg shadow-lg p-6 h-full flex flex-col">
       <div className="mb-6">
+        
+        {/* ✨ NEW: Picking mode header */}
+        {pickingMode && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Navigation className="w-5 h-5 text-blue-600 mr-2" />
+                <span className="font-semibold text-blue-900">Picking Mode Active</span>
+              </div>
+              {pickingProgress && (
+                <div className="text-sm text-blue-700">
+                  Step {pickingProgress.currentStep}/{pickingProgress.totalSteps}
+                </div>
+              )}
+            </div>
+            {currentDestination && (
+              <div className="mt-2 text-sm text-blue-700">
+                {currentDestination.description || 'Navigate to highlighted destination'}
+              </div>
+            )}
+          </div>
+        )}
         
         {/* Floor Selector */}
         <div className="flex items-center space-x-4 mb-4">
@@ -495,6 +669,12 @@ const WarehouseMap = ({
             <div className="w-4 h-4 bg-orange-500 rounded"></div>
             <span className="text-sm text-gray-600">Packing Point (P)</span>
           </div>
+          {pickingMode && (
+            <div className="flex items-center space-x-2">
+              <div className="w-4 h-4 bg-blue-600 rounded"></div>
+              <span className="text-sm text-gray-600">Worker Location (W)</span>
+            </div>
+          )}
           <div className="flex items-center space-x-2">
             <div className="w-4 h-4 bg-blue-500 rounded"></div>
             <span className="text-sm text-gray-600">Small (P01-P14) - Pellets</span>
@@ -531,8 +711,8 @@ const WarehouseMap = ({
             <div className="relative">
               {renderGrid()}
               
-              {/* ✨ FIXED: SVG Overlay for drawing paths directly to storage slots */}
-              {(mode === 'storing' || mode === 'collecting') && pathDestination && (
+              {/* ✨ ENHANCED: SVG Overlay for pathfinding */}
+              {(mode === 'storing' || mode === 'collecting' || showPathfinding) && (
                 <svg 
                   className="absolute top-0 left-0 pointer-events-none"
                   width={WAREHOUSE_WIDTH * 40}
@@ -553,15 +733,32 @@ const WarehouseMap = ({
                         fill={mode === 'storing' ? '#3B82F6' : '#10B981'}
                       />
                     </marker>
+                    {/* ✨ NEW: Arrow for picking paths */}
+                    <marker
+                      id="picking-arrowhead"
+                      markerWidth="10"
+                      markerHeight="7"
+                      refX="9"
+                      refY="3.5"
+                      orient="auto"
+                    >
+                      <polygon
+                        points="0 0, 10 3.5, 0 7"
+                        fill="#8B5CF6"
+                      />
+                    </marker>
                   </defs>
-                  {(() => {
+                  
+                  {/* ✨ NEW: Render picking path if in picking mode */}
+                  {showPathfinding && renderPickingPath()}
+                  
+                  {/* Original storing/collecting path logic */}
+                  {!showPathfinding && pathDestination && (() => {
                     let pathPoints = [];
                     
                     if (mode === 'storing') {
-                      // ✨ FIXED: From receiving (0,0) directly to storage destination
                       pathPoints = findPath(0, 0, pathDestination.x, pathDestination.y);
                     } else if (mode === 'collecting') {
-                      // ✨ FIXED: From storage location directly to packing (0,11)
                       pathPoints = findPath(pathDestination.x, pathDestination.y, 0, 11);
                     }
                     
@@ -623,7 +820,7 @@ const WarehouseMap = ({
                             />
                           </path>
                           
-                          {/* Start point (Red circle for receiving, Blue for storage location) */}
+                          {/* Start point */}
                           <circle
                             cx={startPoint.x}
                             cy={startPoint.y}
@@ -633,7 +830,7 @@ const WarehouseMap = ({
                             strokeWidth="2"
                           />
                           
-                          {/* End point (Blue circle for storage location, Orange for packing) */}
+                          {/* End point */}
                           <circle
                             cx={endPoint.x}
                             cy={endPoint.y}
@@ -648,6 +845,34 @@ const WarehouseMap = ({
                     return null;
                   })()}
                 </svg>
+              )}
+              
+              {/* ✨ NEW: Picking progress indicator */}
+              {pickingMode && pickingProgress && (
+                <div className="absolute top-2 right-2 bg-white bg-opacity-90 p-3 rounded-lg shadow-lg">
+                  <div className="text-sm font-semibold text-gray-800 mb-2 flex items-center">
+                    <Navigation className="w-4 h-4 mr-1" />
+                    Picking Progress
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-20 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${(pickingProgress.currentStep / pickingProgress.totalSteps) * 100}%`
+                        }}
+                      ></div>
+                    </div>
+                    <span className="text-xs text-gray-600">
+                      {pickingProgress.currentStep}/{pickingProgress.totalSteps}
+                    </span>
+                  </div>
+                  {currentDestination && (
+                    <div className="text-xs text-gray-600 mt-1">
+                      Step {currentDestination.stepNumber}: {currentDestination.description || 'Navigate to destination'}
+                    </div>
+                  )}
+                </div>
               )}
               
               {/* X-axis labels */}
@@ -696,6 +921,34 @@ const WarehouseMap = ({
         </div>
       )}
 
+      {/* ✨ NEW: Worker Location Info */}
+      {pickingMode && workerLocation && (
+        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h3 className="font-semibold text-blue-900 mb-2 flex items-center">
+            <Navigation className="w-4 h-4 mr-1" />
+            Worker Location
+          </h3>
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div>
+              <span className="text-blue-700">Position:</span>
+              <span className="ml-2 font-medium text-blue-900">({workerLocation.x}, {workerLocation.y})</span>
+            </div>
+            <div>
+              <span className="text-blue-700">Floor:</span>
+              <span className="ml-2 font-medium text-blue-900">F{workerLocation.floor}</span>
+            </div>
+          </div>
+          {currentDestination && (
+            <div className="mt-2 text-sm">
+              <span className="text-blue-700">Next Destination:</span>
+              <span className="ml-2 font-medium text-blue-900">
+                ({currentDestination.to.x}, {currentDestination.to.y})
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Legend */}
       <div className="mt-4 p-3 bg-gray-50 rounded-lg">
         <h4 className="font-semibold text-gray-700 mb-2">Individual Slot Legend</h4>
@@ -728,6 +981,9 @@ const WarehouseMap = ({
         <div className="mt-2 text-xs text-gray-600">
           <p>Each slot has 4 floors: e.g., B01.1, B01.2, B01.3, B01.4</p>
           <p>All floors of same slot share coordinates but different storage levels</p>
+          {pickingMode && (
+            <p className="text-blue-600 font-medium">Purple path shows optimal route to next item</p>
+          )}
         </div>
       </div>
 
@@ -737,16 +993,22 @@ const WarehouseMap = ({
           <MapPin className="w-4 h-4 mr-1" />
           Click on any storage slot to select it. Use floor buttons to view different levels.
         </p>
-        {mode === 'storing' && (
+        {mode === 'storing' && !pickingMode && (
           <p className="flex items-center mt-1">
             <Archive className="w-4 h-4 mr-1" />
             Blue path shows route from Receiving Point (R) to selected storage location.
           </p>
         )}
-        {mode === 'collecting' && (
+        {mode === 'collecting' && !pickingMode && (
           <p className="flex items-center mt-1">
             <Package className="w-4 h-4 mr-1" />
             Green path shows route from storage location to Packing Point (P).
+          </p>
+        )}
+        {pickingMode && (
+          <p className="flex items-center mt-1">
+            <Navigation className="w-4 h-4 mr-1" />
+            Purple path shows optimal picking route. Follow the animated path from worker (W) to target item.
           </p>
         )}
       </div>

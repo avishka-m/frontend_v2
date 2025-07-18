@@ -6,6 +6,8 @@ import axios from 'axios';
 import WarehouseMap, { STORAGE_CAPACITY } from '../warehouse/WarehouseMap';
 import inventoryIncreaseService from '../../services/inventoryIncreaseService';
 import orderService from '../../services/orderService';
+import workerLocationService from '../../services/workerLocationService';
+
 
 const PickerDashboard = () => {
   const { currentUser } = useAuth();
@@ -31,6 +33,179 @@ const PickerDashboard = () => {
   const [currentPickingOrder, setCurrentPickingOrder] = useState(null);
   const [currentItemIndex, setCurrentItemIndex] = useState(0);
   const [pickingMode, setPickingMode] = useState(false);
+
+  const [workerLocation, setWorkerLocation] = useState({ x: 0, y: 0, floor: 1 });
+  const [locationStatus, setLocationStatus] = useState('offline');
+
+  const [pickingPath, setPickingPath] = useState(null);
+  const [currentDestination, setCurrentDestination] = useState(null);
+  const [pickingProgress, setPickingProgress] = useState({
+    currentStep: 0,
+    totalSteps: 0,
+    completedItems: [],
+    phase: 'preparing' // 'preparing', 'picking', 'to_packing', 'completed'
+  });
+
+  const parseLocationToCoordinates = (locationID) => {
+  try {
+    console.log('🔍 Parsing locationID:', locationID, 'Type:', typeof locationID);
+    
+    // ✨ FIX: Handle different locationID formats
+    let slotCode, floorStr;
+    
+    if (typeof locationID !== 'string') {
+      console.warn('🔍 locationID is not a string:', locationID);
+      // Convert to string if it's a number
+      locationID = String(locationID);
+    }
+    
+    // Handle format like "B01.1", "P05.2", "D03.1"
+    if (locationID.includes('.')) {
+      [slotCode, floorStr] = locationID.split('.');
+    } else {
+      // Handle simple number format like "8" - convert to B01.1 format
+      const id = parseInt(locationID) || 1;
+      
+      // Simple fallback mapping for numbers
+      if (id <= 7) {
+        slotCode = `B${String(id).padStart(2, '0')}`;
+      } else if (id <= 14) {
+        slotCode = `B${String(id).padStart(2, '0')}`;
+      } else if (id <= 21) {
+        slotCode = `B${String(id).padStart(2, '0')}`;
+      } else {
+        slotCode = 'B01'; // Default fallback
+      }
+      floorStr = '1'; // Default floor
+    }
+    
+    const floor = parseInt(floorStr) || 1;
+    
+    // Extract prefix and number
+    const prefix = slotCode[0];
+    const number = parseInt(slotCode.substring(1));
+    
+    let x, y;
+    
+    switch (prefix) {
+      case 'B': // B Rack locations
+        if (number <= 7) {
+          x = 1; y = 1 + number; // B01-B07: column 1
+        } else if (number <= 14) {
+          x = 3; y = number - 6; // B08-B14: column 3
+        } else {
+          x = 5; y = number - 13; // B15-B21: column 5
+        }
+        break;
+        
+      case 'P': // P Rack locations
+        if (number <= 7) {
+          x = 7; y = 1 + number; // P01-P07: column 7
+        } else {
+          x = 9; y = number - 6; // P08-P14: column 9
+        }
+        break;
+        
+      case 'D': // D Rack locations
+        if (number <= 7) {
+          x = 2 + number; y = 10; // D01-D07: row 10
+        } else {
+          x = number - 5; y = 11; // D08-D14: row 11
+        }
+        break;
+        
+      default:
+        console.warn('🔍 Unknown prefix:', prefix);
+        x = 1; y = 2; // Default fallback
+    }
+    
+    const result = { x, y, floor };
+    console.log('🔍 Parsed coordinates:', result);
+    return result;
+    
+  } catch (error) {
+    console.error('🔍 Error parsing location ID:', locationID, error);
+    return { x: 1, y: 2, floor: 1 }; // Default fallback
+  }
+};
+
+  // ✨ NEW: Helper function to calculate fallback location if real location not found
+  const calculateFallbackLocation = (itemID) => {
+    const id = itemID || 1;
+    
+    if (id % 3 === 0) {
+      const rackNum = (id % 2) + 1;
+      const position = Math.floor((id / 3) % 7) + 1;
+      return {
+        locationID: `P${String(rackNum).padStart(2, '0')}.1`,
+        coordinates: { x: 6 + rackNum * 2, y: 1 + position, floor: 1 }
+      };
+    } else if (id % 3 === 1) {
+      const rackNum = Math.floor((id / 3) % 3) + 1;
+      const position = Math.floor((id / 3) % 7) + 1;
+      return {
+        locationID: `B${String(rackNum * 7 + position).padStart(2, '0')}.1`,
+        coordinates: { x: rackNum * 2 - 1, y: 1 + position, floor: 1 }
+      };
+    } else {
+      const position = Math.floor((id / 2) % 7) + 1;
+      return {
+        locationID: `D${String(position).padStart(2, '0')}.1`,
+        coordinates: { x: 2 + position, y: 10, floor: 1 }
+      };
+    }
+  };
+
+  // ✨ NEW: Helper function to calculate complete picking path
+  const calculatePickingPath = (workerLocation, items, packingCounter) => {
+    const segments = [];
+    let currentLocation = workerLocation;
+    
+    // Worker to first item
+    if (items.length > 0) {
+      segments.push({
+        from: currentLocation,
+        to: items[0].coordinates,
+        type: 'worker_to_item',
+        itemName: items[0].itemName,
+        stepNumber: 1,
+        description: `Go to ${items[0].locationID} for ${items[0].itemName}`
+      });
+      currentLocation = items[0].coordinates;
+    }
+    
+    // Item to item paths
+    for (let i = 1; i < items.length; i++) {
+      segments.push({
+        from: currentLocation,
+        to: items[i].coordinates,
+        type: 'item_to_item',
+        fromItem: items[i-1].itemName,
+        toItem: items[i].itemName,
+        stepNumber: i + 1,
+        description: `From ${items[i-1].locationID} to ${items[i].locationID} for ${items[i].itemName}`
+      });
+      currentLocation = items[i].coordinates;
+    }
+    
+    // Last item to packing counter
+    if (items.length > 0) {
+      segments.push({
+        from: currentLocation,
+        to: packingCounter,
+        type: 'item_to_packing',
+        fromItem: items[items.length - 1].itemName,
+        stepNumber: items.length + 1,
+        description: `Take all collected items to packing counter`
+      });
+    }
+    
+    return {
+      segments,
+      totalSegments: segments.length,
+      currentSegment: 0
+    };
+  };
 
   // Helper function to generate dummy location based on item ID
   const generateDummyLocation = (itemId) => {
@@ -79,7 +254,7 @@ const PickerDashboard = () => {
       const currentItemsCount = itemsData.available_for_storing.length;
       
       if (newItemsCount !== currentItemsCount || !isBackgroundRefresh) {
-        console.log(`📦 Items update: ${newItemsCount} items (was ${currentItemsCount})`);
+        console.log(`Items update: ${newItemsCount} items (was ${currentItemsCount})`);
       }
       
       // Transform the data
@@ -118,22 +293,30 @@ const PickerDashboard = () => {
   };
 
   // ✨ UPDATED: fetchPendingOrders with background loading
-  const fetchPendingOrders = async (isBackgroundRefresh = false) => {
-    try {
-      const orders = await orderService.getOrders({ status: 'pending' });
-      
-      setItemsData(prevData => ({
-        ...prevData,
-        pending_orders: orders
-      }));
-      
-    } catch (error) {
-      console.error('Error fetching pending orders:', error);
-      if (!isBackgroundRefresh) {
-        toast.error('Failed to load pending orders');
-      }
+const fetchPendingOrders = async (isBackgroundRefresh = false) => {
+  try {
+    const orders = await orderService.getOrders({ status: 'pending' });
+    
+    // ✨ NEW: Only log when there are changes
+    const newOrdersCount = orders.length;
+    const currentOrdersCount = itemsData.pending_orders.length;
+    
+    if (newOrdersCount !== currentOrdersCount || !isBackgroundRefresh) {
+      console.log(`Orders update: ${newOrdersCount} pending orders (was ${currentOrdersCount})`);
     }
-  };
+    
+    setItemsData(prevData => ({
+      ...prevData,
+      pending_orders: orders
+    }));
+    
+  } catch (error) {
+    console.error('Error fetching pending orders:', error);
+    if (!isBackgroundRefresh) {
+      toast.error('Failed to load pending orders');
+    }
+  }
+};
 
   // ✨ UPDATED: Initial load and background refresh logic
   useEffect(() => {
@@ -182,6 +365,13 @@ const PickerDashboard = () => {
           itemName: item.itemName,
           quantity: item.quantity,
           locationID: item.locationID,
+          locationCoordinates: {
+            x: item.coordinates?.x || 0,
+            y: item.coordinates?.y || 0,
+            floor: item.coordinates?.floor || 1
+          },
+          category: item.category || 'General',
+          // Additional fields for reference (backend will ignore these)
           orderID: currentPickingOrder.orderID,
           collectedBy: currentUser?.username || 'Unknown'
         };
@@ -519,77 +709,246 @@ const PickerDashboard = () => {
   };
 
   // Handle starting order picking
-  const handleStartPicking = (order) => {
+  const handleStartPickingEnhanced = async (order) => {
+  try {
     setCurrentPickingOrder(order);
     setCurrentItemIndex(0);
     setPickingMode(true);
+
+    console.log('Starting enhanced picking for order:', order);
     
-    // Get first item details from inventory
-    if (order.items && order.items.length > 0) {
-      const firstItem = order.items[0];
-      // You might need to fetch the actual item details from inventory
-      // Generate dummy location if not present
-      const locationID = firstItem.locationID || generateDummyLocation(firstItem.itemID);
-      
-      const itemData = {
-        itemID: firstItem.itemID,
-        itemName: firstItem.item_name || `Item ${firstItem.itemID}`,
-        quantity: firstItem.quantity,
-        locationID: locationID,
-        orderID: order.orderID
-      };
-      setSelectedStoringItem(itemData);
-      setActionMode('collecting');
-      handleOpenCollectModal(itemData);
+    // Step 1: Get worker's current location from database
+    let workerLoc = { x: 0, y: 0, floor: 1 }; // Default to receiving area
+    try {
+      const workerLocationResponse = await workerLocationService.getCurrentLocation();
+      if (workerLocationResponse.success && workerLocationResponse.location) {
+        workerLoc = {
+          x: workerLocationResponse.location.x || 0,
+          y: workerLocationResponse.location.y || 0,
+          floor: workerLocationResponse.location.floor || 1
+        };
+        console.log('Worker location from DB:', workerLoc);
+        // Fixed toast call
+        toast(` Worker location: (${workerLoc.x}, ${workerLoc.y})`, { 
+          duration: 3000,
+          icon: 'ℹ️'
+        });
+      }
+    } catch (error) {
+      console.warn('⚠️ Could not fetch worker location, using default:', error);
+      // Fixed toast call
+      toast('Using default worker location (receiving area)', {
+        duration: 3000,
+        icon: '⚠️'
+      });
     }
-  };
+    
+    setWorkerLocation(workerLoc);
+
+    // Step 2: Fetch real item locations from inventory for each item in the order
+    const token = localStorage.getItem('token');
+    const itemsWithRealLocations = [];
+    
+    // Fixed toast call
+    toast('Finding item locations...', { 
+      id: 'finding-locations',
+      duration: Infinity
+    });
+    
+    for (const item of order.items) {
+  try {
+    console.log('🔍 Processing item:', item);
+    
+    // Get item location from inventory collection
+    const inventoryResponse = await axios.get(
+      `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/inventory/${item.itemID}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+    
+    if (inventoryResponse.data && inventoryResponse.data.locationID) {
+      console.log('🔍 Found inventory item:', inventoryResponse.data);
+      
+      // Parse location ID (e.g., "B01.1" -> coordinates)
+      const locationCoords = parseLocationToCoordinates(inventoryResponse.data.locationID);
+      
+      itemsWithRealLocations.push({
+        ...item,
+        itemName: item.item_name || inventoryResponse.data.name || `Item ${item.itemID}`,
+        locationID: inventoryResponse.data.locationID,
+        coordinates: locationCoords,
+        actualInventory: inventoryResponse.data
+      });
+      
+      console.log(`📦 Item ${item.itemID} found at ${inventoryResponse.data.locationID}:`, locationCoords);
+    } else {
+      throw new Error('No location found in inventory');
+    }
+    
+  } catch (error) {
+    console.warn(`⚠️ Could not find real location for item ${item.itemID}, using fallback`);
+    
+    // ✨ ENHANCED: Better fallback location generation
+    const fallbackLocation = calculateFallbackLocation(item.itemID);
+    const fallbackCoords = parseLocationToCoordinates(fallbackLocation.locationID);
+    
+    itemsWithRealLocations.push({
+      ...item,
+      itemName: item.item_name || `Item ${item.itemID}`,
+      locationID: fallbackLocation.locationID,
+      coordinates: fallbackCoords, // ✅ Ensure coordinates are always set
+      isFallback: true
+    });
+    
+    console.log(`📦 Item ${item.itemID} using fallback ${fallbackLocation.locationID}:`, fallbackCoords);
+  }
+}
+
+    toast.dismiss('finding-locations');
+    
+    // Step 3: Define packing counter location
+    const packingCounter = { x: 10, y: 1, floor: 1 }; // Adjust coordinates as needed
+
+    // Step 4: Calculate the complete picking path
+    const completePath = calculatePickingPath(workerLoc, itemsWithRealLocations, packingCounter);
+    
+    setPickingPath(completePath);
+    setPickingProgress({
+      currentStep: 0,
+      totalSteps: itemsWithRealLocations.length + 1, // +1 for final trip to packing
+      completedItems: [],
+      phase: 'picking'
+    });
+
+    // Update order with real locations
+    setCurrentPickingOrder({
+      ...order,
+      items: itemsWithRealLocations
+    });
+
+    // Step 5: Start with first item
+    if (itemsWithRealLocations.length > 0) {
+      const firstItem = itemsWithRealLocations[0];
+      
+      setSelectedStoringItem(firstItem);
+      setActionMode('collecting');
+      
+      // Set destination to first item with path from worker location
+      setCurrentDestination({
+        from: workerLoc,
+        to: firstItem.coordinates,
+        item: firstItem,
+        stepNumber: 1,
+        totalSteps: itemsWithRealLocations.length
+      });
+      
+      setSelectedMapLocation({
+        x: firstItem.coordinates.x,
+        y: firstItem.coordinates.y,
+        floor: firstItem.coordinates.floor,
+        locationCode: firstItem.locationID
+      });
+      setLocationId(firstItem.locationID);
+      
+      toast.success(
+        `Order #${order.orderID} started! Head to ${firstItem.locationID} for ${firstItem.itemName}`,
+        { duration: 5000 }
+      );
+      
+      // Show any fallback warnings with fixed toast call
+      const fallbackItems = itemsWithRealLocations.filter(item => item.isFallback);
+      if (fallbackItems.length > 0) {
+        toast(`⚠️ Using estimated locations for ${fallbackItems.length} item(s)`, { 
+          duration: 4000,
+          icon: '⚠️'
+        });
+      }
+      
+      console.log(`Path: Worker (${workerLoc.x}, ${workerLoc.y}) → Item at (${firstItem.coordinates.x}, ${firstItem.coordinates.y})`);
+    }
+    
+  } catch (error) {
+    console.error('Error starting enhanced picking:', error);
+    toast.error('Failed to start picking order');
+    setPickingMode(false);
+    setCurrentPickingOrder(null);
+  }
+};
 
   // Handle opening collect modal
   const handleOpenCollectModal = (item) => {
-    setSelectedStoringItem(item);
-    setActionMode('collecting');
-    setSuggestedLocations([]);
+  console.log('🔍 Opening collect modal for item:', item);
+  
+  setSelectedStoringItem(item);
+  setActionMode('collecting');
+  setSuggestedLocations([]);
+  
+  // When in picking mode, set the path destination from item location
+  if (pickingMode && item.locationID) {
+    console.log('🔍 Setting location for picking mode:', item.locationID);
     
-    // When in picking mode, set the path destination from item location
-    if (pickingMode && item.locationID) {
-      // Parse location ID to get coordinates (assuming format like "B1-12-F1" or "P1-21-F1")
-      const locationParts = item.locationID.split('-');
-      if (locationParts.length >= 2) {
-        const rackName = locationParts[0];
-        const position = locationParts[1];
-        const floor = locationParts[2] ? parseInt(locationParts[2].replace('F', '')) : 1;
-        
-        // Map rack names to coordinates (0-indexed)
-        const rackCoordinates = {
-          'P1': { x: 6, yStart: 1, yEnd: 7 }, // x=7 becomes 6 in 0-indexed
-          'P2': { x: 8, yStart: 1, yEnd: 7 }, // x=9 becomes 8
-          'B1': { x: 0, yStart: 1, yEnd: 7 }, // x=1 becomes 0
-          'B2': { x: 2, yStart: 1, yEnd: 7 }, // x=3 becomes 2
-          'B3': { x: 4, yStart: 1, yEnd: 7 }, // x=5 becomes 4
-          'D': { xStart: 2, xEnd: 8, y: 9 }   // y=10 becomes 9
-        };
-        
-        const rack = rackCoordinates[rackName];
-        if (rack) {
-          let x, y;
-          if (rack.yStart !== undefined) {
-            // Vertical rack
-            x = rack.x;
-            // Extract y from position (e.g., "21" means row 2)
-            const row = parseInt(position[0]) - 1;
-            y = rack.yStart + row;
-          } else {
-            // Horizontal rack (D)
-            const col = parseInt(position[0]) - 1;
-            x = rack.xStart + col;
-            y = rack.y;
+    // ✨ FIX: Don't try to parse locationID if it's already coordinates
+    if (item.coordinates) {
+      // Use existing coordinates
+      console.log('🔍 Using existing coordinates:', item.coordinates);
+      setSelectedMapLocation({
+        x: item.coordinates.x,
+        y: item.coordinates.y,
+        floor: item.coordinates.floor || 1
+      });
+      setLocationId(item.locationID); // ✅ Access as property, not function
+    } else {
+      // Parse location ID to get coordinates (old logic)
+      console.log('🔍 Parsing location ID:', item.locationID);
+      
+      try {
+        const locationParts = item.locationID.split('-'); // ✅ Access as property
+        if (locationParts.length >= 2) {
+          const rackName = locationParts[0];
+          const position = locationParts[1];
+          const floor = locationParts[2] ? parseInt(locationParts[2].replace('F', '')) : 1;
+          
+          // Map rack names to coordinates (0-indexed)
+          const rackCoordinates = {
+            'P1': { x: 6, yStart: 1, yEnd: 7 }, // x=7 becomes 6 in 0-indexed
+            'P2': { x: 8, yStart: 1, yEnd: 7 }, // x=9 becomes 8
+            'B1': { x: 0, yStart: 1, yEnd: 7 }, // x=1 becomes 0
+            'B2': { x: 2, yStart: 1, yEnd: 7 }, // x=3 becomes 2
+            'B3': { x: 4, yStart: 1, yEnd: 7 }, // x=5 becomes 4
+            'D': { xStart: 2, xEnd: 8, y: 9 }   // y=10 becomes 9
+          };
+          
+          const rack = rackCoordinates[rackName];
+          if (rack) {
+            let x, y;
+            if (rack.yStart !== undefined) {
+              // Vertical rack
+              x = rack.x;
+              // Extract y from position (e.g., "21" means row 2)
+              const row = parseInt(position[0]) - 1;
+              y = rack.yStart + row;
+            } else {
+              // Horizontal rack (D)
+              const col = parseInt(position[0]) - 1;
+              x = rack.xStart + col;
+              y = rack.y;
+            }
+            setSelectedMapLocation({ x, y, floor });
+            setLocationId(item.locationID); // ✅ Access as property
+            
+            console.log('🔍 Parsed coordinates:', { x, y, floor });
           }
-          setSelectedMapLocation({ x, y, floor });
-          setLocationId(item.locationID);
         }
+      } catch (error) {
+        console.error('🔍 Error parsing location ID:', error);
+        // Fallback to default
+        setSelectedMapLocation({ x: 0, y: 0, floor: 1 });
+        setLocationId(item.locationID || 'Unknown'); // ✅ Access as property
       }
     }
-  };
+  }
+};
 
   // Handle location selection from map
   const handleMapLocationSelect = (location) => {
@@ -707,6 +1066,9 @@ const PickerDashboard = () => {
                   <Archive className="h-5 w-5 text-yellow-600 mr-2" />
                   Items Available for Storing
                 </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Items ready for storing
+                </p>
               </div>
               
               {/* ✨ NEW: Small refresh indicator */}
@@ -807,13 +1169,43 @@ const PickerDashboard = () => {
         {/* Pending Orders Table */}
         <div className="bg-white rounded-lg shadow">
           <div className="px-6 py-4 border-b border-gray-200">
-            <h3 className="text-lg font-medium text-gray-900 flex items-center">
-              <ClipboardList className="h-5 w-5 text-blue-600 mr-2" />
-              Pending Orders for Picking
-            </h3>
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 flex items-center">
+                  <ClipboardList className="h-5 w-5 text-blue-600 mr-2" />
+                  Pending Orders for Picking
+                </h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  Orders ready for collection and packing
+                </p>
+              </div>
+              
+              {/* ✨ NEW: Small refresh indicator for orders */}
+              {backgroundRefreshing && (
+                <div className="flex items-center text-xs text-blue-600">
+                  <svg className="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Checking for new orders...
+                </div>
+              )}
+            </div>
           </div>
+          
           <div className="overflow-x-auto">
-            {itemsData.pending_orders.length === 0 ? (
+            {/* ✨ UPDATED: Only show loading spinner on initial load */}
+            {initialLoading ? (
+              <div className="text-center py-12">
+                <div className="inline-flex items-center">
+                  <svg className="animate-spin h-5 w-5 mr-3 text-gray-500" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  <span className="text-gray-500">Loading orders...</span>
+                </div>
+              </div>
+            ) : itemsData.pending_orders.length === 0 ? (
               <div className="text-center py-12 text-gray-500">
                 No pending orders available
               </div>
@@ -860,8 +1252,9 @@ const PickerDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
-                          onClick={() => handleStartPicking(order)}
-                          className="flex items-center text-blue-600 hover:text-blue-900"
+                          onClick={() => handleStartPickingEnhanced(order)}
+                          disabled={backgroundRefreshing && selectedStoringItem}
+                          className="flex items-center text-blue-600 hover:text-blue-900 disabled:opacity-50 transition-colors"
                         >
                           <span>Start Picking</span>
                           <ChevronRight className="h-4 w-4 ml-1" />
@@ -1010,6 +1403,13 @@ const PickerDashboard = () => {
                     showSuggestions={true}
                     mode={actionMode}
                     pathDestination={selectedMapLocation}
+
+                    workerLocation={pickingMode ? workerLocation : null}
+                    pickingPath={pickingPath}
+                    currentDestination={currentDestination}
+                    pickingMode={pickingMode}
+                    pickingProgress={pickingProgress}
+                    showPathfinding={pickingMode && currentDestination}
                   />
                 </div>
               </div>

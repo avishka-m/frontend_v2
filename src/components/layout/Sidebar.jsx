@@ -51,7 +51,8 @@ const ROLE_NAVIGATION = {
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
     { path: '/history', name: 'History', icon: ClipboardCheck },
-    { path: '/warehouse-map', name: 'Warehouse Map', icon: MapPin }
+    { path: '/warehouse-map', name: 'Warehouse Map', icon: MapPin },
+    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle }
   ],
   Packer: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
