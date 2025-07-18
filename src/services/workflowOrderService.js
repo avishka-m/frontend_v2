@@ -61,14 +61,108 @@ class WorkflowOrderService {
     return this.updateOrderStatus(orderId, 'packing', pickerId);
   }
 
-  // Packer: Complete packing (packing → ready_for_shipping)
+  // Packer: Complete packing (packing → packed) and create shipping record
   async completePackingOrder(orderId, packerId) {
-    return this.updateOrderStatus(orderId, 'ready_for_shipping', packerId);
+    try {
+      // First, update order status to 'packed'
+      const statusResult = await this.updateOrderStatus(orderId, 'packed', packerId);
+      
+      if (!statusResult.success) {
+        return statusResult;
+      }
+
+      // Get order details to create shipping record
+      const orderResult = await this.getOrderDetails(orderId);
+      if (!orderResult.success) {
+        return orderResult;
+      }
+
+      const order = orderResult.data;
+      
+      // Create shipping record
+      const shippingData = {
+        orderID: orderId,
+        workerID: packerId, // Initially assigned to packer, will be reassigned to driver
+        ship_date: new Date().toISOString(),
+        status: 'pending',
+        shipping_method: 'standard',
+        delivery_address: order.shipping_address || order.delivery_address || 'Address not specified',
+        recipient_name: order.customer_name || `Customer ${order.customerID}`,
+        recipient_phone: order.customer_phone || null,
+        packingIDs: [], // Will be populated by backend
+        notes: `Order packed by worker ${packerId}`
+      };
+
+      const shippingResult = await api.post('/shipping', shippingData);
+      
+      if (shippingResult.status !== 201) {
+        console.error('Failed to create shipping record:', shippingResult.data);
+        // Don't fail the packing completion, just log the error
+        console.warn('Packing completed but shipping record creation failed');   }
+
+      return statusResult;
+    } catch (error) {
+      console.error('Error completing packing order:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Failed to complete packing order'
+      };
+    }
   }
 
-  // Driver: Take for delivery (ready_for_shipping → shipped)
+  // Driver: Take for delivery (packed → shipped) via shipping dispatch
   async takeForDelivery(orderId, driverId) {
-    return this.updateOrderStatus(orderId, 'shipped', driverId);
+    try {
+      // First, get the shipping record for this order
+      const shippingResponse = await api.get(`/shipping/?orderID=${orderId}`);
+      
+      if (!shippingResponse.data || shippingResponse.data.length === 0) {
+        return {
+          success: false,
+          error: 'No shipping record found for this order'
+        };
+      }
+
+      const shippingRecord = shippingResponse.data[0];
+      const shippingId = shippingRecord.shippingID;
+
+      // Get available vehicles for the driver
+      const vehiclesResponse = await api.get('/vehicles/?status=available');
+      if (!vehiclesResponse.data || vehiclesResponse.data.length === 0) {
+        return {
+          success: false,
+          error: 'No available vehicles found'
+        };
+      }
+
+      const vehicle = vehiclesResponse.data[0];
+      
+      // Dispatch the shipping (this will update order status to 'shipped')
+      const trackingInfo = {
+        tracking_number: `TRK${Date.now()}`,
+        estimated_delivery: new Date(Date.now() + 24* 60* 60 *10).toISOString() // 24urs from now
+      };
+
+      const dispatchResult = await api.post(`/shipping/${shippingId}/dispatch?vehicle_id=${vehicle.vehicleID}`, trackingInfo);
+      
+      if (dispatchResult.status !== 200) {
+        return {
+          success: false,
+          error: dispatchResult.data?.detail || 'Failed to dispatch shipping'
+        };
+      }
+
+      return {
+        success: true,
+        data: dispatchResult.data
+      };
+    } catch (error) {
+      console.error('Error taking order for delivery:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Failed to take order for delivery'
+      };
+    }
   }
 
   // Driver: Mark as delivered (shipped → delivered)
@@ -191,7 +285,7 @@ class WorkflowOrderService {
       'receiving_clerk': ['processing'], // Alternative role name
       'Picker': ['picking'], // Can only work on picking orders
       'Packer': ['packing'], // Can only work on packing orders
-      'Driver': ['ready_for_shipping', 'shipped'] // Can work on ready and shipped orders
+      'Driver': ['packed', 'shipped'] // Can work on packed and shipped orders
     };
     
     return statusMap[role] || [];
@@ -203,8 +297,8 @@ class WorkflowOrderService {
       'pending': { 'Manager': 'processing' },
       'processing': { 'ReceivingClerk': 'picking', 'receiving_clerk': 'picking' },
       'picking': { 'Picker': 'packing' },
-      'packing': { 'Packer': 'ready_for_shipping' },
-      'ready_for_shipping': { 'Driver': 'shipped' },
+      'packing': { 'Packer': 'packed' },
+      'packed': { 'Driver': 'shipped' },
       'shipped': { 'Driver': 'delivered' }
     };
     
@@ -218,7 +312,7 @@ class WorkflowOrderService {
       'processing': { 'ReceivingClerk': 'Start Picking', 'receiving_clerk': 'Start Picking' },
       'picking': { 'Picker': 'Complete Picking' },
       'packing': { 'Packer': 'Complete Packing' },
-      'ready_for_shipping': { 'Driver': 'Take for Delivery' },
+      'packed': { 'Driver': 'Take for Delivery' },
       'shipped': { 'Driver': 'Mark Delivered' }
     };
     

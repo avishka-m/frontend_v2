@@ -398,7 +398,7 @@ const WorkflowDashboard = ({
             }
             break;
           case 'Driver':
-            if (currentStatus === 'ready_for_shipping' || currentStatus === 'shipping') {
+            if (currentStatus === 'packed' || currentStatus === 'shipping') {
               result = await workflowOrderService.takeForDelivery(orderId, workerId);
             } else if (currentStatus === 'shipped') {
               result = await workflowOrderService.markAsDelivered(orderId);
@@ -527,7 +527,7 @@ const WorkflowDashboard = ({
     if (!roleStatus) return false;
 
     // Check if order has progressed past this role's status
-    const statusOrder = ['pending', 'processing', 'picking', 'packing', 'ready_for_shipping', 'shipped', 'delivered'];
+    const statusOrder = ['pending', 'processing', 'picking', 'packing', 'packed', 'shipped', 'delivered'];
     const currentStatusIndex = statusOrder.indexOf(order.status);
     const roleStatusIndex = statusOrder.indexOf(roleStatus);
 

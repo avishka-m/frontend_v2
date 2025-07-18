@@ -4,6 +4,7 @@
  */
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
 import { 
   FiUser, 
   FiMessageCircle, 
@@ -112,7 +113,11 @@ const ChatMessage = ({
         }`}>
           {/* Message Content */}
           <div className="text-sm whitespace-pre-wrap break-words">
-            {message.content}
+            {isCurrentUser ? (
+              message.content
+            ) : (
+              <ReactMarkdown>{message.content}</ReactMarkdown>
+            )}
           </div>
 
           {/* Message Actions */}

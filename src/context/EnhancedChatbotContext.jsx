@@ -264,352 +264,352 @@ const assistantReducer = (state, action) => {
 const EnhancedChatbotContext = createContext();
 
 // Provider component
-export const EnhancedChatbotProvider = ({ children }) => {
-  const { currentUser } = useAuth();
-  const [state, dispatch] = useReducer(assistantReducer, initialState);
+// export const EnhancedChatbotProvider = ({ children }) => {
+//   const { currentUser } = useAuth();
+//   const [state, dispatch] = useReducer(assistantReducer, initialState);
   
-  // Initialize assistant
-  const initializeAssistant = useCallback(async () => {
-    if (!currentUser || state.isInitialized) return;
+//   // Initialize assistant
+//   const initializeAssistant = useCallback(async () => {
+//     if (!currentUser || state.isInitialized) return;
     
-    dispatch({ type: ASSISTANT_ACTIONS.INITIALIZE_START });
+//     dispatch({ type: ASSISTANT_ACTIONS.INITIALIZE_START });
     
-    try {
-      // Get available agents
-      const agents = await aiAssistantService.getAvailableAgents();
+//     try {
+//       // Get available agents
+//       const agents = await aiAssistantService.getAvailableAgents();
       
-      // Set initial work context
-      const workContext = {
-        userId: currentUser.id,
-        userRole: currentUser.role,
-        userName: currentUser.name,
-        department: currentUser.department,
-        shift: getCurrentShift(),
-        location: 'Unknown',
-        sessionStart: new Date().toISOString()
-      };
+//       // Set initial work context
+//       const workContext = {
+//         userId: currentUser.id,
+//         userRole: currentUser.role,
+//         userName: currentUser.name,
+//         department: currentUser.department,
+//         shift: getCurrentShift(),
+//         location: 'Unknown',
+//         sessionStart: new Date().toISOString()
+//       };
       
-      // Auto-select the best agent
-      let selectedAgent = null;
-      if (agents.allowedAgents.length > 0) {
-        const defaultAgent = agents.allowedAgents.find(a => a.id === agents.userRole) || agents.allowedAgents[0];
-        const result = await aiAssistantService.selectAgent(defaultAgent.id, workContext);
-        selectedAgent = {
-          agent: defaultAgent.id,
-          conversationId: result.conversationId,
-          welcomeMessage: result.welcomeMessage,
-          quickActions: aiAssistantService.getContextualQuickActions(defaultAgent.id, workContext)
-        };
-      }
+//       // Auto-select the best agent
+//       let selectedAgent = null;
+//       if (agents.allowedAgents.length > 0) {
+//         const defaultAgent = agents.allowedAgents.find(a => a.id === agents.userRole) || agents.allowedAgents[0];
+//         const result = await aiAssistantService.selectAgent(defaultAgent.id, workContext);
+//         selectedAgent = {
+//           agent: defaultAgent.id,
+//           conversationId: result.conversationId,
+//           welcomeMessage: result.welcomeMessage,
+//           quickActions: aiAssistantService.getContextualQuickActions(defaultAgent.id, workContext)
+//         };
+//       }
       
-      dispatch({
-        type: ASSISTANT_ACTIONS.INITIALIZE_SUCCESS,
-        payload: {
-          agents: agents.allowedAgents,
-          workContext,
-          settings: {}
-        }
-      });
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.INITIALIZE_SUCCESS,
+//         payload: {
+//           agents: agents.allowedAgents,
+//           workContext,
+//           settings: {}
+//         }
+//       });
       
-      // Select the default agent
-      if (selectedAgent) {
-        dispatch({
-          type: ASSISTANT_ACTIONS.SELECT_AGENT_SUCCESS,
-          payload: selectedAgent
-        });
-      }
+//       // Select the default agent
+//       if (selectedAgent) {
+//         dispatch({
+//           type: ASSISTANT_ACTIONS.SELECT_AGENT_SUCCESS,
+//           payload: selectedAgent
+//         });
+//       }
       
-      // Load initial proactive suggestions
-      loadProactiveSuggestions(workContext);
+//       // Load initial proactive suggestions
+//       loadProactiveSuggestions(workContext);
       
-      // Load usage analytics
-      loadUsageAnalytics();
+//       // Load usage analytics
+//       loadUsageAnalytics();
       
-    } catch (error) {
-      console.error('Failed to initialize assistant:', error);
-      dispatch({
-        type: ASSISTANT_ACTIONS.INITIALIZE_ERROR,
-        payload: error.message
-      });
-    }
-  }, [currentUser, state.isInitialized]);
+//     } catch (error) {
+//       console.error('Failed to initialize assistant:', error);
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.INITIALIZE_ERROR,
+//         payload: error.message
+//       });
+//     }
+//   }, [currentUser, state.isInitialized]);
   
-  // Select agent
-  const selectAgent = useCallback(async (agentId, context = {}) => {
-    dispatch({ type: ASSISTANT_ACTIONS.SELECT_AGENT_START });
+//   // Select agent
+//   const selectAgent = useCallback(async (agentId, context = {}) => {
+//     dispatch({ type: ASSISTANT_ACTIONS.SELECT_AGENT_START });
     
-    try {
-      const result = await aiAssistantService.selectAgent(agentId, { ...state.workContext, ...context });
-      const quickActions = aiAssistantService.getContextualQuickActions(agentId, state.workContext);
+//     try {
+//       const result = await aiAssistantService.selectAgent(agentId, { ...state.workContext, ...context });
+//       const quickActions = aiAssistantService.getContextualQuickActions(agentId, state.workContext);
       
-      dispatch({
-        type: ASSISTANT_ACTIONS.SELECT_AGENT_SUCCESS,
-        payload: {
-          agent: agentId,
-          conversationId: result.conversationId,
-          welcomeMessage: result.welcomeMessage,
-          quickActions
-        }
-      });
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.SELECT_AGENT_SUCCESS,
+//         payload: {
+//           agent: agentId,
+//           conversationId: result.conversationId,
+//           welcomeMessage: result.welcomeMessage,
+//           quickActions
+//         }
+//       });
       
-      // Load agent-specific proactive suggestions
-      loadProactiveSuggestions(state.workContext);
+//       // Load agent-specific proactive suggestions
+//       loadProactiveSuggestions(state.workContext);
       
-    } catch (error) {
-      console.error('Failed to select agent:', error);
-      dispatch({
-        type: ASSISTANT_ACTIONS.SELECT_AGENT_ERROR,
-        payload: error.message
-      });
-    }
-  }, [state.workContext]);
+//     } catch (error) {
+//       console.error('Failed to select agent:', error);
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.SELECT_AGENT_ERROR,
+//         payload: error.message
+//       });
+//     }
+//   }, [state.workContext]);
   
-  // Send message
-  const sendMessage = useCallback(async (message, options = {}) => {
-    if (!message.trim() || state.isLoading) return;
+//   // Send message
+//   const sendMessage = useCallback(async (message, options = {}) => {
+//     if (!message.trim() || state.isLoading) return;
     
-    dispatch({ type: ASSISTANT_ACTIONS.SEND_MESSAGE_START });
+//     dispatch({ type: ASSISTANT_ACTIONS.SEND_MESSAGE_START });
     
-    const userMessage = {
-      id: Date.now(),
-      role: 'user',
-      content: message,
-      timestamp: new Date(),
-      attachments: options.attachments || []
-    };
+//     const userMessage = {
+//       id: Date.now(),
+//       role: 'user',
+//       content: message,
+//       timestamp: new Date(),
+//       attachments: options.attachments || []
+//     };
     
-    try {
-      const response = await aiAssistantService.sendMessage(message, {
-        ...options,
-        context: state.workContext
-      });
+//     try {
+//       const response = await aiAssistantService.sendMessage(message, {
+//         ...options,
+//         context: state.workContext
+//       });
       
-      const assistantMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date(),
-        metadata: response.metadata
-      };
+//       const assistantMessage = {
+//         id: Date.now() + 1,
+//         role: 'assistant',
+//         content: response.response,
+//         timestamp: new Date(),
+//         metadata: response.metadata
+//       };
       
-      dispatch({
-        type: ASSISTANT_ACTIONS.SEND_MESSAGE_SUCCESS,
-        payload: {
-          userMessage,
-          assistantMessage,
-          context: response.context
-        }
-      });
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.SEND_MESSAGE_SUCCESS,
+//         payload: {
+//           userMessage,
+//           assistantMessage,
+//           context: response.context
+//         }
+//       });
       
-      // Update proactive suggestions based on the conversation
-      loadProactiveSuggestions({ ...state.workContext, ...response.context });
+//       // Update proactive suggestions based on the conversation
+//       loadProactiveSuggestions({ ...state.workContext, ...response.context });
       
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      dispatch({
-        type: ASSISTANT_ACTIONS.SEND_MESSAGE_ERROR,
-        payload: error.message
-      });
-    }
-  }, [state.workContext, state.isLoading]);
+//     } catch (error) {
+//       console.error('Failed to send message:', error);
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.SEND_MESSAGE_ERROR,
+//         payload: error.message
+//       });
+//     }
+//   }, [state.workContext, state.isLoading]);
   
-  // Send quick action
-  const sendQuickAction = useCallback(async (actionId, data = {}) => {
-    try {
-      const response = await aiAssistantService.sendQuickAction(actionId, { ...state.workContext, ...data });
+//   // Send quick action
+//   const sendQuickAction = useCallback(async (actionId, data = {}) => {
+//     try {
+//       const response = await aiAssistantService.sendQuickAction(actionId, { ...state.workContext, ...data });
       
-      const userMessage = {
-        id: Date.now(),
-        role: 'user',
-        content: `Quick Action: ${actionId}`,
-        timestamp: new Date(),
-        type: 'quick_action'
-      };
+//       const userMessage = {
+//         id: Date.now(),
+//         role: 'user',
+//         content: `Quick Action: ${actionId}`,
+//         timestamp: new Date(),
+//         type: 'quick_action'
+//       };
       
-      const assistantMessage = {
-        id: Date.now() + 1,
-        role: 'assistant',
-        content: response.response,
-        timestamp: new Date(),
-        type: 'quick_action_response'
-      };
+//       const assistantMessage = {
+//         id: Date.now() + 1,
+//         role: 'assistant',
+//         content: response.response,
+//         timestamp: new Date(),
+//         type: 'quick_action_response'
+//       };
       
-      dispatch({ type: ASSISTANT_ACTIONS.ADD_MESSAGE, payload: userMessage });
-      dispatch({ type: ASSISTANT_ACTIONS.ADD_MESSAGE, payload: assistantMessage });
+//       dispatch({ type: ASSISTANT_ACTIONS.ADD_MESSAGE, payload: userMessage });
+//       dispatch({ type: ASSISTANT_ACTIONS.ADD_MESSAGE, payload: assistantMessage });
       
-    } catch (error) {
-      console.error('Failed to execute quick action:', error);
-    }
-  }, [state.workContext]);
+//     } catch (error) {
+//       console.error('Failed to execute quick action:', error);
+//     }
+//   }, [state.workContext]);
   
-  // Load conversations
-  const loadConversations = useCallback(async (options = {}) => {
-    dispatch({ type: ASSISTANT_ACTIONS.LOAD_CONVERSATIONS_START });
+//   // Load conversations
+//   const loadConversations = useCallback(async (options = {}) => {
+//     dispatch({ type: ASSISTANT_ACTIONS.LOAD_CONVERSATIONS_START });
     
-    try {
-      const conversations = await aiAssistantService.getConversations(options);
-      dispatch({
-        type: ASSISTANT_ACTIONS.LOAD_CONVERSATIONS_SUCCESS,
-        payload: conversations.conversations
-      });
-    } catch (error) {
-      console.error('Failed to load conversations:', error);
-      dispatch({
-        type: ASSISTANT_ACTIONS.LOAD_CONVERSATIONS_ERROR,
-        payload: error.message
-      });
-    }
-  }, []);
+//     try {
+//       const conversations = await aiAssistantService.getConversations(options);
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.LOAD_CONVERSATIONS_SUCCESS,
+//         payload: conversations.conversations
+//       });
+//     } catch (error) {
+//       console.error('Failed to load conversations:', error);
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.LOAD_CONVERSATIONS_ERROR,
+//         payload: error.message
+//       });
+//     }
+//   }, []);
   
-  // Search conversations
-  const searchConversations = useCallback(async (query, filters = {}) => {
-    try {
-      const results = await aiAssistantService.searchConversations(query, filters);
-      return results;
-    } catch (error) {
-      console.error('Failed to search conversations:', error);
-      throw error;
-    }
-  }, []);
+//   // Search conversations
+//   const searchConversations = useCallback(async (query, filters = {}) => {
+//     try {
+//       const results = await aiAssistantService.searchConversations(query, filters);
+//       return results;
+//     } catch (error) {
+//       console.error('Failed to search conversations:', error);
+//       throw error;
+//     }
+//   }, []);
   
-  // Update work context
-  const updateWorkContext = useCallback((context) => {
-    dispatch({
-      type: ASSISTANT_ACTIONS.UPDATE_WORK_CONTEXT,
-      payload: context
-    });
+//   // Update work context
+//   const updateWorkContext = useCallback((context) => {
+//     dispatch({
+//       type: ASSISTANT_ACTIONS.UPDATE_WORK_CONTEXT,
+//       payload: context
+//     });
     
-    aiAssistantService.updateUserContext({ ...state.workContext, ...context });
+//     aiAssistantService.updateUserContext({ ...state.workContext, ...context });
     
-    // Update proactive suggestions with new context
-    loadProactiveSuggestions({ ...state.workContext, ...context });
-  }, [state.workContext]);
+//     // Update proactive suggestions with new context
+//     loadProactiveSuggestions({ ...state.workContext, ...context });
+//   }, [state.workContext]);
   
-  // Load proactive suggestions
-  const loadProactiveSuggestions = useCallback(async (context = state.workContext) => {
-    try {
-      const suggestions = await aiAssistantService.getProactiveSuggestions(context);
-      dispatch({
-        type: ASSISTANT_ACTIONS.UPDATE_PROACTIVE_SUGGESTIONS,
-        payload: suggestions
-      });
-    } catch (error) {
-      console.error('Failed to load proactive suggestions:', error);
-    }
-  }, [state.workContext]);
+//   // Load proactive suggestions
+//   const loadProactiveSuggestions = useCallback(async (context = state.workContext) => {
+//     try {
+//       const suggestions = await aiAssistantService.getProactiveSuggestions(context);
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.UPDATE_PROACTIVE_SUGGESTIONS,
+//         payload: suggestions
+//       });
+//     } catch (error) {
+//       console.error('Failed to load proactive suggestions:', error);
+//     }
+//   }, [state.workContext]);
   
-  // Load usage analytics
-  const loadUsageAnalytics = useCallback(async (timeRange = '7d') => {
-    try {
-      const analytics = await aiAssistantService.getUsageAnalytics(timeRange);
-      dispatch({
-        type: ASSISTANT_ACTIONS.UPDATE_USAGE_ANALYTICS,
-        payload: analytics
-      });
-    } catch (error) {
-      console.error('Failed to load usage analytics:', error);
-    }
-  }, []);
+//   // Load usage analytics
+//   const loadUsageAnalytics = useCallback(async (timeRange = '7d') => {
+//     try {
+//       const analytics = await aiAssistantService.getUsageAnalytics(timeRange);
+//       dispatch({
+//         type: ASSISTANT_ACTIONS.UPDATE_USAGE_ANALYTICS,
+//         payload: analytics
+//       });
+//     } catch (error) {
+//       console.error('Failed to load usage analytics:', error);
+//     }
+//   }, []);
   
-  // UI Actions
-  const toggleAssistant = useCallback(() => {
-    dispatch({ type: ASSISTANT_ACTIONS.TOGGLE_ASSISTANT });
-  }, []);
+//   // UI Actions
+//   const toggleAssistant = useCallback(() => {
+//     dispatch({ type: ASSISTANT_ACTIONS.TOGGLE_ASSISTANT });
+//   }, []);
   
-  const setAssistantMode = useCallback((mode) => {
-    dispatch({ type: ASSISTANT_ACTIONS.SET_ASSISTANT_MODE, payload: mode });
-    aiAssistantService.setAssistantMode(mode);
-  }, []);
+//   const setAssistantMode = useCallback((mode) => {
+//     dispatch({ type: ASSISTANT_ACTIONS.SET_ASSISTANT_MODE, payload: mode });
+//     aiAssistantService.setAssistantMode(mode);
+//   }, []);
   
-  const setCurrentView = useCallback((view) => {
-    dispatch({ type: ASSISTANT_ACTIONS.SET_CURRENT_VIEW, payload: view });
-  }, []);
+//   const setCurrentView = useCallback((view) => {
+//     dispatch({ type: ASSISTANT_ACTIONS.SET_CURRENT_VIEW, payload: view });
+//   }, []);
   
-  const setMinimized = useCallback((minimized) => {
-    dispatch({ type: ASSISTANT_ACTIONS.SET_MINIMIZED, payload: minimized });
-  }, []);
+//   const setMinimized = useCallback((minimized) => {
+//     dispatch({ type: ASSISTANT_ACTIONS.SET_MINIMIZED, payload: minimized });
+//   }, []);
   
-  // Update settings
-  const updateSettings = useCallback((newSettings) => {
-    dispatch({
-      type: ASSISTANT_ACTIONS.UPDATE_SETTINGS,
-      payload: newSettings
-    });
+//   // Update settings
+//   const updateSettings = useCallback((newSettings) => {
+//     dispatch({
+//       type: ASSISTANT_ACTIONS.UPDATE_SETTINGS,
+//       payload: newSettings
+//     });
     
-    // Save to localStorage
-    localStorage.setItem('assistant_settings', JSON.stringify({ ...state.settings, ...newSettings }));
-  }, [state.settings]);
+//     // Save to localStorage
+//     localStorage.setItem('assistant_settings', JSON.stringify({ ...state.settings, ...newSettings }));
+//   }, [state.settings]);
   
-  // Initialize on mount
-  useEffect(() => {
-    initializeAssistant();
-  }, [initializeAssistant]);
+//   // Initialize on mount
+//   useEffect(() => {
+//     initializeAssistant();
+//   }, [initializeAssistant]);
   
-  // Load settings from localStorage
-  useEffect(() => {
-    const savedSettings = localStorage.getItem('assistant_settings');
-    if (savedSettings) {
-      try {
-        const settings = JSON.parse(savedSettings);
-        updateSettings(settings);
-      } catch (error) {
-        console.error('Failed to load saved settings:', error);
-      }
-    }
-  }, []);
+//   // Load settings from localStorage
+//   useEffect(() => {
+//     const savedSettings = localStorage.getItem('assistant_settings');
+//     if (savedSettings) {
+//       try {
+//         const settings = JSON.parse(savedSettings);
+//         updateSettings(settings);
+//       } catch (error) {
+//         console.error('Failed to load saved settings:', error);
+//       }
+//     }
+//   }, []);
   
-  // Auto-update work context periodically
-  useEffect(() => {
-    if (!state.isInitialized || !state.settings.contextTracking) return;
+//   // Auto-update work context periodically
+//   useEffect(() => {
+//     if (!state.isInitialized || !state.settings.contextTracking) return;
     
-    const interval = setInterval(() => {
-      updateWorkContext({
-        timestamp: new Date().toISOString(),
-        sessionDuration: Date.now() - new Date(state.workContext.sessionStart).getTime()
-      });
-    }, 60000); // Every minute
+//     const interval = setInterval(() => {
+//       updateWorkContext({
+//         timestamp: new Date().toISOString(),
+//         sessionDuration: Date.now() - new Date(state.workContext.sessionStart).getTime()
+//       });
+//     }, 60000); // Every minute
     
-    return () => clearInterval(interval);
-  }, [state.isInitialized, state.settings.contextTracking, updateWorkContext]);
+//     return () => clearInterval(interval);
+//   }, [state.isInitialized, state.settings.contextTracking, updateWorkContext]);
   
-  // Utility function to get current shift
-  function getCurrentShift() {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 14) return 'Morning';
-    if (hour >= 14 && hour < 22) return 'Afternoon';
-    return 'Night';
-  }
+//   // Utility function to get current shift
+//   function getCurrentShift() {
+//     const hour = new Date().getHours();
+//     if (hour >= 6 && hour < 14) return 'Morning';
+//     if (hour >= 14 && hour < 22) return 'Afternoon';
+//     return 'Night';
+//   }
   
-  // Context value
-  const value = {
-    // State
-    ...state,
+//   // Context value
+//   const value = {
+//     // State
+//     ...state,
     
-    // Actions
-    initializeAssistant,
-    selectAgent,
-    sendMessage,
-    sendQuickAction,
-    loadConversations,
-    searchConversations,
-    updateWorkContext,
-    loadProactiveSuggestions,
-    loadUsageAnalytics,
+//     // Actions
+//     initializeAssistant,
+//     selectAgent,
+//     sendMessage,
+//     sendQuickAction,
+//     loadConversations,
+//     searchConversations,
+//     updateWorkContext,
+//     loadProactiveSuggestions,
+//     loadUsageAnalytics,
     
-    // UI Actions
-    toggleAssistant,
-    setAssistantMode,
-    setCurrentView,
-    setMinimized,
-    updateSettings
-  };
+//     // UI Actions
+//     toggleAssistant,
+//     setAssistantMode,
+//     setCurrentView,
+//     setMinimized,
+//     updateSettings
+//   };
   
-  return (
-    <EnhancedChatbotContext.Provider value={value}>
-      {children}
-    </EnhancedChatbotContext.Provider>
-  );
-};
+//   return (
+//     <EnhancedChatbotContext.Provider value={value}>
+//       {children}
+//     </EnhancedChatbotContext.Provider>
+//   );
+// }; // End EnhancedChatbotProvider
 
 // Custom hook to use the context
 export const useEnhancedChatbot = () => {

@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import { AuthProvider } from './context/AuthContext';
-import { EnhancedChatbotProvider } from './context/EnhancedChatbotContext';
+// import { EnhancedChatbotProvider } from './context/EnhancedChatbotContext';
 import { NotificationProvider } from './context/NotificationContext';
 import Layout from './components/layout/Layout';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -59,7 +59,7 @@ function App() {
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <NotificationProvider>
           <AuthProvider>
-            <EnhancedChatbotProvider>
+            {/* <EnhancedChatbotProvider> */}
               <Notification />
               <Toaster position="top-right" />
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
@@ -135,10 +135,10 @@ function App() {
                 </Routes>
               </Suspense>
               {/* Enhanced Personal Assistant */}
-              <FloatingChatWidget />
+              {/* <FloatingChatWidget /> */}
               {/* WebSocket Connection Monitor
               <WebSocketMonitor /> */}
-            </EnhancedChatbotProvider>
+            {/* </EnhancedChatbotProvider> */}
           </AuthProvider>
         </NotificationProvider>
       </BrowserRouter>
