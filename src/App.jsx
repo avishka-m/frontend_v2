@@ -12,6 +12,7 @@ import FloatingChatWidget from './components/common/FloatingChatWidget';
 // import WebSocketMonitor from './components/WebSocketMonitor';
 import { Toaster } from 'react-hot-toast';
 
+
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'));
 const RoleBasedDashboard = lazy(() => import('./pages/RoleBasedDashboard'));
@@ -53,6 +54,11 @@ const OrderWorkflowTracker = lazy(() => import('./pages/OrderWorkflowTracker'));
 const WorkflowManagement = lazy(() => import('./pages/WorkflowManagement'));
 const RoleBasedChatbot = lazy(() => import('./pages/chatbot/RoleBasedChatbot'));
 
+
+// Warehouse Map Component
+import WarehouseMapPage from './pages/WarehouseMap';
+import History from './pages/History';
+
 function App() {
   return (
     <ErrorBoundary showDetails={process.env.NODE_ENV === 'development'}>
@@ -62,6 +68,7 @@ function App() {
             <EnhancedChatbotProvider>
               <Notification />
               <Toaster position="top-right" />
+                
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
                 <Routes>
                   {/* Public routes */}
@@ -134,6 +141,7 @@ function App() {
                   </Route>
                 </Routes>
               </Suspense>
+
               {/* Enhanced Personal Assistant */}
               <FloatingChatWidget />
               {/* WebSocket Connection Monitor

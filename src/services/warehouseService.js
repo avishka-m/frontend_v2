@@ -8,7 +8,7 @@ export const warehouseService = {
       return response.data;
     } catch (error) {
       throw error;
-    }
+    } 
   },
   
   createPickingTask: async (task) => {
