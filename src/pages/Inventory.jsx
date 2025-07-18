@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Package, 
@@ -22,6 +22,7 @@ import {
 import { inventoryService } from '../services/inventoryService';
 import { useNotification } from '../context/NotificationContext';
 import { NOTIFICATION_TYPES } from '../context/NotificationContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 // Mock data as fallback - will be replaced by API data
 const mockInventoryData = [
@@ -94,10 +95,6 @@ const Inventory = () => {
   const { addNotification } = useNotification();
   
   // State management
-  const [inventory, setInventory] = useState([]);
-  const [categories, setCategories] = useState(['All']);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('All');
@@ -110,96 +107,122 @@ const Inventory = () => {
     total: 0,
     totalPages: 0
   });
+  const queryClient = useQueryClient();
 
-  // Fetch inventory data from API
-  const fetchInventory = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = {
-        search: searchTerm || undefined,
-        category: selectedCategory !== 'All' ? selectedCategory : undefined,
-        status: selectedStatus !== 'All' ? selectedStatus : undefined,
-        page: pagination.page,
-        limit: pagination.limit,
-        sort_by: sortConfig.key,
-        sort_order: sortConfig.direction
-      };
-
-      const response = await inventoryService.getInventory(params);
-      
-      // Handle different response structures
-      if (response.items && Array.isArray(response.items)) {
-        setInventory(response.items);
-        setPagination(prev => ({
-          ...prev,
-          total: response.total || response.items.length,
-          totalPages: response.total_pages || Math.ceil((response.total || response.items.length) / prev.limit)
-        }));
-      } else if (Array.isArray(response)) {
-        setInventory(response);
-        setPagination(prev => ({
-          ...prev,
-          total: response.length,
-          totalPages: Math.ceil(response.length / prev.limit)
-        }));
-      } else {
-        console.warn('Unexpected response format, using mock data');
-        setInventory(mockInventoryData);
+  // Fetch categories with React Query
+  const {
+    data: categories = ['All'],
+    isLoading: loadingCategories,
+    isError: errorCategories
+  } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      try {
+        const categoriesData = await inventoryService.getCategories();
+        return ['All', ...categoriesData];
+      } catch (error) {
+        // fallback
+        return ['All', 'Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports & Outdoors', 'Health & Beauty', 'Tools & Hardware', 'Food & Beverages'];
       }
+    }
+  });
 
-    } catch (error) {
-      console.error('Error fetching inventory:', error);
-      setError('Failed to load inventory data');
-      
-      // Use mock data as fallback
-      setInventory(mockInventoryData);
-      setPagination(prev => ({
-        ...prev,
-        total: mockInventoryData.length,
-        totalPages: Math.ceil(mockInventoryData.length / prev.limit)
-      }));
+  // Fetch inventory with React Query
+  const {
+    data: inventory = mockInventoryData,
+    isLoading: loadingInventory,
+    isError: errorInventory
+  } = useQuery({
+    queryKey: ['inventory', { searchTerm, selectedCategory, selectedStatus, page: pagination.page, limit: pagination.limit, sortKey: sortConfig.key, sortDir: sortConfig.direction }],
+    queryFn: async () => {
+      try {
+        const params = {
+          search: searchTerm || undefined,
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          status: selectedStatus !== 'All' ? selectedStatus : undefined,
+          page: pagination.page,
+          limit: pagination.limit,
+          sort_by: sortConfig.key,
+          sort_order: sortConfig.direction
+        };
+        const response = await inventoryService.getInventory(params);
+        if (response.items && Array.isArray(response.items)) {
+          setPagination(prev => ({
+            ...prev,
+            total: response.total || response.items.length,
+            totalPages: response.total_pages || Math.ceil((response.total || response.items.length) / prev.limit)
+          }));
+          return response.items;
+        } else if (Array.isArray(response)) {
+          setPagination(prev => ({
+            ...prev,
+            total: response.length,
+            totalPages: Math.ceil(response.length / prev.limit)
+          }));
+          return response;
+        } else {
+          return mockInventoryData;
+        }
+      } catch (error) {
+        addNotification({
+          type: NOTIFICATION_TYPES.WARNING,
+          message: 'Using Sample Data',
+          description: 'Could not connect to server. Displaying sample inventory data.'
+        });
+        setPagination(prev => ({
+          ...prev,
+          total: mockInventoryData.length,
+          totalPages: Math.ceil(mockInventoryData.length / prev.limit)
+        }));
+        return mockInventoryData;
+      }
+    }
+  });
 
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids) => inventoryService.bulkDeleteInventoryItems(ids),
+    onSuccess: () => {
+      setSelectedItems([]);
+      queryClient.invalidateQueries(['inventory']);
       addNotification({
-        type: NOTIFICATION_TYPES.WARNING,
-        message: 'Using Sample Data',
-        description: 'Could not connect to server. Displaying sample inventory data.'
+        type: NOTIFICATION_TYPES.SUCCESS,
+        message: 'Items Deleted',
+        description: `${selectedItems.length} items have been deleted.`
       });
-    } finally {
-      setLoading(false);
+    },
+    onError: () => {
+      addNotification({
+        type: NOTIFICATION_TYPES.ERROR,
+        message: 'Bulk Delete Failed',
+        description: 'Could not delete selected items.'
+      });
     }
-  }, [searchTerm, selectedCategory, selectedStatus, sortConfig, pagination.page, pagination.limit, addNotification]);
+  });
 
-  // Fetch categories from API
-  const fetchCategories = useCallback(async () => {
-    try {
-      const categoriesData = await inventoryService.getCategories();
-      setCategories(['All', ...categoriesData]);
-    } catch (error) {
-      console.error('Error fetching categories:', error);
-      // Use default categories as fallback
-      setCategories(['All', 'Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports & Outdoors', 'Health & Beauty', 'Tools & Hardware', 'Food & Beverages']);
+  // Single delete mutation
+  const deleteItemMutation = useMutation({
+    mutationFn: (id) => inventoryService.deleteInventoryItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['inventory']);
+      addNotification({
+        type: NOTIFICATION_TYPES.SUCCESS,
+        message: 'Item Deleted',
+        description: `Item has been deleted.`
+      });
+    },
+    onError: () => {
+      addNotification({
+        type: NOTIFICATION_TYPES.ERROR,
+        message: 'Delete Failed',
+        description: 'Could not delete the item.'
+      });
     }
-  }, []);
-
-  // Initial data loading
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  // Fetch inventory when dependencies change
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchInventory();
-    }, 300); // Debounce search
-
-    return () => clearTimeout(timer);
-  }, [fetchInventory]);
+  });
 
   // Handle manual refresh
   const handleRefresh = () => {
-    fetchInventory();
+    queryClient.invalidateQueries(['inventory']);
     addNotification({
       type: NOTIFICATION_TYPES.SUCCESS,
       message: 'Data Refreshed',
@@ -239,45 +262,14 @@ const Inventory = () => {
     if (selectedItems.length === 0) return;
 
     if (window.confirm(`Are you sure you want to delete ${selectedItems.length} items?`)) {
-      try {
-        await inventoryService.bulkDeleteInventoryItems(selectedItems);
-        setSelectedItems([]);
-        fetchInventory();
-        
-        addNotification({
-          type: NOTIFICATION_TYPES.SUCCESS,
-          message: 'Items Deleted',
-          description: `${selectedItems.length} items have been deleted.`
-        });
-      } catch (error) {
-        addNotification({
-          type: NOTIFICATION_TYPES.ERROR,
-          message: 'Delete Failed',
-          description: 'Could not delete selected items.'
-        });
-      }
+      bulkDeleteMutation.mutate(selectedItems);
     }
   };
 
   // Handle single item delete
   const handleDeleteItem = async (id) => {
     if (window.confirm('Are you sure you want to delete this item?')) {
-      try {
-        await inventoryService.deleteInventoryItem(id);
-        fetchInventory();
-        
-        addNotification({
-          type: NOTIFICATION_TYPES.SUCCESS,
-          message: 'Item Deleted',
-          description: 'Inventory item has been deleted.'
-        });
-      } catch (error) {
-        addNotification({
-          type: NOTIFICATION_TYPES.ERROR,
-          message: 'Delete Failed',
-          description: 'Could not delete inventory item.'
-        });
-      }
+      deleteItemMutation.mutate(id);
     }
   };
 
@@ -286,7 +278,7 @@ const Inventory = () => {
     let filtered = [...inventory];
 
     // Apply client-side filtering if needed (fallback when API doesn't support it)
-    if (searchTerm && !loading) {
+    if (searchTerm && !loadingInventory) {
       filtered = filtered.filter(item => {
         const searchLower = searchTerm.toLowerCase();
         return (
@@ -298,7 +290,7 @@ const Inventory = () => {
     }
 
     return filtered;
-  }, [inventory, searchTerm, loading]);
+  }, [inventory, searchTerm, loadingInventory]);
 
   const handleSort = (key) => {
     setSortConfig(prevConfig => ({
@@ -356,6 +348,33 @@ const Inventory = () => {
     return item[field] || item[field.replace(/([A-Z])/g, '_$1').toLowerCase()] || item[field.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase())];
   };
 
+  if (loadingInventory || loadingCategories) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded mb-6 w-1/3"></div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (errorInventory || errorCategories) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-100 text-red-800 p-4 rounded-lg">
+          Failed to load inventory or categories. Please try again later.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6">
       {/* Header */}
@@ -363,17 +382,17 @@ const Inventory = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Inventory Management</h1>
           <p className="text-gray-600 mt-1">
-            {loading ? 'Loading...' : `${pagination.total} items in inventory`}
-            {error && <span className="text-red-600 ml-2">({error})</span>}
+            {loadingInventory ? 'Loading...' : `${pagination.total} items in inventory`}
+            {errorInventory && <span className="text-red-600 ml-2">({errorInventory})</span>}
           </p>
         </div>
         <div className="flex items-center space-x-2">
           <button 
             onClick={handleRefresh}
-            disabled={loading}
+            disabled={loadingInventory}
             className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 mr-2 ${loadingInventory ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           
@@ -490,14 +509,14 @@ const Inventory = () => {
 
       {/* Inventory Table */}
       <div className="bg-white rounded-lg shadow overflow-hidden">
-        {loading && (
+        {loadingInventory && (
           <div className="flex items-center justify-center py-12">
             <Loader className="w-8 h-8 animate-spin text-primary-600" />
             <span className="ml-3 text-gray-600">Loading inventory...</span>
           </div>
         )}
         
-        {!loading && (
+        {!loadingInventory && (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -637,15 +656,15 @@ const Inventory = () => {
           </div>
         )}
 
-        {!loading && filteredAndSortedInventory.length === 0 && (
+        {!loadingInventory && filteredAndSortedInventory.length === 0 && (
           <div className="text-center py-12">
             <Package className="mx-auto h-12 w-12 text-gray-400" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">No inventory items found</h3>
             <p className="mt-1 text-sm text-gray-500">
-              {error ? 'There was an error loading data. Try refreshing the page.' : 'Try adjusting your search criteria or add a new item.'}
+              {errorInventory ? 'There was an error loading data. Try refreshing the page.' : 'Try adjusting your search criteria or add a new item.'}
             </p>
             <div className="mt-6">
-              {error ? (
+              {errorInventory ? (
                 <button
                   onClick={handleRefresh}
                   className="inline-flex items-center px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700"

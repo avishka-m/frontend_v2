@@ -12,7 +12,7 @@ export const inventoryService = {
       if (params.category && params.category !== 'All') queryParams.append('category', params.category);
       if (params.low_stock) queryParams.append('low_stock', params.low_stock);
 
-      const response = await api.get(`/inventory?${queryParams.toString()}`);
+      const response = await api.get(`/inventory/?${queryParams.toString()}`);
       
       // Transform backend data to frontend format for compatibility
       const transformedData = response.data.map(item => ({

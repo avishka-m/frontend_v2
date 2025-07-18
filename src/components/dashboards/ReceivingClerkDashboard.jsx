@@ -75,7 +75,6 @@ const ReceivingClerkDashboard = () => {
     const interval = setInterval(fetchMetrics, 5 * 60 * 1000);
     return () => clearInterval(interval);
   }, []);
-
   return (
     <div className="space-y-6">
       {/* Custom Stats Cards for Receiving Clerk */}
