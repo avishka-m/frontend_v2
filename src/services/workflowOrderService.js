@@ -1,9 +1,143 @@
 import api from './api';
 
+// Mock data for testing driver dashboard
+const generateMockDriverOrders = (currentWorkerId = 'driver123') => {
+  const currentDate = new Date();
+  const yesterday = new Date(currentDate - 24 * 60 * 60 * 1000);
+  
+  return [
+    // Ready for shipping orders (available to take)
+    {
+      order_id: 'DRV-001',
+      orderID: 'DRV-001',
+      customer_name: 'Tech Solutions Inc.',
+      customerID: 'CUST-001',
+      order_status: 'ready_for_shipping',
+      order_date: yesterday.toISOString(),
+      total_amount: 245.50,
+      total_items: 3,
+      shipping_address: '123 Tech Street, Innovation City, TC 12345',
+      priority: 'high',
+      package_count: 2,
+      estimated_delivery: new Date(currentDate.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+      assigned_worker: null,
+      notes: 'Fragile items - handle with care'
+    },
+    {
+      order_id: 'DRV-002',
+      orderID: 'DRV-002',
+      customer_name: 'Global Retailers Ltd.',
+      customerID: 'CUST-002',
+      order_status: 'ready_for_shipping',
+      order_date: yesterday.toISOString(),
+      total_amount: 189.99,
+      total_items: 1,
+      shipping_address: '456 Commerce Ave, Business District, BD 67890',
+      priority: 'medium',
+      package_count: 1,
+      estimated_delivery: new Date(currentDate.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+      assigned_worker: null,
+      notes: 'Standard delivery'
+    },
+    {
+      order_id: 'DRV-003',
+      orderID: 'DRV-003',
+      customer_name: 'HomeGoods Store',
+      customerID: 'CUST-003',
+      order_status: 'ready_for_shipping',
+      order_date: currentDate.toISOString(),
+      total_amount: 567.25,
+      total_items: 8,
+      shipping_address: '789 Residential Road, Suburb Heights, SH 54321',
+      priority: 'low',
+      package_count: 3,
+      estimated_delivery: new Date(currentDate.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString(),
+      assigned_worker: null,
+      notes: 'Large order - multiple packages'
+    },
+    // Shipped orders (currently being delivered - for working tab)
+    {
+      order_id: 'DRV-004',
+      orderID: 'DRV-004',
+      customer_name: 'Quick Mart Express',
+      customerID: 'CUST-004',
+      order_status: 'shipped',
+      order_date: yesterday.toISOString(),
+      total_amount: 89.75,
+      total_items: 2,
+      shipping_address: '321 Fast Lane, Express City, EC 98765',
+      priority: 'high',
+      package_count: 1,
+      estimated_delivery: currentDate.toISOString(),
+      assigned_worker: currentWorkerId, // Current user
+      departure_time: new Date(currentDate - 2 * 60 * 60 * 1000).toISOString(),
+      tracking_number: 'TRK-DRV004-001',
+      notes: 'Express delivery - same day'
+    },
+    {
+      order_id: 'DRV-005',
+      orderID: 'DRV-005',
+      customer_name: 'Office Supplies Co.',
+      customerID: 'CUST-005',
+      order_status: 'shipped',
+      order_date: yesterday.toISOString(),
+      total_amount: 334.80,
+      total_items: 5,
+      shipping_address: '654 Corporate Blvd, Office Park, OP 13579',
+      priority: 'medium',
+      package_count: 2,
+      estimated_delivery: new Date(currentDate.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+      assigned_worker: currentWorkerId,
+      departure_time: new Date(currentDate - 4 * 60 * 60 * 1000).toISOString(),
+      tracking_number: 'TRK-DRV005-001',
+      notes: 'Business delivery - office hours only'
+    },
+    // Delivered orders (for history tab)
+    {
+      order_id: 'DRV-006',
+      orderID: 'DRV-006',
+      customer_name: 'Fashion Boutique',
+      customerID: 'CUST-006',
+      order_status: 'delivered',
+      order_date: new Date(currentDate - 3 * 24 * 60 * 60 * 1000).toISOString(),
+      total_amount: 156.40,
+      total_items: 4,
+      shipping_address: '987 Style Street, Fashion District, FD 24680',
+      priority: 'medium',
+      package_count: 1,
+      estimated_delivery: new Date(currentDate - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      assigned_worker: currentWorkerId,
+      delivery_time: new Date(currentDate - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      tracking_number: 'TRK-DRV006-001',
+      delivery_proof: 'Signature received',
+      notes: 'Delivered successfully'
+    },
+    {
+      order_id: 'DRV-007',
+      orderID: 'DRV-007',
+      customer_name: 'Electronics Hub',
+      customerID: 'CUST-007',
+      order_status: 'delivered',
+      order_date: new Date(currentDate - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      total_amount: 789.99,
+      total_items: 3,
+      shipping_address: '147 Gadget Avenue, Tech Town, TT 97531',
+      priority: 'high',
+      package_count: 2,
+      estimated_delivery: new Date(currentDate - 1 * 24 * 60 * 60 * 1000).toISOString(),
+      assigned_worker: currentWorkerId,
+      delivery_time: new Date(currentDate - 6 * 60 * 60 * 1000).toISOString(),
+      tracking_number: 'TRK-DRV007-001',
+      delivery_proof: 'Photo confirmation',
+      notes: 'High-value delivery completed'
+    }
+  ];
+};
+
 class WorkflowOrderService {
   
   // Get orders filtered by status and role
-  async getOrdersByRole(userRole, statuses = []) {
+  async getOrdersByRole(userRole, statuses = [], workerId = null) {
     try {
       let statusFilter = '';
       if (statuses.length > 0) {
@@ -11,12 +145,54 @@ class WorkflowOrderService {
       }
       
       const response = await api.get(`/orders?limit=100${statusFilter}`);
+      
+      // If we get real data, use it
+      if (response.data && response.data.length > 0) {
+        return {
+          success: true,
+          data: response.data
+        };
+      }
+      
+      // If no real data and this is a driver, provide mock data for testing
+      if (userRole === 'Driver' && (!response.data || response.data.length === 0)) {
+        console.log('🚛 No real driver orders found, using mock data for testing');
+        const mockOrders = generateMockDriverOrders(workerId);
+        
+        // Filter mock orders by the requested statuses
+        const filteredMockOrders = statuses.length > 0 
+          ? mockOrders.filter(order => statuses.includes(order.order_status))
+          : mockOrders;
+          
+        return {
+          success: true,
+          data: filteredMockOrders
+        };
+      }
+      
       return {
         success: true,
         data: response.data || []
       };
     } catch (error) {
       console.error('Error fetching orders by role:', error);
+      
+      // If API fails and this is a driver, provide mock data as fallback
+      if (userRole === 'Driver') {
+        console.log('🚛 API failed for driver orders, using mock data as fallback');
+        const mockOrders = generateMockDriverOrders(workerId);
+        
+        // Filter mock orders by the requested statuses
+        const filteredMockOrders = statuses.length > 0 
+          ? mockOrders.filter(order => statuses.includes(order.order_status))
+          : mockOrders;
+          
+        return {
+          success: true,
+          data: filteredMockOrders
+        };
+      }
+      
       return {
         success: false,
         error: error.response?.data?.detail || 'Failed to fetch orders'

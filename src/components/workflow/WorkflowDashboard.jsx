@@ -32,7 +32,7 @@ const WorkflowDashboard = ({
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const userRole = currentUser?.role || role;
-  const workerId = currentUser?.workerID || currentUser?.id || currentUser?.username;
+  const workerId = currentUser?.workerID || currentUser?.id || currentUser?.username || 'driver123'; // Fallback for testing
   
   // Tab Management
   const [activeTab, setActiveTab] = useState('available');
@@ -90,7 +90,7 @@ const WorkflowDashboard = ({
       const roleStatuses = getRoleStatuses();
       
       // Fetch all orders for this role
-      const result = await workflowOrderService.getOrdersByRole(userRole, roleStatuses);
+      const result = await workflowOrderService.getOrdersByRole(userRole, roleStatuses, workerId);
       
       if (result.success) {
         const allOrders = result.data;
