@@ -55,6 +55,7 @@ const WorkflowManagement = lazy(() => import('./pages/WorkflowManagement'));
 const RoleBasedChatbot = lazy(() => import('./pages/chatbot/RoleBasedChatbot'));
 const WarehouseMapPage = lazy(() => import('./pages/WarehouseMap'));
 const History = lazy(() => import('./pages/History'));
+const UpdateInventory = lazy(() => import('./pages/UpdateInventory'));
 
 function App() {
   return (
@@ -79,6 +80,7 @@ function App() {
                     <Route path="/inventory" element={<RoleBasedRoute allowedRoles={['Manager']}><Inventory /></RoleBasedRoute>} />
                     <Route path="/inventory/add" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><AddInventoryItem /></RoleBasedRoute>} />
                     <Route path="/inventory/edit/:id" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><EditInventoryItem /></RoleBasedRoute>} />
+                    <Route path="/inventory/update" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><UpdateInventory /></RoleBasedRoute>} />
                     {/* Order routes - Manager, ReceivingClerk, Picker, Packer */}
                     <Route path="/orders" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk', 'Picker', 'Packer']}><Orders /></RoleBasedRoute>} />
                     <Route path="/orders/create" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><CreateOrder /></RoleBasedRoute>} />

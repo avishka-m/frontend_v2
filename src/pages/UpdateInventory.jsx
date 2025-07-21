@@ -1,321 +1,793 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-hot-toast';
-import inventoryService from '../services/inventoryService';
-import inventoryIncreaseService from '../services/inventoryIncreaseService';
-import { Package, X, Save } from 'lucide-react';
+import { inventoryService } from '../services/inventoryService';
+import { useNotification } from '../context/NotificationContext';
+import { NOTIFICATION_TYPES } from '../context/NotificationContext';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  Package, 
+  Search, 
+  Filter,
+  Eye,
+  Edit3,
+  RefreshCw,
+  Loader,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
+  TrendingUp,
+  TrendingDown
+} from 'lucide-react';
+
+// UpdateInventoryModal component (reused from Inventory.jsx)
+const UpdateInventoryModal = ({ isOpen, onClose, item, onUpdate, isLoading }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    size: 'M',
+    storage_type: 'standard',
+    total_stock: 0,
+    min_stock_level: 10,
+    max_stock_level: 100,
+    supplierID: 1,
+    locationID: ''
+  });
+
+  // Initialize form data when item changes
+  useEffect(() => {
+    if (item) {
+      setFormData({
+        name: item.name || item.itemName || '',
+        category: item.category || '',
+        size: item.size || 'M',
+        storage_type: item.storage_type || 'standard',
+        total_stock: item.quantity || item.total_stock || item.stock_level || 0,
+        min_stock_level: item.min_stock_level || item.reorderLevel || 10,
+        max_stock_level: item.max_stock_level || item.maxStockLevel || 100,
+        supplierID: item.supplierID || 1,
+        locationID: item.locationID || item.location || ''
+      });
+    }
+  }, [item]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onUpdate(formData);
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseInt(value) || 0 : value
+    }));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="mt-3">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-medium text-gray-900">
+              Update Inventory Item
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XCircle className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Item Info */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">Current Item Details</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Item ID:</span> {item?.itemID || item?.id}
+              </div>
+              <div>
+                <span className="font-medium">Current Stock:</span> {item?.quantity || item?.total_stock || 0}
+              </div>
+              <div>
+                <span className="font-medium">Location:</span> {item?.locationID || item?.location || 'N/A'}
+              </div>
+              <div>
+                <span className="font-medium">Last Updated:</span> {item?.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'N/A'}
+              </div>
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Item Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Item Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Category
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                >
+                  <option value="">Select Category</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Clothing">Clothing</option>
+                  <option value="Books">Books</option>
+                  <option value="Home & Garden">Home & Garden</option>
+                  <option value="Sports & Outdoors">Sports & Outdoors</option>
+                  <option value="Health & Beauty">Health & Beauty</option>
+                  <option value="Tools & Hardware">Tools & Hardware</option>
+                  <option value="Food & Beverages">Food & Beverages</option>
+                </select>
+              </div>
+
+              {/* Size */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Size
+                </label>
+                <select
+                  name="size"
+                  value={formData.size}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="S">Small (S)</option>
+                  <option value="M">Medium (M)</option>
+                  <option value="L">Large (L)</option>
+                </select>
+              </div>
+
+              {/* Storage Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Storage Type
+                </label>
+                <select
+                  name="storage_type"
+                  value={formData.storage_type}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="refrigerated">Refrigerated</option>
+                  <option value="fragile">Fragile</option>
+                  <option value="hazardous">Hazardous</option>
+                </select>
+              </div>
+
+              {/* Total Stock */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Total Stock
+                </label>
+                <input
+                  type="number"
+                  name="total_stock"
+                  value={formData.total_stock}
+                  onChange={handleChange}
+                  min="0"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Min Stock Level */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Minimum Stock Level
+                </label>
+                <input
+                  type="number"
+                  name="min_stock_level"
+                  value={formData.min_stock_level}
+                  onChange={handleChange}
+                  min="0"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Max Stock Level */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Maximum Stock Level
+                </label>
+                <input
+                  type="number"
+                  name="max_stock_level"
+                  value={formData.max_stock_level}
+                  onChange={handleChange}
+                  min="1"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Supplier ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Supplier ID
+                </label>
+                <input
+                  type="number"
+                  name="supplierID"
+                  value={formData.supplierID}
+                  onChange={handleChange}
+                  min="1"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+
+              {/* Location ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Location ID
+                </label>
+                <input
+                  type="text"
+                  name="locationID"
+                  value={formData.locationID}
+                  onChange={handleChange}
+                  placeholder="e.g., B1.4"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Stock Level Validation */}
+            {formData.total_stock < formData.min_stock_level && (
+              <div className="text-yellow-600 bg-yellow-50 p-3 rounded-md text-sm flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Current stock is below minimum level - this will mark the item as low stock
+              </div>
+            )}
+
+            {formData.total_stock === 0 && (
+              <div className="text-red-600 bg-red-50 p-3 rounded-md text-sm flex items-center">
+                <XCircle className="h-4 w-4 mr-2" />
+                Zero stock will mark this item as out of stock
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-4 py-2 bg-blue-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <Loader className="animate-spin h-4 w-4 mr-2" />
+                    Updating...
+                  </div>
+                ) : (
+                  'Update Inventory'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const UpdateInventory = () => {
   const { currentUser } = useAuth();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [inventoryItems, setInventoryItems] = useState([]);
-
-  const [formData, setFormData] = useState({
-    itemId: '',
-    itemName: '',
-    existingQuantity: 0,
-    newQuantity: '',
-    totalQuantity: 0
+  const { addNotification } = useNotification();
+  const queryClient = useQueryClient();
+  
+  // State management
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('All');
+  const [sortConfig, setSortConfig] = useState({ key: 'name', direction: 'asc' });
+  const [showFilters, setShowFilters] = useState(false);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [selectedUpdateItem, setSelectedUpdateItem] = useState(null);
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 50,
+    total: 0,
+    totalPages: 0
   });
 
-  // Redirect if not a receiving clerk or manager
+  // Mock data as fallback
+  const mockInventoryData = [
+    {
+      id: 1,
+      itemID: 1,
+      name: 'Wireless Bluetooth Headphones',
+      category: 'Electronics',
+      quantity: 45,
+      min_stock_level: 10,
+      max_stock_level: 100,
+      locationID: 'B1.4',
+      supplierID: 1,
+      size: 'M',
+      storage_type: 'standard',
+      status: 'active',
+      updated_at: new Date().toISOString()
+    }
+  ];
+
+  // Redirect if not authorized
   useEffect(() => {
     if (currentUser?.role !== 'ReceivingClerk' && currentUser?.role !== 'Manager') {
       navigate('/dashboard');
     }
   }, [currentUser, navigate]);
 
-  // Load all inventory items on mount
-  useEffect(() => {
-    loadInventoryItems();
-  }, []);
-
-  const loadInventoryItems = async () => {
-    try {
-      setSearchLoading(true);
-      // Temporarily reduce limit to debug the issue
-      const items = await inventoryService.getInventory({ limit: 100 });
-      setInventoryItems(items);
-    } catch (error) {
-      console.error('Error loading inventory:', error);
-      toast.error('Failed to load inventory items');
-    } finally {
-      setSearchLoading(false);
+  // Fetch categories with React Query
+  const {
+    data: categories = ['All'],
+    isLoading: loadingCategories,
+    isError: errorCategories
+  } = useQuery({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      try {
+        const categoriesData = await inventoryService.getCategories();
+        return ['All', ...categoriesData];
+      } catch (error) {
+        return ['All', 'Electronics', 'Clothing', 'Books', 'Home & Garden', 'Sports & Outdoors', 'Health & Beauty', 'Tools & Hardware', 'Food & Beverages'];
+      }
     }
-  };
+  });
 
-  // Handle item selection by ID
-  const handleItemIdChange = (value) => {
-    if (!value) {
-      handleClear();
-      return;
+  // Fetch inventory with React Query
+  const {
+    data: inventory = mockInventoryData,
+    isLoading: loadingInventory,
+    isError: errorInventory,
+    refetch
+  } = useQuery({
+    queryKey: ['update-inventory', { searchTerm, selectedCategory, selectedStatus, page: pagination.page, limit: pagination.limit, sortKey: sortConfig.key, sortDir: sortConfig.direction }],
+    queryFn: async () => {
+      try {
+        const params = {
+          search: searchTerm || undefined,
+          category: selectedCategory !== 'All' ? selectedCategory : undefined,
+          status: selectedStatus !== 'All' ? selectedStatus : undefined,
+          page: pagination.page,
+          limit: pagination.limit,
+          sort_by: sortConfig.key,
+          sort_order: sortConfig.direction
+        };
+        const response = await inventoryService.getInventory(params);
+        if (response.items && Array.isArray(response.items)) {
+          setPagination(prev => ({
+            ...prev,
+            total: response.total || response.items.length,
+            totalPages: response.total_pages || Math.ceil((response.total || response.items.length) / prev.limit)
+          }));
+          return response.items;
+        } else if (Array.isArray(response)) {
+          setPagination(prev => ({
+            ...prev,
+            total: response.length,
+            totalPages: Math.ceil(response.length / prev.limit)
+          }));
+          return response;
+        } else {
+          return mockInventoryData;
+        }
+      } catch (error) {
+        addNotification({
+          type: NOTIFICATION_TYPES.WARNING,
+          message: 'Using Sample Data',
+          description: 'Could not connect to server. Displaying sample inventory data.'
+        });
+        setPagination(prev => ({
+          ...prev,
+          total: mockInventoryData.length,
+          totalPages: Math.ceil(mockInventoryData.length / prev.limit)
+        }));
+        return mockInventoryData;
+      }
     }
-    
-    const item = inventoryItems.find(i => i.inventoryID.toString() === value);
-    if (item) {
-      setFormData({
-        itemId: item.inventoryID,
-        itemName: item.item_name,
-        existingQuantity: item.stock_level,
-        newQuantity: '',
-        totalQuantity: item.stock_level
+  });
+
+  // Update item mutation
+  const updateItemMutation = useMutation({
+    mutationFn: ({ id, data }) => inventoryService.updateInventoryItem(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['update-inventory']);
+      setUpdateModalOpen(false);
+      setSelectedUpdateItem(null);
+      addNotification({
+        type: NOTIFICATION_TYPES.SUCCESS,
+        message: 'Item Updated',
+        description: 'Inventory item has been successfully updated.'
+      });
+    },
+    onError: (error) => {
+      addNotification({
+        type: NOTIFICATION_TYPES.ERROR,
+        message: 'Update Failed',
+        description: error.response?.data?.detail || 'Could not update the item.'
       });
     }
-  };
+  });
 
-  // Handle item selection by name
-  const handleItemNameChange = (value) => {
-    if (!value) {
-      handleClear();
-      return;
-    }
-    
-    const item = inventoryItems.find(i => i.item_name === value);
-    if (item) {
-      setFormData({
-        itemId: item.inventoryID,
-        itemName: item.item_name,
-        existingQuantity: item.stock_level,
-        newQuantity: '',
-        totalQuantity: item.stock_level
-      });
-    }
-  };
-
-  // Handle clear button
-  const handleClear = () => {
-    setFormData({
-      itemId: '',
-      itemName: '',
-      existingQuantity: 0,
-      newQuantity: '',
-      totalQuantity: 0
+  // Handle manual refresh
+  const handleRefresh = () => {
+    refetch();
+    addNotification({
+      type: NOTIFICATION_TYPES.SUCCESS,
+      message: 'Data Refreshed',
+      description: 'Inventory data has been updated.'
     });
   };
 
-  // Handle newly received stock input
-  const handleNewQuantityChange = (value) => {
-    const newQty = parseInt(value) || 0;
-    const total = formData.existingQuantity + newQty;
-    setFormData(prev => ({ 
-      ...prev, 
-      newQuantity: value,
-      totalQuantity: total
-    }));
+  // Handle open update modal
+  const handleOpenUpdateModal = (item) => {
+    setSelectedUpdateItem(item);
+    setUpdateModalOpen(true);
   };
 
-  // Handle update inventory
-  const handleUpdate = async () => {
-    // Validation
-    if (!formData.itemId) {
-      toast.error('Please select an item');
-      return;
-    }
+  // Handle update item
+  const handleUpdateItem = (formData) => {
+    if (!selectedUpdateItem) return;
+    updateItemMutation.mutate({
+      id: selectedUpdateItem.itemID || selectedUpdateItem.id,
+      data: formData
+    });
+  };
 
-    if (!formData.newQuantity || parseInt(formData.newQuantity) <= 0) {
-      toast.error('Please enter a valid quantity to add');
-      return;
-    }
+  // Local filtering and sorting
+  const filteredAndSortedInventory = useMemo(() => {
+    let filtered = [...inventory];
 
-    try {
-      setLoading(true);
-      
-      console.log('Starting inventory update process...');
-      console.log('Form Data:', formData);
-      
-      // Calculate total stock (existing + newly received)
-      const totalStock = formData.existingQuantity + parseInt(formData.newQuantity);
-      
-      // Call inventory update API with the total
-      console.log('Updating inventory stock level to:', totalStock);
-      const result = await inventoryService.updateInventory(formData.itemId, {
-        stock_level: totalStock
+    // Apply client-side filtering if needed
+    if (searchTerm && !loadingInventory) {
+      filtered = filtered.filter(item => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+          item.name?.toLowerCase().includes(searchLower) ||
+          item.itemName?.toLowerCase().includes(searchLower) ||
+          item.category?.toLowerCase().includes(searchLower) ||
+          item.locationID?.toLowerCase().includes(searchLower)
+        );
       });
+    }
 
-      if (result.success) {
-        console.log('Inventory stock level updated successfully');
-        
-        // Record the inventory increase
-        const increaseData = {
-          itemID: formData.itemId,
-          item_name: formData.itemName,
-          size: 'N/A', // You might want to add size to the form if needed
-          quantity: parseInt(formData.newQuantity),
-          reason: 'stock_arrival',
-          source: 'Direct Stock Update',
-          reference_id: null,
-          notes: `Stock increased from ${formData.existingQuantity} to ${totalStock}`,
-          performed_by: currentUser?.username || 'system'
-        };
-        
-        console.log('Recording inventory increase with data:', increaseData);
-        try {
-          const increaseResponse = await inventoryIncreaseService.recordIncrease(increaseData);
-          console.log('Inventory increase recorded successfully:', increaseResponse);
-        } catch (error) {
-          console.error('Error recording inventory increase:', error);
-          console.error('Error details:', error.response?.data || error.message);
-          // Don't throw here, just log the error so the main update still succeeds
-        }
-        
-        toast.success(`Inventory updated! Added ${formData.newQuantity} units. New total: ${totalStock}`);
-        
-        // Clear form after successful update
-        handleClear();
-        
-        // Reload inventory items to get fresh data
-        loadInventoryItems();
-      } else {
-        toast.error(result.error || 'Failed to update inventory');
-      }
-    } catch (error) {
-      console.error('Error updating inventory:', error);
-      console.error('Full error details:', error.response?.data || error.message);
-      toast.error('Failed to update inventory');
-    } finally {
-      setLoading(false);
+    return filtered;
+  }, [inventory, searchTerm, loadingInventory]);
+
+  const handleSort = (key) => {
+    setSortConfig(prevConfig => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+  };
+
+  const getStatusBadge = (status, quantity, reorderLevel) => {
+    const reorder = reorderLevel || 0;
+    
+    if (quantity === 0) {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+        <XCircle className="w-3 h-3 mr-1" />
+        Out of Stock
+      </span>;
+    } else if (quantity <= reorder) {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+        <AlertTriangle className="w-3 h-3 mr-1" />
+        Low Stock
+      </span>;
+    } else {
+      return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+        <CheckCircle className="w-3 h-3 mr-1" />
+        In Stock
+      </span>;
     }
   };
+
+  const getSortIcon = (columnKey) => {
+    if (sortConfig.key !== columnKey) return null;
+    return sortConfig.direction === 'asc' ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />;
+  };
+
+  const statusOptions = ['All', 'active', 'low_stock', 'out_of_stock'];
+
+  if (loadingInventory || loadingCategories) {
+    return (
+      <div className="p-6">
+        <div className="animate-pulse">
+          <div className="h-8 bg-gray-200 rounded mb-6 w-1/3"></div>
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="p-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="flex items-center space-x-3">
-          <div className="bg-blue-100 p-3 rounded-lg">
-            <Package className="h-6 w-6 text-blue-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Update Inventory</h1>
-            <p className="text-gray-600">Update stock levels for inventory items</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Update Form */}
-      <div className="bg-white rounded-lg shadow-sm border p-6">
-        <div className="space-y-6">
-          {/* Item ID and Name Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Item ID */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Item ID
-              </label>
-              <select
-                value={formData.itemId}
-                onChange={(e) => handleItemIdChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select item by ID</option>
-                {inventoryItems
-                  .sort((a, b) => a.inventoryID - b.inventoryID)
-                  .map((item) => (
-                    <option key={item.inventoryID} value={item.inventoryID}>
-                      {item.inventoryID} - {item.item_name}
-                    </option>
-                  ))}
-              </select>
+      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex items-center space-x-3">
+            <div className="bg-blue-100 p-3 rounded-lg">
+              <Package className="h-6 w-6 text-blue-600" />
             </div>
-
-            {/* Item Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Item Name
-              </label>
-              <select
-                value={formData.itemName}
-                onChange={(e) => handleItemNameChange(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select item by name</option>
-                {inventoryItems
-                  .sort((a, b) => a.item_name.localeCompare(b.item_name))
-                  .map((item) => (
-                    <option key={item.inventoryID} value={item.item_name}>
-                      {item.item_name} (ID: {item.inventoryID})
-                    </option>
-                  ))}
-              </select>
+              <h1 className="text-2xl font-bold text-gray-900">Update Inventory</h1>
+              <p className="text-gray-600 mt-1">
+                {loadingInventory ? 'Loading...' : `${pagination.total} items in inventory`}
+                {errorInventory && <span className="text-red-600 ml-2">({errorInventory})</span>}
+              </p>
             </div>
           </div>
-
-          {/* Quantity Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Existing Quantity (Disabled) */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Current Stock
-              </label>
-              <input
-                type="number"
-                value={formData.existingQuantity}
-                disabled
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 cursor-not-allowed"
-              />
-            </div>
-
-            {/* Newly Received Stock */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Newly Received Stock
-              </label>
-              <input
-                type="number"
-                value={formData.newQuantity}
-                onChange={(e) => handleNewQuantityChange(e.target.value)}
-                placeholder="Enter quantity to add"
-                min="0"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-
-            {/* Total After Update */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Total After Update
-              </label>
-              <input
-                type="number"
-                value={formData.totalQuantity}
-                disabled
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-green-50 font-semibold text-green-700 cursor-not-allowed"
-              />
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex justify-end space-x-3 pt-4">
-            <button
-              onClick={handleClear}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors flex items-center space-x-2"
+          <div className="flex items-center space-x-2">
+            <button 
+              onClick={handleRefresh}
+              disabled={loadingInventory}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
             >
-              <X className="h-4 w-4" />
-              <span>Clear</span>
-            </button>
-            <button
-              onClick={handleUpdate}
-              disabled={loading || !formData.itemId || !formData.newQuantity}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
-            >
-              <Save className="h-4 w-4" />
-              <span>{loading ? 'Updating...' : 'Update Inventory'}</span>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loadingInventory ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
           </div>
         </div>
       </div>
 
-      {/* Loading Overlay */}
-      {searchLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-4 text-gray-600">Loading inventory items...</p>
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow mb-6">
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row gap-4">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search by name, category, or location..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            
+            {/* Filter Toggle */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`inline-flex items-center px-4 py-2 border rounded-lg ${showFilters ? 'bg-blue-50 border-blue-200 text-blue-700' : 'border-gray-300 text-gray-700 hover:bg-gray-50'}`}
+            >
+              <Filter className="w-4 h-4 mr-2" />
+              Filters
+            </button>
           </div>
         </div>
+
+        {/* Expandable Filters */}
+        {showFilters && (
+          <div className="p-4 bg-gray-50 border-t border-gray-200">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Category Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {categories.map(category => (
+                    <option key={category} value={category}>{category}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {statusOptions.map(status => (
+                    <option key={status} value={status}>
+                      {status === 'All' ? 'All Status' : status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Quick Actions */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Quick Actions</label>
+                <div className="flex space-x-2">
+                  <button
+                    onClick={() => setSelectedStatus('low_stock')}
+                    className="text-xs px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full hover:bg-yellow-200"
+                  >
+                    Low Stock
+                  </button>
+                  <button
+                    onClick={() => setSelectedStatus('out_of_stock')}
+                    className="text-xs px-3 py-1 bg-red-100 text-red-800 rounded-full hover:bg-red-200"
+                  >
+                    Out of Stock
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Inventory Table */}
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        {loadingInventory && (
+          <div className="flex items-center justify-center py-12">
+            <Loader className="w-8 h-8 animate-spin text-blue-600" />
+            <span className="ml-3 text-gray-600">Loading inventory...</span>
+          </div>
+        )}
+        
+        {!loadingInventory && (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('category')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Category</span>
+                      {getSortIcon('category')}
+                    </div>
+                  </th>
+                  <th 
+                    className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                    onClick={() => handleSort('quantity')}
+                  >
+                    <div className="flex items-center space-x-1">
+                      <span>Stock</span>
+                      {getSortIcon('quantity')}
+                    </div>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Location
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredAndSortedInventory.map((item) => (
+                  <tr key={item.id || item.itemID} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-10 w-10 flex-shrink-0">
+                          <div className="h-10 w-10 rounded-lg bg-gray-200 flex items-center justify-center">
+                            <Package className="h-5 w-5 text-gray-500" />
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900">{item.name || item.itemName}</div>
+                          <div className="text-sm text-gray-500">ID: {item.itemID || item.id}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.category}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <div className="flex items-center">
+                        <span className="font-medium">{item.quantity || item.total_stock || 0}</span>
+                        <span className="text-gray-500 ml-1">/ {item.max_stock_level || item.maxStockLevel || '-'}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusBadge(item.status, item.quantity || item.total_stock || 0, item.min_stock_level || item.reorderLevel)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {item.locationID || item.location}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-2">
+                        <button 
+                          onClick={() => handleOpenUpdateModal(item)}
+                          className="text-blue-600 hover:text-blue-900 flex items-center space-x-1"
+                          title="Update Inventory"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                          <span>Update</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {!loadingInventory && filteredAndSortedInventory.length === 0 && (
+          <div className="text-center py-12">
+            <Package className="mx-auto h-12 w-12 text-gray-400" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900">No inventory items found</h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {errorInventory ? 'There was an error loading data. Try refreshing the page.' : 'Try adjusting your search criteria.'}
+            </p>
+            <div className="mt-6">
+              {errorInventory && (
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  <RefreshCw className="w-4 h-4 mr-2" />
+                  Retry
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Update Inventory Modal */}
+      {updateModalOpen && selectedUpdateItem && (
+        <UpdateInventoryModal
+          isOpen={updateModalOpen}
+          onClose={() => {
+            setUpdateModalOpen(false);
+            setSelectedUpdateItem(null);
+          }}
+          item={selectedUpdateItem}
+          onUpdate={handleUpdateItem}
+          isLoading={updateItemMutation.isLoading}
+        />
       )}
     </div>
   );
