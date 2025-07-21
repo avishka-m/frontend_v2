@@ -56,6 +56,7 @@ const RoleBasedChatbot = lazy(() => import('./pages/chatbot/RoleBasedChatbot'));
 const WarehouseMapPage = lazy(() => import('./pages/WarehouseMap'));
 const History = lazy(() => import('./pages/History'));
 const UpdateInventory = lazy(() => import('./pages/UpdateInventory'));
+const ReturnItem = lazy(() => import('./pages/receiving/ReturnItem'));
 
 function App() {
   return (
@@ -77,7 +78,7 @@ function App() {
                     <Route path="/dashboard" element={<RoleBasedDashboard />} />
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     {/* Inventory routes - Manager, ReceivingClerk, Picker */}
-                    <Route path="/inventory" element={<RoleBasedRoute allowedRoles={['Manager']}><Inventory /></RoleBasedRoute>} />
+                    <Route path="/inventory" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><Inventory /></RoleBasedRoute>} />
                     <Route path="/inventory/add" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><AddInventoryItem /></RoleBasedRoute>} />
                     <Route path="/inventory/edit/:id" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><EditInventoryItem /></RoleBasedRoute>} />
                     <Route path="/inventory/update" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><UpdateInventory /></RoleBasedRoute>} />
@@ -98,6 +99,7 @@ function App() {
                     {/* Receiving routes - Manager, ReceivingClerk */}
                     <Route path="/receiving" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><Receiving /></RoleBasedRoute>} />
                     <Route path="/receiving/create" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><CreateReceiving /></RoleBasedRoute>} />
+                    <Route path="/receiving/return-item" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><ReturnItem /></RoleBasedRoute>} />
                     <Route path="/receiving/:id" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><ReceivingDetail /></RoleBasedRoute>} />
                     {/* Picking routes - Manager, Picker */}
                     <Route path="/picking" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker']}><Picking /></RoleBasedRoute>} />
