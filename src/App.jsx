@@ -53,11 +53,8 @@ const Settings = lazy(() => import('./pages/Settings'));
 const OrderWorkflowTracker = lazy(() => import('./pages/OrderWorkflowTracker'));
 const WorkflowManagement = lazy(() => import('./pages/WorkflowManagement'));
 const RoleBasedChatbot = lazy(() => import('./pages/chatbot/RoleBasedChatbot'));
-
-
-// Warehouse Map Component
-import WarehouseMapPage from './pages/WarehouseMap';
-import History from './pages/History';
+const WarehouseMapPage = lazy(() => import('./pages/WarehouseMap'));
+const History = lazy(() => import('./pages/History'));
 
 function App() {
   return (
@@ -131,6 +128,11 @@ function App() {
                     <Route path="/settings" element={<RoleBasedRoute allowedRoles={['Manager']}><Settings /></RoleBasedRoute>} />
                     {/* Enhanced Chatbot - All roles */}
                     <Route path="/chatbot/enhanced" element={<RoleBasedChatbot />} />
+                    
+                    {/* Picker specific routes */}
+                    <Route path="/history" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker']}><History /></RoleBasedRoute>} />
+                    <Route path="/warehouse-map" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker']}><WarehouseMapPage /></RoleBasedRoute>} />
+                    
                     {/* Common routes */}
                     <Route path="/profile" element={<UserProfile />} />
                     <Route path="/change-password" element={<ChangePassword />} />

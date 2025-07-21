@@ -1286,7 +1286,7 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
       {/* ✨ NEW: Refresh indicator and manual refresh button */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Picker Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Logistic Agent Dashboard</h1>
           {backgroundRefreshing && (
             <div className="flex items-center text-sm text-blue-600">
               <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
