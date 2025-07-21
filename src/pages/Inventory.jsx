@@ -301,8 +301,8 @@ const Inventory = () => {
   };
 
   const getStatusBadge = (status, quantity, reorderLevel) => {
-    // Handle both snake_case and camelCase from different API responses
-    const reorder = reorderLevel || reorder_level;
+    // Use the passed reorderLevel parameter or default to 0
+    const reorder = reorderLevel || 0;
     
     if (quantity === 0) {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -619,7 +619,7 @@ const Inventory = () => {
                       ${(getFieldValue(item, 'unitPrice') || getFieldValue(item, 'unit_price') || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(item.status, item.quantity, getFieldValue(item, 'reorderLevel') || getFieldValue(item, 'reorder_level'))}
+                      {getStatusBadge(item.status, item.quantity, item.reorderLevel || item.min_stock_level)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.location}
