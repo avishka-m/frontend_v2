@@ -11,6 +11,8 @@ import api from './api';
 export const RETURNS_STATUS = {
   PENDING: 'pending',
   PROCESSING: 'processing',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
   COMPLETED: 'completed'
 };
 

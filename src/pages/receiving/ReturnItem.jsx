@@ -185,24 +185,16 @@ const ReturnItem = () => {
           timestamp: new Date().toISOString()
         });
       } else if (returnForm.return_reason === 'exchanged') {
-        // For exchanged items, update inventory and notify manager
-        try {
+        // For exchanged items, notify manager - no inventory update yet (manager will approve first)
         
-          if (updateResult) {
-            toast.success('Inventory updated for exchange');
-          }
-        } catch (error) {
-          console.error('Failed to update inventory:', error);
-        }
-        
-        // Send notification to manager (placeholder - you mentioned not to implement full manager feature)
+        // Send notification to manager (the return was already created above)
         console.log('MANAGER NOTIFICATION:', {
           type: 'exchange_request',
           item: selectedItem.name,
           itemId: selectedItem.itemID,
           quantity: returnForm.quantity,
           returned_by: returnForm.returned_by,
-          returnId: result.data?.id,
+          returnId: result.data?.returnID,
           timestamp: new Date().toISOString()
         });
         
