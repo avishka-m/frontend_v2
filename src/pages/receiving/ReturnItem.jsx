@@ -4,6 +4,7 @@ import { Package, AlertTriangle, RotateCcw, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import inventoryService from '../../services/inventoryService';
 import returnsService from '../../services/returnsService';
+import { loadAllPaginatedItems } from '../../utils/paginationUtils';
 
 const ReturnItem = () => {
   const navigate = useNavigate();
@@ -27,10 +28,10 @@ const ReturnItem = () => {
   const loadInventoryItems = async () => {
     try {
       setLoading(true);
-      const response = await inventoryService.getInventory({ limit: 1000 });
-      
-      if (response && response.length > 0) {
-        setInventoryItems(response);
+      const allItems = await loadAllPaginatedItems(inventoryService.getInventory);
+
+      if (allItems.length > 0) {
+        setInventoryItems(allItems);
       } else {
         setInventoryItems([]);
         toast('No inventory items found', { icon: 'ℹ️' });
