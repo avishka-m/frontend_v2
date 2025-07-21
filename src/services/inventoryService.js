@@ -12,14 +12,16 @@ export const inventoryService = {
       if (params.category && params.category !== 'All') queryParams.append('category', params.category);
       if (params.low_stock) queryParams.append('low_stock', params.low_stock);
 
-      const response = await api.get(`/inventory?${queryParams.toString()}`);
+      const response = await api.get(`/inventory/?${queryParams.toString()}`);
       
       // Transform backend data to frontend format for compatibility
       const transformedData = response.data.map(item => ({
         id: item.itemID,
         itemID: item.itemID,
+        inventoryID: item.itemID, // Add compatibility field for ReturnItem component
         name: item.name,
         itemName: item.name, // Add compatibility field
+        item_name: item.name, // Add compatibility field for ReturnItem component
         category: item.category,
         size: item.size,
         storage_type: item.storage_type,
@@ -66,8 +68,10 @@ export const inventoryService = {
       return {
         id: item.itemID,
         itemID: item.itemID,
+        inventoryID: item.itemID, // Add compatibility field for ReturnItem component
         name: item.name,
         itemName: item.name, // Add compatibility field
+        item_name: item.name, // Add compatibility field for ReturnItem component
         category: item.category,
         size: item.size,
         storage_type: item.storage_type,
@@ -313,6 +317,23 @@ export const inventoryService = {
     } catch (error) {
       console.error('Error fetching inventory anomalies:', error);
       throw error;
+    }
+  },
+
+  // Update inventory - simplified version for UpdateInventory component
+  updateInventory: async (id, data) => {
+    try {
+      const response = await api.put(`/inventory/${id}`, data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Error updating inventory:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Failed to update inventory'
+      };
     }
   },
 

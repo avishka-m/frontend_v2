@@ -22,6 +22,7 @@ const CreateReturn = () => {
     customerId: '',
     workerId: '',
     returnMethod: 'customer_drop_off',
+    status: 'pending',
     items: [],
     notes: ''
   });
@@ -42,6 +43,11 @@ const CreateReturn = () => {
     try {
       const orders = await orderService.getOrders({ status: 'delivered' });
       setDeliveredOrders(orders || []);
+      
+      // Log if no delivered orders found
+      if (!orders || orders.length === 0) {
+        console.log('No delivered orders found. Orders must be delivered before they can be returned.');
+      }
     } catch (err) {
       console.error('Error loading delivered orders:', err);
     }
@@ -230,10 +236,14 @@ const CreateReturn = () => {
                 }`}
                 required
               >
-                <option value="">Select delivered order</option>
+                <option value="">
+                  {deliveredOrders.length > 0 
+                    ? 'Select delivered order' 
+                    : 'No delivered orders available'}
+                </option>
                 {deliveredOrders.map(order => (
                   <option key={order.orderID} value={order.orderID}>
-                    Order #{order.orderID} - Customer #{order.customerID}
+                    Order #{order.orderID} - Customer #{order.customerID} - Status: {order.status || 'delivered'}
                   </option>
                 ))}
               </select>

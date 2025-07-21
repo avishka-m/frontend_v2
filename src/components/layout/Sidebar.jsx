@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
+import orderService from '../../services/orderService';
+import { inventoryService } from '../../services/inventoryService';
+import receivingService from '../../services/receivingService';
 import {
   Home,
   Package,
@@ -42,22 +46,17 @@ const ROLE_NAVIGATION = {
   ],
   ReceivingClerk: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
-    { path: '/workflow', name: 'Workflow', icon: Activity },
-    { path: '/inventory', name: 'Inventory', icon: Package },
-    { path: '/receiving', name: 'Receiving', icon: ArrowLeftRight },
-    { path: '/locations', name: 'Locations', icon: MapPin },
-    { path: '/returns', name: 'Returns', icon: RotateCcw },
-    { path: '/orders', name: 'View Orders', icon: ShoppingCart }
+    { path: '/inventory/update', name: 'Update Inventory', icon: Package },
+    { path: '/receiving/return-item', name: 'Return Item', icon: RotateCcw },
+    { path: '/returns', name: 'Returns Management', icon: RotateCcw },
+    { path: '/inventory', name: 'Inventory', icon: Archive },
+    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle }
   ],
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
-    { path: '/workflow', name: 'Workflow', icon: Activity },
-    { path: '/inventory', name: 'Inventory', icon: Package },
-    { path: '/picking', name: 'Picking Tasks', icon: ClipboardCheck },
-    { path: '/orders', name: 'Orders', icon: ShoppingCart },
-    { path: '/locations', name: 'Locations', icon: MapPin }
+    { path: '/history', name: 'History', icon: ClipboardCheck },
+    { path: '/warehouse-map', name: 'Warehouse Map', icon: MapPin },
+    { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle }
   ],
   Packer: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
@@ -79,6 +78,27 @@ const Sidebar = () => {
   const location = useLocation();
   const { currentUser } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const queryClient = useQueryClient();
+
+  // Prefetch logic for sidebar links
+  const handlePrefetch = (path) => {
+    if (path === '/orders') {
+      queryClient.prefetchQuery({
+        queryKey: ['orders', { statusFilter: '' }],
+        queryFn: () => orderService.getOrders({ limit: 100 })
+      });
+    } else if (path === '/inventory') {
+      queryClient.prefetchQuery({
+        queryKey: ['inventory', { searchTerm: '', selectedCategory: 'All', selectedStatus: 'All', page: 1, limit: 50, sortKey: 'name', sortDir: 'asc' }],
+        queryFn: () => inventoryService.getInventory({ page: 1, limit: 50, sort_by: 'name', sort_order: 'asc' })
+      });
+    } else if (path === '/receiving') {
+      queryClient.prefetchQuery({
+        queryKey: ['receivings', { statusFilter: '' }],
+        queryFn: () => receivingService.getAllReceivings({})
+      });
+    }
+  };
 
   // Get navigation items based on user role
   const navItems = currentUser?.role ? ROLE_NAVIGATION[currentUser.role] || [] : [];
@@ -119,6 +139,7 @@ const Sidebar = () => {
                         ? 'bg-primary-50 text-primary-600'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
+                    onMouseEnter={() => handlePrefetch(item.path)}
                   >
                     <span className="mr-3"><Icon className="w-6 h-6" /></span>
                     {!collapsed && <span>{item.name}</span>}

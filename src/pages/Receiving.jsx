@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { 
@@ -21,78 +21,75 @@ import {
   RefreshCw
 } from 'lucide-react';
 import receivingService from '../services/receivingService';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 const Receiving = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [receivings, setReceivings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
-  const [stats, setStats] = useState(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    fetchReceivingRecords();
-    fetchStats();
-  }, [statusFilter]);
-
-  const fetchReceivingRecords = async () => {
-    try {
-      setLoading(true);
+  // Fetch receivings with React Query
+  const {
+    data: receivings = [],
+    isLoading: loadingReceivings,
+    isError: errorReceivings
+  } = useQuery({
+    queryKey: ['receivings', { statusFilter }],
+    queryFn: async () => {
       const filters = {};
       if (statusFilter) filters.status = statusFilter;
-      
       const result = await receivingService.getAllReceivings(filters);
-      
       if (result.success) {
-        setReceivings(result.data);
-        setError(null);
+        return result.data;
       } else {
-        setError(result.error);
+        throw new Error(result.error || 'Failed to fetch receiving records');
       }
-    } catch (err) {
-      setError('Failed to fetch receiving records');
-    } finally {
-      setLoading(false);
     }
-  };
+  });
 
-  const fetchStats = async () => {
-    try {
+  // Fetch stats with React Query
+  const {
+    data: stats,
+    isLoading: loadingStats,
+    isError: errorStats
+  } = useQuery({
+    queryKey: ['receivingStats'],
+    queryFn: async () => {
       const result = await receivingService.getReceivingStats();
       if (result.success) {
-        setStats(result.data);
+        return result.data;
+      } else {
+        throw new Error(result.error || 'Failed to fetch receiving stats');
       }
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
     }
-  };
+  });
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    await fetchReceivingRecords();
-    await fetchStats();
-    setRefreshing(false);
+  // Process receiving mutation
+  const processReceivingMutation = useMutation({
+    mutationFn: (receivingId) => receivingService.processReceiving(receivingId),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['receivings']);
+      queryClient.invalidateQueries(['receivingStats']);
+      alert('Receiving processed successfully!');
+    },
+    onError: (error) => {
+      alert('Failed to process receiving: ' + (error.message || 'Unknown error'));
+    }
+  });
+
+  const handleRefresh = () => {
+    queryClient.invalidateQueries(['receivings']);
+    queryClient.invalidateQueries(['receivingStats']);
   };
 
   const handleStatusChange = (status) => {
     setStatusFilter(status);
   };
 
-  const handleProcess = async (receivingId) => {
-    try {
-      const result = await receivingService.processReceiving(receivingId);
-      if (result.success) {
-        alert('Receiving processed successfully!');
-        fetchReceivingRecords();
-      } else {
-        alert('Failed to process receiving: ' + result.error);
-      }
-    } catch (err) {
-      alert('Failed to process receiving');
-    }
+  const handleProcess = (receivingId) => {
+    processReceivingMutation.mutate(receivingId);
   };
 
   const getStatusIcon = (status) => {
@@ -117,7 +114,6 @@ const Receiving = () => {
       completed: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800'
     };
-    
     return (
       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colorMap[status] || 'bg-gray-100 text-gray-800'}`}>
         {getStatusIcon(status)}
@@ -138,19 +134,28 @@ const Receiving = () => {
     return receivingService.canPerformAction('update', receiving, currentUser);
   };
 
-  const filteredReceivings = receivings.filter(receiving => {
+  const filteredReceivings = (receivings || []).filter(receiving => {
     const matchesSearch = !searchTerm || 
       receiving.receivingID.toString().includes(searchTerm) ||
       receiving.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       receiving.supplierID.toString().includes(searchTerm);
-    
     return matchesSearch;
   });
 
-  if (loading) {
+  if (loadingReceivings || loadingStats) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (errorReceivings || errorStats) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="bg-red-100 text-red-800 p-4 rounded-lg">
+          Failed to load receiving records or stats. Please try again later.
+        </div>
       </div>
     );
   }
@@ -168,10 +173,10 @@ const Receiving = () => {
         <div className="flex items-center space-x-3">
           <button
             onClick={handleRefresh}
-            disabled={refreshing}
+            disabled={loadingReceivings || loadingStats}
             className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
           >
-            <RefreshCw className={`w-4 h-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 mr-2 ${loadingReceivings || loadingStats ? 'animate-spin' : ''}`} />
             Refresh
           </button>
           {canCreateReceiving() && (
@@ -297,14 +302,26 @@ const Receiving = () => {
       </div>
 
       {/* Error Message */}
-      {error && (
+      {errorReceivings && (
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex">
             <div className="flex-shrink-0">
               <AlertCircle className="h-5 w-5 text-red-400" />
             </div>
             <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+              <p className="text-sm text-red-700">Failed to fetch receiving records. Please try again later.</p>
+            </div>
+          </div>
+        </div>
+      )}
+      {errorStats && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <AlertCircle className="h-5 w-5 text-red-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm text-red-700">Failed to fetch receiving stats. Please try again later.</p>
             </div>
           </div>
         </div>
