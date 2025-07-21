@@ -40,79 +40,82 @@ const WarehouseMap = ({
     const slots = [];
     
     // B slots (Medium/Bin) - 3 columns: B01-B07, B08-B14, B15-B21
-    // Column 1: x=1, y=2-8 (B01-B07)
+    // ✨ SEASONAL OPTIMIZATION: Higher numbers closer to packing point (0,11)
+    // Column 1: x=1, y=8-2 (B07-B01) - B07 closest to packing at y=8
     for (let i = 0; i < 7; i++) {
       slots.push({
-        code: `B${String(i + 1).padStart(2, '0')}`, // B01, B02, ..., B07
+        code: `B${String(7 - i).padStart(2, '0')}`, // B07, B06, B05, B04, B03, B02, B01
         x: 1,
-        y: 2 + i,
+        y: 8 - i, // y=8,7,6,5,4,3,2 - B07 at y=8 (closest to packing at y=11)
         type: 'M',
         rackGroup: 'B1'
       });
     }
     
-    // Column 2: x=3, y=2-8 (B08-B14) 
+    // Column 2: x=3, y=8-2 (B14-B08) - B14 closest to packing at y=8
     for (let i = 0; i < 7; i++) {
       slots.push({
-        code: `B${String(i + 8).padStart(2, '0')}`, // B08, B09, ..., B14
+        code: `B${String(14 - i).padStart(2, '0')}`, // B14, B13, B12, B11, B10, B09, B08
         x: 3,
-        y: 2 + i,
+        y: 8 - i, // y=8,7,6,5,4,3,2 - B14 at y=8 (closest to packing at y=11)
         type: 'M',
         rackGroup: 'B2'
       });
     }
     
-    // Column 3: x=5, y=2-8 (B15-B21)
+    // Column 3: x=5, y=8-2 (B21-B15) - B21 closest to packing at y=8
     for (let i = 0; i < 7; i++) {
       slots.push({
-        code: `B${String(i + 15).padStart(2, '0')}`, // B15, B16, ..., B21
+        code: `B${String(21 - i).padStart(2, '0')}`, // B21, B20, B19, B18, B17, B16, B15
         x: 5,
-        y: 2 + i,
+        y: 8 - i, // y=8,7,6,5,4,3,2 - B21 at y=8 (closest to packing at y=11)
         type: 'M',
         rackGroup: 'B3'
       });
     }
     
     // P slots (Small/Pellet) - 2 columns: P01-P07, P08-P14
-    // Column 1: x=7, y=2-8 (P01-P07)
+    // ✨ SEASONAL OPTIMIZATION: Higher numbers closer to packing point (0,11)
+    // Column 1: x=7, y=8-2 (P07-P01) - P07 closest to packing at y=8
     for (let i = 0; i < 7; i++) {
       slots.push({
-        code: `P${String(i + 1).padStart(2, '0')}`, // P01, P02, ..., P07
+        code: `P${String(7 - i).padStart(2, '0')}`, // P07, P06, P05, P04, P03, P02, P01
         x: 7,
-        y: 2 + i,
+        y: 8 - i, // y=8,7,6,5,4,3,2 - P07 at y=8 (closest to packing at y=11)
         type: 'S',
         rackGroup: 'P1'
       });
     }
     
-    // Column 2: x=9, y=2-8 (P08-P14)
+    // Column 2: x=9, y=8-2 (P14-P08) - P14 closest to packing at y=8
     for (let i = 0; i < 7; i++) {
       slots.push({
-        code: `P${String(i + 8).padStart(2, '0')}`, // P08, P09, ..., P14
+        code: `P${String(14 - i).padStart(2, '0')}`, // P14, P13, P12, P11, P10, P09, P08
         x: 9,
-        y: 2 + i,
+        y: 8 - i, // y=8,7,6,5,4,3,2 - P14 at y=8 (closest to packing at y=11)
         type: 'S',
         rackGroup: 'P2'
       });
     }
     
     // D slots (Large) - 2 rows: D01-D07, D08-D14
-    // Row 1: y=10, x=3-9 (D01-D07)
+    // ✨ SEASONAL OPTIMIZATION: Higher numbers closer to packing point (0,11)
+    // Row 1: y=10, x=3-9 (D07-D01) - D07 closest to packing at x=9
     for (let i = 0; i < 7; i++) {
       slots.push({
-        code: `D${String(i + 1).padStart(2, '0')}`, // D01, D02, ..., D07
-        x: 3 + i,
+        code: `D${String(7 - i).padStart(2, '0')}`, // D07, D06, D05, D04, D03, D02, D01
+        x: 9 - i, // x=9,8,7,6,5,4,3 - D07 at x=9 (closest to packing at x=0)
         y: 10,
         type: 'D',
         rackGroup: 'D1'
       });
     }
     
-    // Row 2: y=11, x=3-9 (D08-D14)
+    // Row 2: y=11, x=3-9 (D14-D08) - D14 closest to packing at x=9
     for (let i = 0; i < 7; i++) {
       slots.push({
-        code: `D${String(i + 8).padStart(2, '0')}`, // D08, D09, ..., D14
-        x: 3 + i,
+        code: `D${String(14 - i).padStart(2, '0')}`, // D14, D13, D12, D11, D10, D09, D08
+        x: 9 - i, // x=9,8,7,6,5,4,3 - D14 at x=9 (closest to packing at x=0)
         y: 11,
         type: 'D',
         rackGroup: 'D2'
@@ -869,7 +872,12 @@ const WarehouseMap = ({
                   </div>
                   {currentDestination && (
                     <div className="text-xs text-gray-600 mt-1">
-                      Step {currentDestination.stepNumber}: {currentDestination.description || 'Navigate to destination'}
+                      Step {currentDestination.stepNumber}: {
+                        currentDestination.description || 
+                        (currentDestination.item?.locationID 
+                          ? `Navigate to ${currentDestination.item.locationID}`
+                          : 'Navigate to destination')
+                      }
                     </div>
                   )}
                 </div>
@@ -942,7 +950,7 @@ const WarehouseMap = ({
             <div className="mt-2 text-sm">
               <span className="text-blue-700">Next Destination:</span>
               <span className="ml-2 font-medium text-blue-900">
-                ({currentDestination.to.x}, {currentDestination.to.y})
+                {currentDestination.item?.locationID || `(${currentDestination.to.x}, ${currentDestination.to.y})`}
               </span>
             </div>
           )}

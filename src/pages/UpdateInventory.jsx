@@ -36,7 +36,8 @@ const UpdateInventory = () => {
   const loadInventoryItems = async () => {
     try {
       setSearchLoading(true);
-      const items = await inventoryService.getInventory({ limit: 1000 });
+      // Temporarily reduce limit to debug the issue
+      const items = await inventoryService.getInventory({ limit: 100 });
       setInventoryItems(items);
     } catch (error) {
       console.error('Error loading inventory:', error);
