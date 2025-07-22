@@ -14,26 +14,31 @@ export const inventoryService = {
 
       const response = await api.get(`/inventory/?${queryParams.toString()}`);
       
+      // Backend returns { items: [...], pagination: {...} }, so we need to extract the items array
+      const backendData = Array.isArray(response.data) ? response.data : response.data.items || [];
+      
       // Transform backend data to frontend format for compatibility
-      const transformedData = response.data.map(item => ({
+      const transformedData = backendData.map(item => ({
         id: item.itemID,
         itemID: item.itemID,
+        inventoryID: item.itemID, // Add compatibility field for ReturnItem component
         name: item.name,
         itemName: item.name, // Add compatibility field
+        item_name: item.name, // Add compatibility field for ReturnItem component
         category: item.category,
         size: item.size,
         storage_type: item.storage_type,
-        quantity: item.stock_level,
-        stock_level: item.stock_level,
-        current_stock: item.stock_level, // Add compatibility field
+        quantity: item.total_stock || 0,
+        stock_level: item.total_stock || 0,
+        current_stock: item.total_stock || 0, // Add compatibility field
         reorderLevel: item.min_stock_level,
         min_stock_level: item.min_stock_level,
         maxStockLevel: item.max_stock_level,
         max_stock_level: item.max_stock_level,
         supplierID: item.supplierID,
         locationID: item.locationID,
-        status: item.stock_level === 0 ? 'out_of_stock' : 
-                item.stock_level <= item.min_stock_level ? 'low_stock' : 'active',
+        status: (item.total_stock || 0) === 0 ? 'out_of_stock' : 
+                (item.total_stock || 0) <= item.min_stock_level ? 'low_stock' : 'active',
         created_at: item.created_at,
         updated_at: item.updated_at,
         // Add computed fields for compatibility
@@ -66,22 +71,24 @@ export const inventoryService = {
       return {
         id: item.itemID,
         itemID: item.itemID,
+        inventoryID: item.itemID, // Add compatibility field for ReturnItem component
         name: item.name,
         itemName: item.name, // Add compatibility field
+        item_name: item.name, // Add compatibility field for ReturnItem component
         category: item.category,
         size: item.size,
         storage_type: item.storage_type,
-        quantity: item.stock_level,
-        stock_level: item.stock_level,
-        current_stock: item.stock_level, // Add compatibility field
+        quantity: item.total_stock || 0,
+        stock_level: item.total_stock || 0,
+        current_stock: item.total_stock || 0, // Add compatibility field
         reorderLevel: item.min_stock_level,
         min_stock_level: item.min_stock_level,
         maxStockLevel: item.max_stock_level,
         max_stock_level: item.max_stock_level,
         supplierID: item.supplierID,
         locationID: item.locationID,
-        status: item.stock_level === 0 ? 'out_of_stock' : 
-                item.stock_level <= item.min_stock_level ? 'low_stock' : 'active',
+        status: (item.total_stock || 0) === 0 ? 'out_of_stock' : 
+                (item.total_stock || 0) <= item.min_stock_level ? 'low_stock' : 'active',
         created_at: item.created_at,
         updated_at: item.updated_at,
         // Add computed fields for compatibility
@@ -107,7 +114,7 @@ export const inventoryService = {
         category: item.category,
         size: item.size || 'M',
         storage_type: item.storage_type || 'standard',
-        stock_level: parseInt(item.quantity || item.stock_level || 0),
+        total_stock: parseInt(item.quantity || item.stock_level || 0),
         min_stock_level: parseInt(item.reorderLevel || item.min_stock_level || 10),
         max_stock_level: parseInt(item.maxStockLevel || item.max_stock_level || 100),
         supplierID: item.supplierID || 1,
@@ -125,8 +132,8 @@ export const inventoryService = {
         category: createdItem.category,
         size: createdItem.size,
         storage_type: createdItem.storage_type,
-        quantity: createdItem.stock_level,
-        stock_level: createdItem.stock_level,
+        quantity: createdItem.total_stock || 0,
+        stock_level: createdItem.total_stock || 0,
         reorderLevel: createdItem.min_stock_level,
         min_stock_level: createdItem.min_stock_level,
         maxStockLevel: createdItem.max_stock_level,
@@ -156,7 +163,7 @@ export const inventoryService = {
         category: item.category,
         size: item.size,
         storage_type: item.storage_type,
-        stock_level: parseInt(item.quantity || item.stock_level || 0),
+        total_stock: parseInt(item.quantity || item.stock_level || 0),
         min_stock_level: parseInt(item.reorderLevel || item.min_stock_level || 10),
         max_stock_level: parseInt(item.maxStockLevel || item.max_stock_level || 100),
         supplierID: item.supplierID,
@@ -174,16 +181,16 @@ export const inventoryService = {
         category: updatedItem.category,
         size: updatedItem.size,
         storage_type: updatedItem.storage_type,
-        quantity: updatedItem.stock_level,
-        stock_level: updatedItem.stock_level,
+        quantity: updatedItem.total_stock || 0,
+        stock_level: updatedItem.total_stock || 0,
         reorderLevel: updatedItem.min_stock_level,
         min_stock_level: updatedItem.min_stock_level,
         maxStockLevel: updatedItem.max_stock_level,
         max_stock_level: updatedItem.max_stock_level,
         supplierID: updatedItem.supplierID,
         locationID: updatedItem.locationID,
-        status: updatedItem.stock_level === 0 ? 'out_of_stock' : 
-                updatedItem.stock_level <= updatedItem.min_stock_level ? 'low_stock' : 'active',
+        status: (updatedItem.total_stock || 0) === 0 ? 'out_of_stock' : 
+                (updatedItem.total_stock || 0) <= updatedItem.min_stock_level ? 'low_stock' : 'active',
         created_at: updatedItem.created_at,
         updated_at: updatedItem.updated_at,
         sku: `SKU-${updatedItem.itemID.toString().padStart(4, '0')}`,
@@ -242,7 +249,7 @@ export const inventoryService = {
     try {
       // Backend doesn't have a specific categories endpoint, 
       // so we get all inventory and extract unique categories
-      const allInventory = await inventoryService.getInventory({ limit: 1000 });
+      const allInventory = await inventoryService.getInventory({ limit: 100 });
       const categories = [...new Set(allInventory.map(item => item.category))];
       return categories.length > 0 ? categories : ['Electronics', 'Clothing', 'Food', 'Other'];
     } catch (error) {
@@ -256,13 +263,16 @@ export const inventoryService = {
   getLowStockItems: async () => {
     try {
       const response = await api.get('/inventory/low-stock');
-      return response.data.map(item => ({
+      // Backend returns { items: [...], pagination: {...} }, so we need to extract the items array
+      const backendData = Array.isArray(response.data) ? response.data : response.data.items || [];
+      
+      return backendData.map(item => ({
         id: item.itemID,
         itemID: item.itemID,
         name: item.name,
         category: item.category,
-        quantity: item.stock_level,
-        stock_level: item.stock_level,
+        quantity: item.total_stock || 0,
+        stock_level: item.total_stock || 0,
         reorderLevel: item.min_stock_level,
         min_stock_level: item.min_stock_level,
         status: 'low_stock',
@@ -316,10 +326,27 @@ export const inventoryService = {
     }
   },
 
+  // Update inventory - simplified version for UpdateInventory component
+  updateInventory: async (id, data) => {
+    try {
+      const response = await api.put(`/inventory/${id}`, data);
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Error updating inventory:', error);
+      return {
+        success: false,
+        error: error.response?.data?.detail || 'Failed to update inventory'
+      };
+    }
+  },
+
   // Get inventory statistics (computed from current data)
   getInventoryStats: async () => {
     try {
-      const allInventory = await this.getInventory({ limit: 1000 });
+      const allInventory = await this.getInventory({ limit: 100 });
       const lowStockItems = await this.getLowStockItems();
       
       const stats = {
@@ -349,7 +376,7 @@ export const inventoryService = {
     } catch (error) {
       console.error('Error exporting inventory:', error);
       // Fallback: create CSV from current data
-      const inventory = await this.getInventory({ limit: 1000 });
+      const inventory = await this.getInventory({ limit: 100 });
       const csvContent = this.convertToCSV(inventory);
       const blob = new Blob([csvContent], { type: 'text/csv' });
       return blob;

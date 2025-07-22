@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Package, 
@@ -90,6 +90,292 @@ const mockInventoryData = [
 
 const statusOptions = ['All', 'active', 'low_stock', 'out_of_stock'];
 
+// UpdateInventoryModal component
+const UpdateInventoryModal = ({ isOpen, onClose, item, onUpdate, isLoading }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    category: '',
+    size: 'M',
+    storage_type: 'standard',
+    total_stock: 0,
+    min_stock_level: 10,
+    max_stock_level: 100,
+    supplierID: 1,
+    locationID: ''
+  });
+
+  // Initialize form data when item changes
+  useEffect(() => {
+    if (item) {
+      setFormData({
+        name: item.name || item.itemName || '',
+        category: item.category || '',
+        size: item.size || 'M',
+        storage_type: item.storage_type || 'standard',
+        total_stock: item.quantity || item.total_stock || item.stock_level || 0,
+        min_stock_level: item.min_stock_level || item.reorderLevel || 10,
+        max_stock_level: item.max_stock_level || item.maxStockLevel || 100,
+        supplierID: item.supplierID || 1,
+        locationID: item.locationID || item.location || ''
+      });
+    }
+  }, [item]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onUpdate(formData);
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'number' ? parseInt(value) || 0 : value
+    }));
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+      <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div className="mt-3">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-medium text-gray-900">
+              Update Inventory Item
+            </h3>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              <XCircle className="h-6 w-6" />
+            </button>
+          </div>
+
+          {/* Item Info */}
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <h4 className="font-medium text-gray-900 mb-2">Current Item Details</h4>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="font-medium">Item ID:</span> {item?.itemID || item?.id}
+              </div>
+              <div>
+                <span className="font-medium">Current Stock:</span> {item?.quantity || item?.total_stock || 0}
+              </div>
+              <div>
+                <span className="font-medium">Location:</span> {item?.locationID || item?.location || 'N/A'}
+              </div>
+              <div>
+                <span className="font-medium">Last Updated:</span> {item?.updated_at ? new Date(item.updated_at).toLocaleDateString() : 'N/A'}
+              </div>
+            </div>
+          </div>
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Item Name */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Item Name
+                </label>
+                <input
+                  type="text"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+
+              {/* Category */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Category
+                </label>
+                <select
+                  name="category"
+                  value={formData.category}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                >
+                  <option value="">Select Category</option>
+                  <option value="Electronics">Electronics</option>
+                  <option value="Clothing">Clothing</option>
+                  <option value="Books">Books</option>
+                  <option value="Home & Garden">Home & Garden</option>
+                  <option value="Sports & Outdoors">Sports & Outdoors</option>
+                  <option value="Health & Beauty">Health & Beauty</option>
+                  <option value="Tools & Hardware">Tools & Hardware</option>
+                  <option value="Food & Beverages">Food & Beverages</option>
+                </select>
+              </div>
+
+              {/* Size */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Size
+                </label>
+                <select
+                  name="size"
+                  value={formData.size}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="S">Small (S)</option>
+                  <option value="M">Medium (M)</option>
+                  <option value="L">Large (L)</option>
+                </select>
+              </div>
+
+              {/* Storage Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Storage Type
+                </label>
+                <select
+                  name="storage_type"
+                  value={formData.storage_type}
+                  onChange={handleChange}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                >
+                  <option value="standard">Standard</option>
+                  <option value="refrigerated">Refrigerated</option>
+                  <option value="fragile">Fragile</option>
+                  <option value="hazardous">Hazardous</option>
+                </select>
+              </div>
+
+              {/* Total Stock */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Total Stock
+                </label>
+                <input
+                  type="number"
+                  name="total_stock"
+                  value={formData.total_stock}
+                  onChange={handleChange}
+                  min="0"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+
+              {/* Min Stock Level */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Minimum Stock Level
+                </label>
+                <input
+                  type="number"
+                  name="min_stock_level"
+                  value={formData.min_stock_level}
+                  onChange={handleChange}
+                  min="0"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+
+              {/* Max Stock Level */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Maximum Stock Level
+                </label>
+                <input
+                  type="number"
+                  name="max_stock_level"
+                  value={formData.max_stock_level}
+                  onChange={handleChange}
+                  min="1"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+
+              {/* Supplier ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Supplier ID
+                </label>
+                <input
+                  type="number"
+                  name="supplierID"
+                  value={formData.supplierID}
+                  onChange={handleChange}
+                  min="1"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+
+              {/* Location ID */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">
+                  Location ID
+                </label>
+                <input
+                  type="text"
+                  name="locationID"
+                  value={formData.locationID}
+                  onChange={handleChange}
+                  placeholder="e.g., B1.4"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary-500 focus:border-primary-500"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Stock Level Validation */}
+            {formData.total_stock < formData.min_stock_level && (
+              <div className="text-yellow-600 bg-yellow-50 p-3 rounded-md text-sm flex items-center">
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                Current stock is below minimum level - this will mark the item as low stock
+              </div>
+            )}
+
+            {formData.total_stock === 0 && (
+              <div className="text-red-600 bg-red-50 p-3 rounded-md text-sm flex items-center">
+                <XCircle className="h-4 w-4 mr-2" />
+                Zero stock will mark this item as out of stock
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end space-x-3 pt-4 border-t">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="px-4 py-2 bg-primary-600 border border-transparent rounded-md text-sm font-medium text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? (
+                  <div className="flex items-center">
+                    <Loader className="animate-spin h-4 w-4 mr-2" />
+                    Updating...
+                  </div>
+                ) : (
+                  'Update Inventory'
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const Inventory = () => {
   const navigate = useNavigate();
   const { addNotification } = useNotification();
@@ -107,6 +393,8 @@ const Inventory = () => {
     total: 0,
     totalPages: 0
   });
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [selectedUpdateItem, setSelectedUpdateItem] = useState(null);
   const queryClient = useQueryClient();
 
   // Fetch categories with React Query
@@ -220,6 +508,28 @@ const Inventory = () => {
     }
   });
 
+  // Update item mutation
+  const updateItemMutation = useMutation({
+    mutationFn: ({ id, data }) => inventoryService.updateInventoryItem(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['inventory']);
+      setUpdateModalOpen(false);
+      setSelectedUpdateItem(null);
+      addNotification({
+        type: NOTIFICATION_TYPES.SUCCESS,
+        message: 'Item Updated',
+        description: 'Inventory item has been successfully updated.'
+      });
+    },
+    onError: (error) => {
+      addNotification({
+        type: NOTIFICATION_TYPES.ERROR,
+        message: 'Update Failed',
+        description: error.response?.data?.detail || 'Could not update the item.'
+      });
+    }
+  });
+
   // Handle manual refresh
   const handleRefresh = () => {
     queryClient.invalidateQueries(['inventory']);
@@ -273,6 +583,21 @@ const Inventory = () => {
     }
   };
 
+  // Handle open update modal
+  const handleOpenUpdateModal = (item) => {
+    setSelectedUpdateItem(item);
+    setUpdateModalOpen(true);
+  };
+
+  // Handle update item
+  const handleUpdateItem = (formData) => {
+    if (!selectedUpdateItem) return;
+    updateItemMutation.mutate({
+      id: selectedUpdateItem.itemID || selectedUpdateItem.id,
+      data: formData
+    });
+  };
+
   // Local filtering and sorting (when API doesn't handle it server-side)
   const filteredAndSortedInventory = useMemo(() => {
     let filtered = [...inventory];
@@ -301,8 +626,8 @@ const Inventory = () => {
   };
 
   const getStatusBadge = (status, quantity, reorderLevel) => {
-    // Handle both snake_case and camelCase from different API responses
-    const reorder = reorderLevel || reorder_level;
+    // Use the passed reorderLevel parameter or default to 0
+    const reorder = reorderLevel || 0;
     
     if (quantity === 0) {
       return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
@@ -619,7 +944,7 @@ const Inventory = () => {
                       ${(getFieldValue(item, 'unitPrice') || getFieldValue(item, 'unit_price') || 0).toFixed(2)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      {getStatusBadge(item.status, item.quantity, getFieldValue(item, 'reorderLevel') || getFieldValue(item, 'reorder_level'))}
+                      {getStatusBadge(item.status, item.quantity, item.reorderLevel || item.min_stock_level)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {item.location}
@@ -634,12 +959,19 @@ const Inventory = () => {
                           <Eye className="h-4 w-4" />
                         </button>
                         <button 
+                          onClick={() => handleOpenUpdateModal(item)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Update Inventory"
+                        >
+                          <Edit3 className="h-4 w-4" />
+                        </button>
+                        {/* <button 
                           onClick={() => navigate(`/inventory/edit/${item.id}`)}
                           className="text-indigo-600 hover:text-indigo-900"
                           title="Edit Item"
                         >
                           <Edit3 className="h-4 w-4" />
-                        </button>
+                        </button> */}
                         <button 
                           onClick={() => handleDeleteItem(item.id)}
                           className="text-red-600 hover:text-red-900"
@@ -685,6 +1017,20 @@ const Inventory = () => {
           </div>
         )}
       </div>
+
+      {/* Update Inventory Modal */}
+      {updateModalOpen && selectedUpdateItem && (
+        <UpdateInventoryModal
+          isOpen={updateModalOpen}
+          onClose={() => {
+            setUpdateModalOpen(false);
+            setSelectedUpdateItem(null);
+          }}
+          item={selectedUpdateItem}
+          onUpdate={handleUpdateItem}
+          isLoading={updateItemMutation.isLoading}
+        />
+      )}
     </div>
   );
 };

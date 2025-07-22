@@ -12,6 +12,7 @@ import FloatingChatWidget from './components/common/FloatingChatWidget';
 // import WebSocketMonitor from './components/WebSocketMonitor';
 import { Toaster } from 'react-hot-toast';
 
+
 // Lazy load pages
 const Login = lazy(() => import('./pages/Login'));
 const RoleBasedDashboard = lazy(() => import('./pages/RoleBasedDashboard'));
@@ -52,6 +53,10 @@ const Settings = lazy(() => import('./pages/Settings'));
 const OrderWorkflowTracker = lazy(() => import('./pages/OrderWorkflowTracker'));
 const WorkflowManagement = lazy(() => import('./pages/WorkflowManagement'));
 const RoleBasedChatbot = lazy(() => import('./pages/chatbot/RoleBasedChatbot'));
+const WarehouseMapPage = lazy(() => import('./pages/WarehouseMap'));
+const History = lazy(() => import('./pages/History'));
+const UpdateInventory = lazy(() => import('./pages/UpdateInventory'));
+const ReturnItem = lazy(() => import('./pages/receiving/ReturnItem'));
 const SeasonalInventoryDashboard = lazy(() => import('./pages/SeasonalInventoryDashboard'));
 const SeasonalInventoryDemo = lazy(() => import('./pages/SeasonalInventoryDemo'));
 
@@ -64,6 +69,7 @@ function App() {
             <EnhancedChatbotProvider>
               <Notification />
               <Toaster position="top-right" />
+                
               <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
                 <Routes>
                   {/* Public routes */}
@@ -74,9 +80,10 @@ function App() {
                     <Route path="/dashboard" element={<RoleBasedDashboard />} />
                     <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     {/* Inventory routes - Manager, ReceivingClerk, Picker */}
-                    <Route path="/inventory" element={<RoleBasedRoute allowedRoles={['Manager']}><Inventory /></RoleBasedRoute>} />
+                    <Route path="/inventory" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><Inventory /></RoleBasedRoute>} />
                     <Route path="/inventory/add" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><AddInventoryItem /></RoleBasedRoute>} />
                     <Route path="/inventory/edit/:id" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><EditInventoryItem /></RoleBasedRoute>} />
+                    <Route path="/inventory/update" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><UpdateInventory /></RoleBasedRoute>} />
                     {/* Order routes - Manager, ReceivingClerk, Picker, Packer */}
                     <Route path="/orders" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk', 'Picker', 'Packer']}><Orders /></RoleBasedRoute>} />
                     <Route path="/orders/create" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><CreateOrder /></RoleBasedRoute>} />
@@ -94,6 +101,7 @@ function App() {
                     {/* Receiving routes - Manager, ReceivingClerk */}
                     <Route path="/receiving" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><Receiving /></RoleBasedRoute>} />
                     <Route path="/receiving/create" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><CreateReceiving /></RoleBasedRoute>} />
+                    <Route path="/receiving/return-item" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><ReturnItem /></RoleBasedRoute>} />
                     <Route path="/receiving/:id" element={<RoleBasedRoute allowedRoles={['Manager', 'ReceivingClerk']}><ReceivingDetail /></RoleBasedRoute>} />
                     {/* Picking routes - Manager, Picker */}
                     <Route path="/picking" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker']}><Picking /></RoleBasedRoute>} />
@@ -129,6 +137,11 @@ function App() {
                     <Route path="/settings" element={<RoleBasedRoute allowedRoles={['Manager']}><Settings /></RoleBasedRoute>} />
                     {/* Enhanced Chatbot - All roles */}
                     <Route path="/chatbot/enhanced" element={<RoleBasedChatbot />} />
+                    
+                    {/* Picker specific routes */}
+                    <Route path="/history" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker']}><History /></RoleBasedRoute>} />
+                    <Route path="/warehouse-map" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker']}><WarehouseMapPage /></RoleBasedRoute>} />
+                    
                     {/* Common routes */}
                     <Route path="/profile" element={<UserProfile />} />
                     <Route path="/change-password" element={<ChangePassword />} />
@@ -139,6 +152,7 @@ function App() {
                   </Route>
                 </Routes>
               </Suspense>
+
               {/* Enhanced Personal Assistant */}
               <FloatingChatWidget />
               {/* WebSocket Connection Monitor

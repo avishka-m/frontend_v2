@@ -10,6 +10,7 @@ import orderService,{
 } from '../services/orderService';
 import { masterDataService } from '../services/masterDataService';
 import { inventoryService } from '../services/inventoryService';
+import { loadAllPaginatedItems } from '../utils/paginationUtils';
 import { ArrowLeft, Plus, Trash2, Search, User, MapPin, Package, AlertCircle } from 'lucide-react';
 
 const CreateOrder = () => {
@@ -43,12 +44,17 @@ const CreateOrder = () => {
     loadInitialData();
   }, []);
 
+  // Helper function to load all inventory items with pagination
+  const loadAllInventoryItems = async () => {
+    return await loadAllPaginatedItems(inventoryService.getItems);
+  };
+
   const loadInitialData = async () => {
     try {
       setLoadingData(true);
       const [customersData, inventoryData] = await Promise.all([
         masterDataService.getCustomers(),
-        inventoryService.getItems({ limit: 1000 })
+        loadAllInventoryItems()
       ]);
       
       setCustomers(customersData);
