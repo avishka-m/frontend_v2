@@ -23,66 +23,59 @@ ChartJS.register(
   Filler
 );
 
-const ForecastChart = ({ data, loading = false }) => {
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2 text-gray-600">Loading forecast data...</span>
-      </div>
-    );
-  }
-
-  if (!data || !Array.isArray(data) || data.length === 0) {
+const StockVsDemandChart = ({ forecastData, currentStock, reorderPoint }) => {
+  if (!forecastData || !Array.isArray(forecastData) || forecastData.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-gray-500">
-        No forecast data available
+        No data available
       </div>
     );
   }
 
-  // Prepare chart data for forecast only
-  const forecastDates = data.map(item => item.ds);
-  const forecastValues = data.map(item => item.yhat);
-  const upperBound = data.map(item => item.yhat_upper);
-  const lowerBound = data.map(item => item.yhat_lower);
+  // Prepare chart data
+  const dates = forecastData.map(item => item.date);
+  const predictedDemand = forecastData.map(item => item.predicted_demand);
+  let stockLevels = [];
+  let stock = currentStock ?? 0;
+  for (let i = 0; i < forecastData.length; i++) {
+    stock -= forecastData[i].predicted_demand;
+    stockLevels.push(stock);
+  }
+
+  const reorderPointLine = Array(forecastData.length).fill(reorderPoint ?? 0);
 
   const chartData = {
-    labels: forecastDates.map(date => {
+    labels: dates.map(date => {
       const d = new Date(date);
       return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     }),
     datasets: [
       {
-        label: 'Forecast',
-        data: forecastValues,
-        borderColor: '#22c55e', // green
+        label: 'Predicted Demand',
+        data: predictedDemand,
+        borderColor: 'rgb(34, 197, 94)',
         backgroundColor: 'rgba(34, 197, 94, 0.1)',
         borderWidth: 2,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-        borderDash: [],
+        pointRadius: 2,
         fill: false,
       },
       {
-        label: 'Confidence Upper',
-        data: upperBound,
-        borderColor: '#6b7280', // gray
-        backgroundColor: 'rgba(156, 163, 175, 0.1)',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: '+1',
-        order: 3,
+        label: 'Stock Level',
+        data: stockLevels,
+        borderColor: 'rgb(59, 130, 246)',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 2,
+        pointRadius: 2,
+        fill: false,
       },
       {
-        label: 'Confidence Lower',
-        data: lowerBound,
-        borderColor: '#6b7280', // gray
-        backgroundColor: 'rgba(156, 163, 175, 0.1)',
-        borderWidth: 1,
+        label: 'Reorder Point',
+        data: reorderPointLine,
+        borderColor: 'rgb(239, 68, 68)', // red
+        borderDash: [6, 6],
+        borderWidth: 2,
         pointRadius: 0,
         fill: false,
-        order: 3,
       },
     ],
   };
@@ -90,14 +83,10 @@ const ForecastChart = ({ data, loading = false }) => {
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
-    interaction: {
-      mode: 'index',
-      intersect: false,
-    },
     plugins: {
       title: {
         display: true,
-        text: `Demand Forecast for ${data.product_id || 'Product'}`,
+        text: 'Stock vs Demand & Reorder Point',
         font: {
           size: 16,
           weight: 'bold',
@@ -106,11 +95,6 @@ const ForecastChart = ({ data, loading = false }) => {
       legend: {
         display: true,
         position: 'top',
-        labels: {
-          filter: function(legendItem) {
-            return !legendItem.text.includes('Confidence');
-          }
-        }
       },
       tooltip: {
         callbacks: {
@@ -121,7 +105,7 @@ const ForecastChart = ({ data, loading = false }) => {
             const label = context.dataset.label || '';
             const value = context.parsed.y;
             if (value !== null) {
-              return `${label}: ${Math.round(value)} units`;
+              return `${label}: ${Math.round(value)}`;
             }
             return '';
           }
@@ -144,7 +128,7 @@ const ForecastChart = ({ data, loading = false }) => {
         display: true,
         title: {
           display: true,
-          text: 'Demand (Units)',
+          text: 'Units',
         },
         beginAtZero: true,
         grid: {
@@ -167,4 +151,4 @@ const ForecastChart = ({ data, loading = false }) => {
   );
 };
 
-export default ForecastChart;
+export default StockVsDemandChart;
