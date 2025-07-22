@@ -42,6 +42,8 @@ const ROLE_NAVIGATION = {
     { path: '/returns', name: 'Returns', icon: RotateCcw },
     { path: '/vehicles', name: 'Vehicles', icon: Truck },
     { path: '/analytics', name: 'Analytics', icon: BarChart3 },
+    { path: '/seasonal-inventory', name: 'Seasonal Forecasting', icon: BarChart3 },
+    { path: '/seasonal-inventory/demo', name: 'Forecasting Demo', icon: BarChart3 },
     { path: '/settings', name: 'Settings', icon: Settings }
   ],
   ReceivingClerk: [
