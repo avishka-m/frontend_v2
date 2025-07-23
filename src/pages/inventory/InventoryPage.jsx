@@ -456,7 +456,7 @@ const InventoryPage = () => {
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            {/* <Col span={12}>
               <Form.Item label="Unit Price" required>
                 <InputNumber
                   min={0}
@@ -466,7 +466,7 @@ const InventoryPage = () => {
                   style={{ width: '100%' }}
                 />
               </Form.Item>
-            </Col>
+            </Col> */}
             <Col span={12}>
               <Form.Item label="Location" required>
                 <Input placeholder="e.g., A1-5" />

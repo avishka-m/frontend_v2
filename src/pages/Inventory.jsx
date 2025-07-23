@@ -884,6 +884,7 @@ const Inventory = () => {
                       {getSortIcon('quantity')}
                     </div>
                   </th>
+                  {/*
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                     onClick={() => handleSort('unit_price')}
@@ -893,6 +894,7 @@ const Inventory = () => {
                       {getSortIcon('unit_price')}
                     </div>
                   </th>
+                  */}
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
@@ -940,9 +942,11 @@ const Inventory = () => {
                         <span className="text-gray-500 ml-1">/ {getFieldValue(item, 'maxStockLevel') || getFieldValue(item, 'max_stock_level') || '-'}</span>
                       </div>
                     </td>
+                    {/*
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       ${(getFieldValue(item, 'unitPrice') || getFieldValue(item, 'unit_price') || 0).toFixed(2)}
                     </td>
+                    */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       {getStatusBadge(item.status, item.quantity, item.reorderLevel || item.min_stock_level)}
                     </td>
