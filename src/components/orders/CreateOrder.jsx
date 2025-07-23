@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotification } from '../../context/NotificationContext';
 import { NOTIFICATION_TYPES } from '../../context/NotificationContext';
+import orderService from '../../services/orderService';
 
 const CreateOrder = () => {
   const navigate = useNavigate();
@@ -25,9 +26,9 @@ const CreateOrder = () => {
         // API call to fetch available inventory would go here
         // Using mock data for now
         setAvailableItems([
-          { id: '1', name: 'Product A', sku: 'SKU001', availableQuantity: 50, price: 20.00 },
-          { id: '2', name: 'Product B', sku: 'SKU002', availableQuantity: 35, price: 30.00 },
-          { id: '3', name: 'Product C', sku: 'SKU003', availableQuantity: 15, price: 25.00 }
+          { id: 1, name: 'Product A', sku: 'SKU001', availableQuantity: 50, price: 20.00 },
+          { id: 2, name: 'Product B', sku: 'SKU002', availableQuantity: 35, price: 30.00 },
+          { id: 3, name: 'Product C', sku: 'SKU003', availableQuantity: 15, price: 25.00 }
         ]);
       } catch (error) {
         addNotification({
@@ -111,20 +112,36 @@ const CreateOrder = () => {
         return;
       }
       
-      // API call to create order would go here
+      // Prepare order data
+      const orderData = {
+        customer_id: 1, // Default customer ID - in real app this would come from customer selection
+        shipping_address: customerDetails.address,
+        order_status: 'pending',
+        priority: 2, // Medium priority
+        notes: customerDetails.name ? `Order for ${customerDetails.name}. Contact: ${customerDetails.email}, ${customerDetails.phone}` : '',
+        items: selectedItems.map(item => ({
+          item_id: parseInt(item.id), // Convert to number
+          quantity: item.quantity,
+          price: item.price
+        }))
+      };
+      
+      // Create order via API
+      const createdOrder = await orderService.createOrder(orderData);
       
       addNotification({
         type: NOTIFICATION_TYPES.SUCCESS,
         message: 'Order created successfully',
-        description: `Order for ${customerDetails.name} has been created.`
+        description: `Order #${createdOrder.orderID || createdOrder.id} for ${customerDetails.name} has been created.`
       });
       
       navigate('/orders');
     } catch (error) {
+      console.error('Create order error:', error);
       addNotification({
         type: NOTIFICATION_TYPES.ERROR,
         message: 'Failed to create order',
-        description: error.message || 'An unexpected error occurred.'
+        description: error.response?.data?.detail || error.message || 'An unexpected error occurred.'
       });
     } finally {
       setLoading(false);

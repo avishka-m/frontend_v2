@@ -17,7 +17,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { chatbotService } from '../../services/chatbotService';
 
 const FloatingChatWidget = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   
   // UI State
@@ -37,6 +37,19 @@ const FloatingChatWidget = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+  
+  // Close chat and reset state when user logs out
+  useEffect(() => {
+    if (!isAuthenticated() || !currentUser) {
+      setIsOpen(false);
+      setMessages([]);
+      setInputMessage('');
+      setHasUserInteracted(false);
+      setShowQuickActions(true);
+      setHasNewFeatures(true);
+      setIsLoading(false);
+    }
+  }, [isAuthenticated, currentUser]);
   
   // Focus input when opened and add welcome message
   useEffect(() => {
@@ -76,6 +89,11 @@ const FloatingChatWidget = () => {
       }
     }
   }, [isOpen, messages.length, currentUser?.role]);
+
+  // Don't render if user is not authenticated (after ALL hooks are declared)
+  if (!isAuthenticated() || !currentUser) {
+    return null;
+  }
 
   // Get role-based quick actions
   const getQuickActions = () => {

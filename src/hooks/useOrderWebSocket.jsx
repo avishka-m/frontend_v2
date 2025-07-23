@@ -328,7 +328,9 @@ const useOrderWebSocket = () => {
       }
     }, 1000);
 
-    return () => clearInterval(checkConnection);
+    return () => {
+      clearInterval(checkConnection);
+    };
   }, []);
 
   return {

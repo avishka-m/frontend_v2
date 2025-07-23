@@ -9,6 +9,14 @@ const Returns = () => {
   const [returns, setReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedReturn, setSelectedReturn] = useState(null);
+  const [showReturnModal, setShowReturnModal] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  
+  // ✨ NEW: Refresh states
+  const [backgroundRefreshing, setBackgroundRefreshing] = useState(false);
+  const [lastRefreshTime, setLastRefreshTime] = useState(null);
+  
   const [filters, setFilters] = useState({
     status: '',
     orderId: '',
@@ -20,6 +28,8 @@ const Returns = () => {
     total: 0,
     pending: 0,
     processing: 0,
+    approved: 0,
+    rejected: 0,
     completed: 0,
     totalRefundAmount: 0
   });
@@ -30,11 +40,66 @@ const Returns = () => {
   useEffect(() => {
     loadReturns();
     loadStats();
+    
+    // ✨ NEW: Auto-refresh every 30 seconds for real-time updates
+    const refreshInterval = setInterval(() => {
+      // Only do background refresh if no modal is open
+      if (!showReturnModal) {
+        handleBackgroundRefresh();
+      }
+    }, 30000); // 30 seconds
+    
+    return () => clearInterval(refreshInterval);
   }, [filters.status, filters.orderId, filters.customerId]);
 
-  const loadReturns = async () => {
+  // ✨ NEW: Background refresh function
+  const handleBackgroundRefresh = async () => {
     try {
-      setLoading(true);
+      setBackgroundRefreshing(true);
+      
+      // Load data without showing main loading spinner
+      const [returnsResult, statsResult] = await Promise.all([
+        returnsService.getReturns(filters),
+        returnsService.getReturnsStats(filters)
+      ]);
+      
+      // Check if there are changes before updating state
+      const newReturnsCount = returnsResult.success ? returnsResult.data.length : 0;
+      const currentReturnsCount = returns.length;
+      
+      if (newReturnsCount !== currentReturnsCount) {
+        console.log(`📥 Returns updated: ${currentReturnsCount} → ${newReturnsCount}`);
+      }
+      
+      if (returnsResult.success) {
+        setReturns(returnsResult.data);
+      }
+      
+      if (statsResult.success) {
+        setStats(statsResult.data);
+      }
+      
+      setLastRefreshTime(new Date().toLocaleTimeString());
+      
+    } catch (err) {
+      console.error('Background refresh failed:', err);
+      // Don't show error for background refresh failures
+    } finally {
+      setBackgroundRefreshing(false);
+    }
+  };
+
+  // ✨ NEW: Manual refresh function
+  const handleManualRefresh = async () => {
+    await Promise.all([loadReturns(), loadStats()]);
+    setLastRefreshTime(new Date().toLocaleTimeString());
+  };
+
+  const loadReturns = async (isBackgroundRefresh = false) => {
+    try {
+      if (!isBackgroundRefresh) {
+        setLoading(true);
+      }
       setError(null);
       
       const result = await returnsService.getReturns(filters);
@@ -47,7 +112,9 @@ const Returns = () => {
     } catch (err) {
       setError('Failed to load returns records');
     } finally {
-      setLoading(false);
+      if (!isBackgroundRefresh) {
+        setLoading(false);
+      }
     }
   };
 
@@ -82,8 +149,26 @@ const Returns = () => {
     });
   };
 
-  const handleViewReturn = (returnId) => {
-    navigate(`/returns/${returnId}`);
+  const handleViewReturn = async (returnId) => {
+    try {
+      setModalLoading(true);
+      setShowReturnModal(true);
+      
+      // Fetch detailed return information
+      const result = await returnsService.getReturn(returnId);
+      
+      if (result.success) {
+        setSelectedReturn(result.data);
+      } else {
+        setError(result.error);
+        setShowReturnModal(false);
+      }
+    } catch (err) {
+      setError('Failed to load return details');
+      setShowReturnModal(false);
+    } finally {
+      setModalLoading(false);
+    }
   };
 
   const handleProcessReturn = async (returnId) => {
@@ -101,12 +186,56 @@ const Returns = () => {
     }
   };
 
+  const handleApproveReturn = async (returnId) => {
+    try {
+      const result = await returnsService.updateReturns(returnId, {
+        status: 'approved',
+        notes: 'Approved by manager'
+      });
+      
+      if (result.success) {
+        await loadReturns();
+        await loadStats();
+        setShowReturnModal(false);
+        setSelectedReturn(null);
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError('Failed to approve return');
+    }
+  };
+
+  const handleRejectReturn = async (returnId) => {
+    try {
+      const result = await returnsService.updateReturns(returnId, {
+        status: 'rejected',
+        notes: 'Rejected by manager'
+      });
+      
+      if (result.success) {
+        await loadReturns();
+        await loadStats();
+        setShowReturnModal(false);
+        setSelectedReturn(null);
+      } else {
+        setError(result.error);
+      }
+    } catch (err) {
+      setError('Failed to reject return');
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case RETURNS_STATUS.PENDING:
         return 'bg-yellow-100 text-yellow-800';
       case RETURNS_STATUS.PROCESSING:
         return 'bg-blue-100 text-blue-800';
+      case RETURNS_STATUS.APPROVED:
+        return 'bg-emerald-100 text-emerald-800';
+      case RETURNS_STATUS.REJECTED:
+        return 'bg-red-100 text-red-800';
       case RETURNS_STATUS.COMPLETED:
         return 'bg-green-100 text-green-800';
       default:
@@ -151,7 +280,42 @@ const Returns = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Returns Management</h1>
           <p className="text-gray-600">Manage product returns and refunds</p>
+          {/* ✨ NEW: Last refresh time display */}
+          {lastRefreshTime && (
+            <p className="text-sm text-gray-400 mt-1">
+              Last updated: {lastRefreshTime}
+              {backgroundRefreshing && (
+                <span className="ml-2 inline-flex items-center">
+                  <svg className="animate-spin -ml-1 mr-1 h-3 w-3 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  syncing...
+                </span>
+              )}
+            </p>
+          )}
         </div>
+        <div className="flex items-center space-x-3">
+          {/* ✨ NEW: Manual refresh button */}
+          <button
+            onClick={handleManualRefresh}
+            disabled={loading || backgroundRefreshing}
+            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            title="Refresh returns data"
+          >
+            <svg 
+              className={`-ml-1 mr-2 h-4 w-4 ${loading || backgroundRefreshing ? 'animate-spin' : ''}`} 
+              xmlns="http://www.w3.org/2000/svg" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Refresh
+          </button>
+          
         {isManager && (
           <div className="flex space-x-3">
             <button
@@ -162,10 +326,11 @@ const Returns = () => {
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <h3 className="text-sm font-medium text-gray-500">Total Returns</h3>
           <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
@@ -181,6 +346,14 @@ const Returns = () => {
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <h3 className="text-sm font-medium text-gray-500">Completed</h3>
           <p className="text-2xl font-bold text-green-600">{stats.completed}</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <h3 className="text-sm font-medium text-gray-500">Approved</h3>
+          <p className="text-2xl font-bold text-emerald-600">{stats.approved || 0}</p>
+        </div>
+        <div className="bg-white p-4 rounded-lg shadow-sm border">
+          <h3 className="text-sm font-medium text-gray-500">Rejected</h3>
+          <p className="text-2xl font-bold text-red-600">{stats.rejected || 0}</p>
         </div>
         <div className="bg-white p-4 rounded-lg shadow-sm border">
           <h3 className="text-sm font-medium text-gray-500">Total Refunds</h3>
@@ -202,6 +375,8 @@ const Returns = () => {
               <option value="">All Status</option>
               <option value={RETURNS_STATUS.PENDING}>Pending</option>
               <option value={RETURNS_STATUS.PROCESSING}>Processing</option>
+              <option value={RETURNS_STATUS.APPROVED}>Approved</option>
+              <option value={RETURNS_STATUS.REJECTED}>Rejected</option>
               <option value={RETURNS_STATUS.COMPLETED}>Completed</option>
             </select>
           </div>
@@ -380,6 +555,174 @@ const Returns = () => {
           </table>
         </div>
       </div>
+
+      {/* Return Details Modal */}
+      {showReturnModal && (
+        <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-200">
+              <h3 className="text-lg font-medium text-gray-900">
+                Return Details #{selectedReturn?.returnId}
+              </h3>
+              <button
+                onClick={() => {
+                  setShowReturnModal(false);
+                  setSelectedReturn(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6">
+              {modalLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center">
+                    <svg className="animate-spin h-5 w-5 mr-3 text-gray-500" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span className="text-gray-500">Loading return details...</span>
+                  </div>
+                </div>
+              ) : selectedReturn ? (
+                <div className="space-y-6">
+                  {/* Return Status and Basic Info */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Status</label>
+                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedReturn.status)}`}>
+                        {selectedReturn.status}
+                      </span>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Return Date</label>
+                      <p className="text-sm text-gray-900">{new Date(selectedReturn.returnDate).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Order ID</label>
+                      <p className="text-sm text-gray-900">#{selectedReturn.orderId}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Customer</label>
+                      <p className="text-sm text-gray-900">{selectedReturn.customerName || `Customer ${selectedReturn.customerId}`}</p>
+                    </div>
+                  </div>
+
+                  {/* Return Method and Reason */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Return Method</label>
+                      <p className="text-sm text-gray-900">{selectedReturn.returnMethod?.replace('_', ' ')}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Return Reason</label>
+                      <p className="text-sm text-gray-900">{selectedReturn.returnReason}</p>
+                    </div>
+                  </div>
+
+                  {/* Return Description */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                    <div className="bg-gray-50 p-4 rounded-lg">
+                      <p className="text-sm text-gray-900 whitespace-pre-wrap">
+                        {selectedReturn.description || 'No description provided'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Returned Items */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Returned Items</label>
+                    <div className="border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Quantity</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Condition</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Refund Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                          {selectedReturn.items?.map((item, index) => (
+                            <tr key={index}>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">{item.itemName}</div>
+                                  <div className="text-sm text-gray-500">ID: {item.itemId}</div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.quantity}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {item.condition}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                ${item.refundAmount?.toFixed(2) || '0.00'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Refund Information */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Total Refund Amount</label>
+                      <p className="text-lg font-semibold text-gray-900">${selectedReturn.totalRefundAmount?.toFixed(2) || '0.00'}</p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Refund Status</label>
+                      <p className="text-sm text-gray-900">{selectedReturn.refundStatus}</p>
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  {selectedReturn.notes && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm text-gray-900">{selectedReturn.notes}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action Buttons for Managers */}
+                  {isManager && (selectedReturn.status === RETURNS_STATUS.PENDING || selectedReturn.status === RETURNS_STATUS.PROCESSING) && (
+                    <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+                      <button
+                        onClick={() => handleRejectReturn(selectedReturn.returnId)}
+                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        Reject Return
+                      </button>
+                      <button
+                        onClick={() => handleApproveReturn(selectedReturn.returnId)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      >
+                        Approve Return
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  Failed to load return details
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

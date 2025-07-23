@@ -42,7 +42,7 @@ const OrderCard = ({
       'processing': 'bg-blue-100 text-blue-800 border-blue-200',
       'picking': 'bg-orange-100 text-orange-800 border-orange-200',
       'packing': 'bg-purple-100 text-purple-800 border-purple-200',
-      'ready_for_shipping': 'bg-green-100 text-green-800 border-green-200',
+      'shipping': 'bg-green-100 text-green-800 border-green-200',
       'shipped': 'bg-indigo-100 text-indigo-800 border-indigo-200',
       'delivered': 'bg-gray-100 text-gray-800 border-gray-200',
       'cancelled': 'bg-red-100 text-red-800 border-red-200'
@@ -93,6 +93,9 @@ const OrderCard = ({
         disabled: false,
         nextStatus: nextStatus
       };
+    } else if (actionContext === 'history' && userRole === 'Manager') {
+      // History tab for managers - orders are confirmed but no action needed
+      return null; // No action button for confirmed orders
     }
     
     return null;
@@ -129,9 +132,17 @@ const OrderCard = ({
         {/* Status */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-500">Status</span>
-          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(status)}`}>
-            {status.replace('_', ' ')}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(status)}`}>
+              {status.replace('_', ' ')}
+            </span>
+            {/* Manager confirmation indicator */}
+            {userRole === 'Manager' && actionContext === 'history' && status === 'pending' && (
+              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">
+                ✓ Confirmed
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Order Info */}
@@ -151,7 +162,7 @@ const OrderCard = ({
             ${totalAmount.toFixed(2)}
           </div>
           
-          {order.delivery_address && (
+          {(order.shipping_address || order.delivery_address) && (
             <div className="flex items-center text-gray-600">
               <MapPin className="h-4 w-4 mr-2" />
               Delivery
@@ -164,6 +175,47 @@ const OrderCard = ({
           <div className="flex items-center text-sm text-blue-600 bg-blue-50 px-3 py-2 rounded-md">
             <User className="h-4 w-4 mr-2" />
             Assigned to you
+          </div>
+        )}
+
+        {/* Driver-specific information */}
+        {userRole === 'Driver' && (order.shipping_address || order.delivery_address) && (
+          <div className="border-t border-gray-200 pt-3 mt-3 space-y-2">
+            <div className="text-sm">
+              <div className="flex items-start text-gray-600">
+                <MapPin className="h-4 w-4 mr-2 mt-0.5 flex-shrink-0" />
+                <span className="text-xs">
+                  {order.shipping_address || order.delivery_address}
+                </span>
+              </div>
+            </div>
+            
+            {/* Tracking Number for shipped orders */}
+            {order.tracking_number && status === 'shipped' && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Package className="h-4 w-4 mr-2" />
+                <span className="text-xs">Tracking: {order.tracking_number}</span>
+              </div>
+            )}
+            
+            {/* Estimated Delivery */}
+            {order.estimated_delivery && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Clock className="h-4 w-4 mr-2" />
+                <span className="text-xs">
+                  Est. Delivery: {new Date(order.estimated_delivery).toLocaleDateString()} 
+                  {new Date(order.estimated_delivery).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </span>
+              </div>
+            )}
+            
+            {/* Package Count */}
+            {order.package_count && (
+              <div className="flex items-center text-sm text-gray-600">
+                <Package className="h-4 w-4 mr-2" />
+                <span className="text-xs">{order.package_count} package{order.package_count > 1 ? 's' : ''}</span>
+              </div>
+            )}
           </div>
         )}
 

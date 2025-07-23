@@ -42,11 +42,13 @@ const Receiving = () => {
       if (statusFilter) filters.status = statusFilter;
       const result = await receivingService.getAllReceivings(filters);
       if (result.success) {
-        return result.data;
+        return Array.isArray(result.data) ? result.data : [];
       } else {
         throw new Error(result.error || 'Failed to fetch receiving records');
       }
-    }
+    },
+    // Add default data to ensure it's always an array
+    initialData: []
   });
 
   // Fetch stats with React Query
@@ -134,13 +136,13 @@ const Receiving = () => {
     return receivingService.canPerformAction('update', receiving, currentUser);
   };
 
-  const filteredReceivings = (receivings || []).filter(receiving => {
+  const filteredReceivings = Array.isArray(receivings) ? receivings.filter(receiving => {
     const matchesSearch = !searchTerm || 
       receiving.receivingID.toString().includes(searchTerm) ||
       receiving.reference_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       receiving.supplierID.toString().includes(searchTerm);
     return matchesSearch;
-  });
+  }) : [];
 
   if (loadingReceivings || loadingStats) {
     return (
@@ -295,7 +297,7 @@ const Receiving = () => {
             </div>
             
             <div className="text-sm text-gray-500 self-center">
-              {filteredReceivings.length} of {receivings.length} receiving records
+              {filteredReceivings.length} of {Array.isArray(receivings) ? receivings.length : 0} receiving records
             </div>
           </div>
         </div>

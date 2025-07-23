@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../hooks/useAuth';
-import { Package, Archive, MapPin, Check, AlertCircle, Eye, Maximize2, Minimize2, ClipboardList, ChevronRight } from 'lucide-react';
+import { Package, Archive, MapPin, Check, AlertCircle, Eye, Maximize2, Minimize2, ClipboardList, ChevronRight, Layers } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 import WarehouseMap, { STORAGE_CAPACITY } from '../warehouse/WarehouseMap';
@@ -38,6 +38,10 @@ const PickerDashboard = () => {
   const [locationStatus, setLocationStatus] = useState('offline');
 
   const [pickingPath, setPickingPath] = useState(null);
+  
+  // ✨ NEW: Occupied locations state for floor visualization
+  const [occupiedLocations, setOccupiedLocations] = useState([]);
+  const [selectedFloor, setSelectedFloor] = useState(1);
   const [currentDestination, setCurrentDestination] = useState(null);
   const [pickingProgress, setPickingProgress] = useState({
     currentStep: 0,
@@ -45,6 +49,18 @@ const PickerDashboard = () => {
     completedItems: [],
     phase: 'preparing' // 'preparing', 'picking', 'to_packing', 'completed'
   });
+
+  // ✨ Helper function to safely split locationID
+  const safeLocationSplit = (locationID) => {
+    if (!locationID || typeof locationID !== 'string') {
+      return { base: '', floor: '' };
+    }
+    const parts = locationID.split('.');
+    return {
+      base: parts[0] || '',
+      floor: parts[1] || ''
+    };
+  };
 
   const parseLocationToCoordinates = (locationID) => {
   try {
@@ -207,21 +223,43 @@ const PickerDashboard = () => {
     };
   };
 
-  // Helper function to generate dummy location based on item ID
+  // Helper function to generate dummy location based on item ID (new format)
   const generateDummyLocation = (itemId) => {
     const id = itemId || 1;
     if (id % 3 === 0) {
-      const rack = id % 2 === 0 ? 'P1' : 'P2';
-      const position = Math.floor((id / 3) % 7) + 1;
-      return `${rack}-${position}1-F1`;
+      const rackNum = (id % 2) + 1; // P01 or P02
+      const floor = Math.floor((id / 3) % 4) + 1; // Floor 1-4
+      return `P${String(rackNum).padStart(2, '0')}.${floor}`;
     } else if (id % 3 === 1) {
-      const rackNum = Math.floor((id / 3) % 3) + 1;
-      const rack = `B${rackNum}`;
-      const position = Math.floor((id / 3) % 7) + 1;
-      return `${rack}-${position}1-F1`;
+      const rackNum = Math.floor((id / 3) % 21) + 1; // B01-B21
+      const floor = Math.floor((id / 9) % 4) + 1; // Floor 1-4
+      return `B${String(rackNum).padStart(2, '0')}.${floor}`;
     } else {
-      const position = Math.floor((id / 2) % 7) + 1;
-      return `D-${position}-F1`;
+      const rackNum = Math.floor((id / 2) % 14) + 1; // D01-D14
+      const floor = Math.floor((id / 7) % 4) + 1; // Floor 1-4
+      return `D${String(rackNum).padStart(2, '0')}.${floor}`;
+    }
+  };
+
+  // ✨ NEW: Fetch occupied locations for floor visualization
+  const fetchOccupiedLocations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/storage-history/occupied-locations?floor=${selectedFloor}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (response.data) {
+        setOccupiedLocations(response.data);
+      }
+    } catch (error) {
+      console.error('Error fetching occupied locations:', error);
+      setOccupiedLocations([]); // Set empty array on error
     }
   };
 
@@ -342,6 +380,13 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
     return () => clearInterval(refreshInterval);
   }, []);
 
+  // ✨ NEW: Fetch occupied locations when floor changes or modal opens
+  useEffect(() => {
+    if (selectedStoringItem && selectedMapLocation) {
+      fetchOccupiedLocations();
+    }
+  }, [selectedFloor, selectedStoringItem, selectedMapLocation]);
+
   // ✨ NEW: Manual refresh function
   const handleManualRefresh = async () => {
     await Promise.all([
@@ -349,6 +394,56 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
       fetchPendingOrders(true)
     ]);
     toast.success('Data refreshed!', { duration: 2000 });
+  };
+
+  // ✨ NEW: Manual order completion function
+  const handleCompleteOrder = async () => {
+    if (!currentPickingOrder) return;
+    
+    try {
+      setMarkingAsStored(true);
+      const token = localStorage.getItem('token');
+      
+      console.log(`🔄 Manually completing order ${currentPickingOrder.orderID}`);
+      
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/orders/${currentPickingOrder.orderID}/status?new_status=picked`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      console.log(`✅ Order completed successfully:`, response.data);
+      toast.success(`Order #${currentPickingOrder.orderID} completed successfully!`);
+      
+      // Reset picking mode
+      setPickingMode(false);
+      setCurrentPickingOrder(null);
+      setCurrentItemIndex(0);
+      setSelectedStoringItem(null);
+      setLocationId('');
+      setSuggestedLocations([]);
+      setSelectedMapLocation(null);
+      setPickingPath(null);
+      setCurrentDestination(null);
+      setActionMode('storing'); // Reset to storing mode
+      
+      // Refresh orders list
+      await fetchPendingOrders(true);
+      
+      if (isFullscreen) {
+        document.exitFullscreen();
+      }
+      
+    } catch (error) {
+      console.error('❌ Error completing order:', error);
+      toast.error(`Failed to complete order: ${error.response?.data?.detail || error.message}`);
+    } finally {
+      setMarkingAsStored(false);
+    }
   };
 
   const handleMarkAsStored = async (item) => {
@@ -359,6 +454,8 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
     if (pickingMode && currentPickingOrder) {
       // ✨ COMPLETE: Picking logic for order collection
       try {
+        console.log(`🔄 Collecting item:`, item);
+        
         // Mark item as collected from storage
         const collectData = {
           itemID: item.itemID,
@@ -375,6 +472,8 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
           orderID: currentPickingOrder.orderID,
           collectedBy: currentUser?.username || 'Unknown'
         };
+        
+        console.log(`📤 Sending collection data:`, collectData);
 
         const response = await axios.post(
           `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/storage-history/collect-item`,
@@ -386,11 +485,33 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
           }
         );
         
+        console.log(`📥 Collection API response:`, response.data);
+        
         if (response.data) {
+          console.log(`✅ Item ${item.itemName} collected successfully from ${item.locationID}`);
           toast.success(`Item ${item.itemName} collected from ${item.locationID}`);
+          
+          // ✨ NEW: Update worker location to current item location
+          const currentItemLocation = item.coordinates || parseLocationToCoordinates(item.locationID);
+          setWorkerLocation(currentItemLocation);
+          console.log(`🚶 Worker moved to:`, currentItemLocation);
+          
+          // ✨ NEW: Update worker location in database
+          try {
+            await workerLocationService.updateLocation(
+              currentItemLocation.x,
+              currentItemLocation.y,
+              currentItemLocation.floor,
+              'online'
+            );
+            console.log(`📡 Worker location updated in database:`, currentItemLocation);
+          } catch (error) {
+            console.warn(`⚠️ Failed to update worker location in database:`, error);
+          }
           
           // Move to next item or complete order
           if (currentItemIndex < currentPickingOrder.items.length - 1) {
+            console.log(`📦 Moving to next item (${currentItemIndex + 1} → ${currentItemIndex + 2})`);
             // Move to next item
             const nextIndex = currentItemIndex + 1;
             setCurrentItemIndex(nextIndex);
@@ -403,53 +524,129 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
               itemName: nextItem.item_name || `Item ${nextItem.itemID}`,
               quantity: nextItem.quantity,
               locationID: nextLocationID,
+              coordinates: parseLocationToCoordinates(nextLocationID),
               orderID: currentPickingOrder.orderID
             };
+            
+            // ✨ NEW: Update the path from current item to next item
+            const currentItemLocation = item.coordinates || parseLocationToCoordinates(item.locationID);
+            const nextItemLocation = nextItemData.coordinates;
+            
+            const newPathSegment = {
+              from: currentItemLocation,
+              to: nextItemLocation,
+              type: 'item_to_item',
+              fromItem: item.itemName,
+              toItem: nextItemData.itemName,
+              stepNumber: nextIndex + 1,
+              description: `From ${item.locationID} to ${nextItemData.locationID} for ${nextItemData.itemName}`
+            };
+            
+            // Update the picking path to show current segment
+            setPickingPath([newPathSegment]);
+            
+            // Update the current destination on the map
+            setCurrentDestination({
+              from: currentItemLocation,
+              to: nextItemLocation,
+              item: nextItemData,
+              stepNumber: nextIndex + 1,
+              totalSteps: currentPickingOrder.items.length
+            });
             
             setSelectedStoringItem(nextItemData);
             handleOpenCollectModal(nextItemData);
             
-            toast.info(`Moving to item ${nextIndex + 1} of ${currentPickingOrder.items.length}`);
+            toast(`Moving to item ${nextIndex + 1} of ${currentPickingOrder.items.length} - Head to ${nextLocationID}`, {
+              icon: '📦',
+              duration: 4000
+            });
           } else {
-            // Complete the order
+            console.log(`🎯 Last item collected! Setting up path to packing counter...`);
+            // Last item collected - show path to packing counter
+            const packingCounter = { x: 0, y: 11, floor: 1 };
+            const currentItemLocation = item.coordinates || parseLocationToCoordinates(item.locationID);
+            
+            // ✨ NEW: Update worker location to current item location first
+            setWorkerLocation(currentItemLocation);
+            
+            // ✨ NEW: Update worker location in database
             try {
-              await axios.put(
-                `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/orders/${currentPickingOrder.orderID}`,
-                { status: 'picked' },
-                {
-                  headers: {
-                    Authorization: `Bearer ${token}`
-                  }
-                }
+              await workerLocationService.updateLocation(
+                currentItemLocation.x,
+                currentItemLocation.y,
+                currentItemLocation.floor,
+                'online'
               );
-              
-              toast.success(`Order #${currentPickingOrder.orderID} completed successfully!`);
-              
-              // Reset picking mode
-              setPickingMode(false);
-              setCurrentPickingOrder(null);
-              setCurrentItemIndex(0);
-              setSelectedStoringItem(null);
-              setLocationId('');
-              setSuggestedLocations([]);
-              setSelectedMapLocation(null);
-              
-              // Refresh orders list
-              fetchPendingOrders(true);
-              
-              if (isFullscreen) {
-                document.exitFullscreen();
-              }
-              
-            } catch (orderError) {
-              console.error('Error completing order:', orderError);
-              toast.error('Failed to complete order status update');
+              console.log(`📡 Worker location updated in database for last item:`, currentItemLocation);
+            } catch (error) {
+              console.warn(`⚠️ Failed to update worker location in database:`, error);
             }
+            
+            console.log(`📍 Current location:`, currentItemLocation);
+            console.log(`📦 Packing counter:`, packingCounter);
+            
+            const packingPathSegment = {
+              from: currentItemLocation,
+              to: packingCounter,
+              type: 'item_to_packing',
+              fromItem: item.itemName,
+              stepNumber: currentPickingOrder.items.length + 1,
+              description: `Take all collected items to packing counter`
+            };
+            
+            console.log(`🚶 Packing path segment:`, packingPathSegment);
+            
+            // Force close modal first to ensure map is visible
+            // setSelectedStoringItem(null); // ✨ CHANGED: Keep modal open for completion
+            
+            // Small delay to ensure state updates before setting path
+            setTimeout(() => {
+              console.log(`🔄 Setting packing counter path with modal open...`);
+              
+              // Update the picking path to show path to packing
+              setPickingPath([packingPathSegment]);
+              
+              // Update the current destination on the map
+              setCurrentDestination({
+                from: currentItemLocation,
+                to: packingCounter,
+                item: { itemName: 'Packing Counter', locationID: 'Packing' },
+                stepNumber: currentPickingOrder.items.length + 1,
+                totalSteps: currentPickingOrder.items.length + 1
+              });
+              
+              console.log(`✅ Path to packing counter set successfully`);
+              setActionMode('completing');  // New state to show completion button
+              
+              // Don't close the modal - let user see the completion button in the modal
+              console.log(`🔄 Keeping modal open for packing path completion...`);
+            }, 200); // Increased delay to ensure modal is fully closed
+            
+            toast.success(`All items collected! Head to packing counter to complete order.`);
           }
         }
       } catch (error) {
         console.error('Error collecting item:', error);
-        toast.error('Failed to collect item');
+        
+        // Check if it's a network error or API error
+        if (error.response) {
+          // API returned an error response
+          const errorDetail = error.response?.data?.detail || error.message;
+          console.error('❌ API Error details:', errorDetail);
+          toast.error(`Failed to collect item: ${errorDetail}`);
+        } else if (error.request) {
+          // Network error
+          console.error('❌ Network error:', error.request);
+          toast.error('Network error - check connection');
+        } else {
+          // Other error
+          console.error('❌ Unexpected error:', error.message);
+          toast.error(`Unexpected error: ${error.message}`);
+        }
+        
+        // Don't prevent moving to next item or showing packing path on minor errors
+        // The collection might have succeeded even if there's a client-side error
       }
       
     } else {
@@ -486,7 +683,10 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
       );
       
       if (response.data) {
-        // ✨ UPDATED: Send actual location used to backend
+        // ✨ SUCCESS: Item successfully stored
+        toast.success(`Item ${item.itemName} stored at ${locationId}`);
+        
+        // ✨ UPDATED: Send actual location used to backend for inventory tracking
         try {
           await axios.post(
             `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/inventory-increases/mark-as-stored`,
@@ -494,7 +694,7 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
               itemID: item.itemID,
               item_name: item.itemName,
               quantity_stored: item.quantity,
-              actual_location: locationId  // ✨ NEW: Track where it was actually stored
+              actual_location: locationId  // Track where it was actually stored
             },
             {
               headers: {
@@ -503,11 +703,11 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
             }
           );
           
-          toast.success(`Item ${item.itemName} stored at ${locationId}`);
+          console.log(`✅ Inventory records updated for item ${item.itemID} at ${locationId}`);
           
         } catch (error) {
           console.error('Error marking inventory increases as stored:', error);
-          toast.warning('Item stored but failed to update inventory records');
+          toast.error('Item stored but failed to update inventory records');
         }
         
         // Clear selections and close modal
@@ -523,6 +723,38 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
           document.exitFullscreen();
         }
       }
+      
+      // ✨ IMPORTANT: Update worker location after successful storage (moved outside response.data check)
+      if (selectedMapLocation) {
+        const storageLocation = {
+          x: selectedMapLocation.x,
+          y: selectedMapLocation.y,
+          floor: selectedMapLocation.floor || 1
+        };
+        
+        setWorkerLocation(storageLocation);
+        console.log(`🚶 Worker moved to storage location (${storageLocation.x}, ${storageLocation.y}, Floor ${storageLocation.floor})`);
+        
+        // Update worker location in database
+        try {
+          await workerLocationService.updateLocation(
+            storageLocation.x,
+            storageLocation.y,
+            storageLocation.floor,
+            'online'
+          );
+          console.log(`📡 Worker location updated in database after storage: (${storageLocation.x}, ${storageLocation.y}, Floor ${storageLocation.floor})`);
+          
+          // Show location update feedback
+          toast(`📍 Worker location updated to ${locationId}`, {
+            duration: 2000,
+            icon: '🚶'
+          });
+        } catch (error) {
+          console.warn(`⚠️ Failed to update worker location in database after storage:`, error);
+          toast.error('Storage completed but failed to update worker location');
+        }
+      }
     }
   } catch (error) {
     console.error('Error marking item as stored/collected:', error);
@@ -531,6 +763,71 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
     setMarkingAsStored(false);
   }
 };
+
+  // ✨ NEW: Handle order completion handover
+  const handleCompleteHandover = async () => {
+    if (!currentPickingOrder) return;
+    
+    try {
+      console.log(`🤝 Completing handover for order ${currentPickingOrder.orderID}...`);
+      
+      const token = localStorage.getItem('token');
+      
+      // Update order status to completed/handed over
+      const response = await axios.put(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:8002/api/v1'}/orders/${currentPickingOrder.orderID}/status?new_status=packing`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+      
+      console.log(`✅ Order handover completed:`, response.data);
+      
+      toast.success(`🎉 Order #${currentPickingOrder.orderID} handed over to packing successfully!`);
+      
+      // Reset all picking states
+      setPickingMode(false);
+      setCurrentPickingOrder(null);
+      setCurrentItemIndex(0);
+      setSelectedStoringItem(null);
+      setLocationId('');
+      setSuggestedLocations([]);
+      setSelectedMapLocation(null);
+      setPickingPath(null);
+      setCurrentDestination(null);
+      setActionMode('storing'); // Reset to storing mode
+      setPickingProgress({
+        currentStep: 0,
+        totalSteps: 0,
+        completedItems: [],
+        phase: 'completed'
+      });
+      
+      // Update worker location to packing counter
+      try {
+        await workerLocationService.updateLocation(0, 11, 1, 'online');
+        setWorkerLocation({ x: 0, y: 11, floor: 1 });
+        console.log(`📡 Worker location updated to packing counter`);
+      } catch (error) {
+        console.warn(`⚠️ Failed to update worker location:`, error);
+      }
+      
+      // Refresh orders list
+      await fetchPendingOrders(true);
+      
+      // Exit fullscreen if active
+      if (isFullscreen) {
+        document.exitFullscreen();
+      }
+      
+    } catch (error) {
+      console.error('❌ Error completing handover:', error);
+      toast.error(`Failed to complete handover: ${error.response?.data?.detail || error.message}`);
+    }
+  };
 
   // Calculate suggested storage locations based on item type and quantity
   const calculateSuggestedLocations = (item) => {
@@ -667,10 +964,10 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
 
         // Also show detailed prediction info
         setTimeout(() => {
-          toast.info(
-            `Reason: ${prediction.allocation_reason}`,
-            { duration: 3000 }
-          );
+          toast(`Reason: ${prediction.allocation_reason}`, {
+            icon: 'ℹ️',
+            duration: 3000
+          });
         }, 1000);
 
       } else {
@@ -701,7 +998,8 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
         });
         setLocationId(`${suggestions[0].rack}.1`);
         
-        toast.info(`Using fallback suggestion: ${suggestions[0].rack}.1`, {
+        toast(`Using fallback suggestion: ${suggestions[0].rack}.1`, {
+          icon: '💡',
           duration: 3000
         });
       }
@@ -808,7 +1106,7 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
     toast.dismiss('finding-locations');
     
     // Step 3: Define packing counter location
-    const packingCounter = { x: 10, y: 1, floor: 1 }; // Adjust coordinates as needed
+    const packingCounter = { x: 0, y: 11, floor: 1 }; // Packing counter coordinates
 
     // Step 4: Calculate the complete picking path
     const completePath = calculatePickingPath(workerLoc, itemsWithRealLocations, packingCounter);
@@ -856,14 +1154,14 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
         { duration: 5000 }
       );
       
-      // Show any fallback warnings with fixed toast call
-      const fallbackItems = itemsWithRealLocations.filter(item => item.isFallback);
-      if (fallbackItems.length > 0) {
-        toast(`⚠️ Using estimated locations for ${fallbackItems.length} item(s)`, { 
-          duration: 4000,
-          icon: '⚠️'
-        });
-      }
+      // Fallback warning removed - estimated locations work fine
+      // const fallbackItems = itemsWithRealLocations.filter(item => item.isFallback);
+      // if (fallbackItems.length > 0) {
+      //   toast(`⚠️ Using estimated locations for ${fallbackItems.length} item(s)`, { 
+      //     duration: 4000,
+      //     icon: '⚠️'
+      //   });
+      // }
       
       console.log(`Path: Worker (${workerLoc.x}, ${workerLoc.y}) → Item at (${firstItem.coordinates.x}, ${firstItem.coordinates.y})`);
     }
@@ -988,7 +1286,7 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
       {/* ✨ NEW: Refresh indicator and manual refresh button */}
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
-          <h1 className="text-2xl font-bold text-gray-900">Picker Dashboard</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Logistic Agent Dashboard</h1>
           {backgroundRefreshing && (
             <div className="flex items-center text-sm text-blue-600">
               <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
@@ -1363,6 +1661,128 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
                     </div>
                   )}
                   
+                  {/* ✨ NEW: Floor-by-Floor Slot Visualization */}
+                  {actionMode === 'storing' && locationId && typeof locationId === 'string' && (
+                    <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-yellow-900 mb-3 flex items-center">
+                        <Layers className="w-4 h-4 mr-1" />
+                        Slot Floor Details: {safeLocationSplit(locationId).base}
+                      </h4>
+                      
+                      {/* Floor Rack Visualization */}
+                      <div className="flex items-center space-x-4">
+                        {/* Visual Rack Representation */}
+                        <div className="flex flex-col items-center">
+                          <span className="text-xs text-gray-600 mb-2">Rack View</span>
+                          <div className="flex flex-col-reverse space-y-reverse space-y-1">
+                            {[1, 2, 3, 4].map((floor) => {
+                              const locationParts = safeLocationSplit(locationId);
+                              const floorLocationId = `${locationParts.base}.${floor}`;
+                              const isOccupied = (occupiedLocations && Array.isArray(occupiedLocations)) ? 
+                                occupiedLocations.some(loc => 
+                                  loc.coordinates?.x === selectedMapLocation?.x && 
+                                  loc.coordinates?.y === selectedMapLocation?.y && 
+                                  loc.coordinates?.floor === floor
+                                ) : false;
+                              const isRecommended = locationId === floorLocationId;
+                              const occupiedInfo = (isOccupied && occupiedLocations) ? 
+                                occupiedLocations.find(loc => 
+                                  loc.coordinates?.x === selectedMapLocation?.x && 
+                                  loc.coordinates?.y === selectedMapLocation?.y && 
+                                  loc.coordinates?.floor === floor
+                                ) : null;
+                              
+                              return (
+                                <div
+                                  key={floor}
+                                  className={`
+                                    w-16 h-8 border-2 rounded flex items-center justify-center text-xs font-medium
+                                    ${isRecommended 
+                                      ? 'border-green-500 bg-green-100 text-green-800 shadow-md' 
+                                      : isOccupied 
+                                        ? 'border-red-400 bg-red-100 text-red-800' 
+                                        : 'border-gray-300 bg-white text-gray-600'
+                                    }
+                                  `}
+                                  title={
+                                    isRecommended 
+                                      ? `Floor ${floor} - RECOMMENDED for new item`
+                                      : isOccupied 
+                                        ? `Floor ${floor} - Occupied by ${occupiedInfo?.itemName} (${occupiedInfo?.quantity} units)`
+                                        : `Floor ${floor} - Available`
+                                  }
+                                >
+                                  F{floor}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <span className="text-xs text-gray-500 mt-2">Ground Level</span>
+                        </div>
+                        
+                        {/* Floor Status Legend */}
+                        <div className="flex-1 space-y-2">
+                          {[1, 2, 3, 4].map((floor) => {
+                            const locationParts = safeLocationSplit(locationId);
+                            const floorLocationId = `${locationParts.base}.${floor}`;
+                            const isOccupied = occupiedLocations.some(loc => 
+                              loc.coordinates.x === selectedMapLocation?.x && 
+                              loc.coordinates.y === selectedMapLocation?.y && 
+                              loc.coordinates.floor === floor
+                            );
+                            const isRecommended = locationId === floorLocationId;
+                            const occupiedInfo = isOccupied ? occupiedLocations.find(loc => 
+                              loc.coordinates.x === selectedMapLocation?.x && 
+                              loc.coordinates.y === selectedMapLocation?.y && 
+                              loc.coordinates.floor === floor
+                            ) : null;
+                            
+                            return (
+                              <div key={floor} className="flex items-center space-x-3">
+                                <div className={`
+                                  w-3 h-3 rounded-full border-2
+                                  ${isRecommended 
+                                    ? 'bg-green-500 border-green-600' 
+                                    : isOccupied 
+                                      ? 'bg-red-500 border-red-600' 
+                                      : 'bg-gray-200 border-gray-300'
+                                  }
+                                `}></div>
+                                <div className="flex-1">
+                                  <span className={`text-sm font-medium ${
+                                    isRecommended ? 'text-green-800' : 
+                                    isOccupied ? 'text-red-800' : 'text-gray-600'
+                                  }`}>
+                                    {floorLocationId}
+                                  </span>
+                                  <span className={`ml-2 text-xs ${
+                                    isRecommended ? 'text-green-700' : 
+                                    isOccupied ? 'text-red-700' : 'text-gray-500'
+                                  }`}>
+                                    {isRecommended 
+                                      ? '← Store here' 
+                                      : isOccupied 
+                                        ? `${occupiedInfo?.itemName} (${occupiedInfo?.quantity})` 
+                                        : 'Available'
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
+                      {/* Helpful Instructions */}
+                      <div className="mt-3 pt-3 border-t border-yellow-200">
+                        <p className="text-xs text-yellow-800">
+                          💡 <strong>Instructions:</strong> Place your item on floor <strong>{safeLocationSplit(locationId).floor}</strong> of slot <strong>{safeLocationSplit(locationId).base}</strong>. 
+                          Green indicates the optimal floor for seasonal storage efficiency.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Collection info - only for collecting mode */}
                   {actionMode === 'collecting' && (
                     <div className="bg-green-50 p-4 rounded-lg">
@@ -1378,6 +1798,125 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
                           Blue circle = Receiving point | Orange circle = Item location
                         </p>
                       )}
+                    </div>
+                  )}
+                  
+                  {/* ✨ NEW: Floor-by-Floor Collection Visualization */}
+                  {actionMode === 'collecting' && selectedStoringItem?.locationID && typeof selectedStoringItem.locationID === 'string' && (
+                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                      <h4 className="text-sm font-medium text-blue-900 mb-3 flex items-center">
+                        <Layers className="w-4 h-4 mr-1" />
+                        Collection Floor Details: {safeLocationSplit(selectedStoringItem.locationID).base}
+                      </h4>
+                      
+                      {/* Floor Rack Visualization for Collection */}
+                      <div className="flex items-center space-x-4">
+                        {/* Visual Rack Representation */}
+                        <div className="flex flex-col items-center">
+                          <span className="text-xs text-gray-600 mb-2">Rack View</span>
+                          <div className="flex flex-col-reverse space-y-reverse space-y-1">
+                            {[1, 2, 3, 4].map((floor) => {
+                              const locationParts = safeLocationSplit(selectedStoringItem.locationID);
+                              const floorLocationId = `${locationParts.base}.${floor}`;
+                              const isTargetFloor = selectedStoringItem.locationID === floorLocationId;
+                              const isOccupied = occupiedLocations.some(loc => 
+                                loc.coordinates.x === selectedMapLocation?.x && 
+                                loc.coordinates.y === selectedMapLocation?.y && 
+                                loc.coordinates.floor === floor
+                              );
+                              const occupiedInfo = isOccupied ? occupiedLocations.find(loc => 
+                                loc.coordinates.x === selectedMapLocation?.x && 
+                                loc.coordinates.y === selectedMapLocation?.y && 
+                                loc.coordinates.floor === floor
+                              ) : null;
+                              
+                              return (
+                                <div
+                                  key={floor}
+                                  className={`
+                                    w-16 h-8 border-2 rounded flex items-center justify-center text-xs font-medium
+                                    ${isTargetFloor 
+                                      ? 'border-orange-500 bg-orange-100 text-orange-800 shadow-md' 
+                                      : isOccupied 
+                                        ? 'border-blue-400 bg-blue-100 text-blue-800' 
+                                        : 'border-gray-300 bg-white text-gray-600'
+                                    }
+                                  `}
+                                  title={
+                                    isTargetFloor 
+                                      ? `Floor ${floor} - COLLECT FROM HERE`
+                                      : isOccupied 
+                                        ? `Floor ${floor} - Contains ${occupiedInfo?.itemName} (${occupiedInfo?.quantity} units)`
+                                        : `Floor ${floor} - Empty`
+                                  }
+                                >
+                                  F{floor}
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <span className="text-xs text-gray-500 mt-2">Ground Level</span>
+                        </div>
+                        
+                        {/* Floor Status Legend for Collection */}
+                        <div className="flex-1 space-y-2">
+                          {[1, 2, 3, 4].map((floor) => {
+                            const locationParts = safeLocationSplit(selectedStoringItem.locationID);
+                            const floorLocationId = `${locationParts.base}.${floor}`;
+                            const isTargetFloor = selectedStoringItem.locationID === floorLocationId;
+                            const isOccupied = occupiedLocations.some(loc => 
+                              loc.coordinates.x === selectedMapLocation?.x && 
+                              loc.coordinates.y === selectedMapLocation?.y && 
+                              loc.coordinates.floor === floor
+                            );
+                            const occupiedInfo = isOccupied ? occupiedLocations.find(loc => 
+                              loc.coordinates.x === selectedMapLocation?.x && 
+                              loc.coordinates.y === selectedMapLocation?.y && 
+                              loc.coordinates.floor === floor
+                            ) : null;
+                            
+                            return (
+                              <div key={floor} className="flex items-center space-x-3">
+                                <div className={`
+                                  w-3 h-3 rounded-full border-2
+                                  ${isTargetFloor 
+                                    ? 'bg-orange-500 border-orange-600' 
+                                    : isOccupied 
+                                      ? 'bg-blue-500 border-blue-600' 
+                                      : 'bg-gray-200 border-gray-300'
+                                  }
+                                `}></div>
+                                <div className="flex-1">
+                                  <span className={`text-sm font-medium ${
+                                    isTargetFloor ? 'text-orange-800' : 
+                                    isOccupied ? 'text-blue-800' : 'text-gray-600'
+                                  }`}>
+                                    {floorLocationId}
+                                  </span>
+                                  <span className={`ml-2 text-xs ${
+                                    isTargetFloor ? 'text-orange-700' : 
+                                    isOccupied ? 'text-blue-700' : 'text-gray-500'
+                                  }`}>
+                                    {isTargetFloor 
+                                      ? '← Collect from here' 
+                                      : isOccupied 
+                                        ? `${occupiedInfo?.itemName} (${occupiedInfo?.quantity})` 
+                                        : 'Empty'
+                                    }
+                                  </span>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
+                      {/* Collection Instructions */}
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <p className="text-xs text-blue-800">
+                          📦 <strong>Collection:</strong> Retrieve <strong>{selectedStoringItem.itemName}</strong> from floor <strong>{safeLocationSplit(selectedStoringItem.locationID).floor}</strong> of slot <strong>{safeLocationSplit(selectedStoringItem.locationID).base}</strong>.
+                        </p>
+                      </div>
                     </div>
                   )}
                   
@@ -1439,7 +1978,14 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
                   {pickingMode ? 'Cancel Order' : 'Cancel'}
                 </button>
                 <button
-                  onClick={() => handleMarkAsStored(selectedStoringItem)}
+                  onClick={() => {
+                    // Different action based on mode
+                    if (pickingMode && actionMode === 'completing') {
+                      handleCompleteHandover(); // Use new completion function
+                    } else {
+                      handleMarkAsStored(selectedStoringItem); // Original function
+                    }
+                  }}
                   disabled={(!pickingMode && actionMode === 'storing' && !locationId) || markingAsStored}
                   className={`px-4 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
                     pickingMode ? 'bg-green-600 text-white hover:bg-green-700' :
@@ -1449,9 +1995,12 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
                   }`}
                 >
                   {pickingMode ? 
-                    (currentItemIndex < currentPickingOrder?.items?.length - 1 ? 
-                      (markingAsStored ? 'Processing...' : 'Collect & Next Item') : 
-                      (markingAsStored ? 'Completing Order...' : 'Collect & Complete Order')
+                    (actionMode === 'completing' ? 
+                      (markingAsStored ? 'Completing Handover...' : 'Complete Handover') :
+                      (currentItemIndex < currentPickingOrder?.items?.length - 1 ? 
+                        (markingAsStored ? 'Processing...' : 'Collect & Next Item') : 
+                        (markingAsStored ? 'Processing...' : 'Collect & Go to Packing')
+                      )
                     ) :
                     actionMode === 'storing' 
                       ? (markingAsStored ? 'Storing...' : 'Mark as Stored')
@@ -1461,6 +2010,97 @@ const fetchPendingOrders = async (isBackgroundRefresh = false) => {
               </div>
             </div>
           </div>
+        </div>
+      )}
+      
+      {/* ✨ NEW: Floating map for packing counter path when completing order */}
+      {pickingMode && actionMode === 'completing' && currentPickingOrder && !selectedStoringItem && (
+        <div className="fixed inset-4 bg-white rounded-lg shadow-2xl z-40 flex flex-col max-h-screen">
+          <div className="flex items-center justify-between p-4 border-b bg-green-50 flex-shrink-0">
+            <div>
+              <h3 className="text-lg font-medium text-green-900">
+                🎯 Order #{currentPickingOrder.orderID} - All Items Collected!
+              </h3>
+              <p className="text-sm text-green-700">
+                Follow the path to the packing counter to complete your order
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setPickingMode(false);
+                setCurrentPickingOrder(null);
+                setPickingPath(null);
+                setCurrentDestination(null);
+                setActionMode('storing');
+              }}
+              className="p-2 text-green-700 hover:text-green-900 hover:bg-green-100 rounded-lg transition-colors"
+              title="Close and cancel order"
+            >
+              ✕
+            </button>
+          </div>
+          
+          <div className="flex-1 p-4 overflow-auto min-h-0">
+            <WarehouseMap 
+              onLocationSelect={() => {}} // No location selection needed
+              suggestedLocations={[]}
+              showSuggestions={false}
+              mode="completing"
+              pathDestination={null}
+              workerLocation={workerLocation}
+              pickingPath={pickingPath}
+              currentDestination={currentDestination}
+              pickingMode={true}
+              pickingProgress={pickingProgress}
+              showPathfinding={true}
+            />
+          </div>
+          
+          <div className="border-t p-4 bg-gray-50 flex justify-between items-center flex-shrink-0">
+            <div className="text-sm text-gray-600">
+              📍 Navigate from your current location to the packing counter (purple path)
+            </div>
+            <button
+              onClick={handleCompleteHandover}
+              disabled={markingAsStored}
+              className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 px-6 rounded-lg flex items-center space-x-2"
+            >
+              {markingAsStored ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Completing...</span>
+                </>
+              ) : (
+                <>
+                  <span>📦</span>
+                  <span>Complete Handover</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Order Completion Button - Shows when modal is open or as fallback */}
+      {pickingMode && actionMode === 'completing' && currentPickingOrder && selectedStoringItem && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <button
+            onClick={handleCompleteHandover}
+            disabled={markingAsStored}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-4 px-6 rounded-lg shadow-lg flex items-center space-x-2 text-lg"
+          >
+            {markingAsStored ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Completing Order...</span>
+              </>
+            ) : (
+              <>
+                <span>📦</span>
+                <span>Complete Handover</span>
+              </>
+            )}
+          </button>
         </div>
       )}
     </div>

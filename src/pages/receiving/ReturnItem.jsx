@@ -4,6 +4,7 @@ import { Package, AlertTriangle, RotateCcw, RefreshCw } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import inventoryService from '../../services/inventoryService';
 import returnsService from '../../services/returnsService';
+import { loadAllPaginatedItems } from '../../utils/paginationUtils';
 
 const ReturnItem = () => {
   const navigate = useNavigate();
@@ -27,10 +28,10 @@ const ReturnItem = () => {
   const loadInventoryItems = async () => {
     try {
       setLoading(true);
-      const response = await inventoryService.getInventory({ limit: 1000 });
-      
-      if (response && response.length > 0) {
-        setInventoryItems(response);
+      const allItems = await loadAllPaginatedItems(inventoryService.getInventory);
+
+      if (allItems.length > 0) {
+        setInventoryItems(allItems);
       } else {
         setInventoryItems([]);
         toast('No inventory items found', { icon: 'ℹ️' });
@@ -185,24 +186,16 @@ const ReturnItem = () => {
           timestamp: new Date().toISOString()
         });
       } else if (returnForm.return_reason === 'exchanged') {
-        // For exchanged items, update inventory and notify manager
-        try {
+        // For exchanged items, notify manager - no inventory update yet (manager will approve first)
         
-          if (updateResult) {
-            toast.success('Inventory updated for exchange');
-          }
-        } catch (error) {
-          console.error('Failed to update inventory:', error);
-        }
-        
-        // Send notification to manager (placeholder - you mentioned not to implement full manager feature)
+        // Send notification to manager (the return was already created above)
         console.log('MANAGER NOTIFICATION:', {
           type: 'exchange_request',
           item: selectedItem.name,
           itemId: selectedItem.itemID,
           quantity: returnForm.quantity,
           returned_by: returnForm.returned_by,
-          returnId: result.data?.id,
+          returnId: result.data?.returnID,
           timestamp: new Date().toISOString()
         });
         

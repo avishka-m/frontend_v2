@@ -1,6 +1,6 @@
 import React from 'react';
 import WorkflowDashboard from '../workflow/WorkflowDashboard';
-import { Crown, CheckCircle, Package, Clock } from 'lucide-react';
+import { Crown } from 'lucide-react';
 
 const ManagerDashboard = () => {
   return (
@@ -9,6 +9,7 @@ const ManagerDashboard = () => {
       role="Manager"
       iconComponent={Crown}
       gradientColors="from-purple-500 to-pink-600"
+      // Manager-specific props can be added here if needed
     />
   );
 };
