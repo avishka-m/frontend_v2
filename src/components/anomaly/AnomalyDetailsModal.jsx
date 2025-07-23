@@ -138,6 +138,7 @@ const AnomalyDetailsModal = ({
         {/* Tabs */}
         <div className="flex border-b border-gray-200">
           {tabs.map((tab) => {
+            if (tab.id === 'details') return null; // Comment out Details tab button
             const Icon = tab.icon;
             return (
               <button
@@ -158,131 +159,12 @@ const AnomalyDetailsModal = ({
 
         {/* Content */}
         <div className="p-6 max-h-[60vh] overflow-y-auto">
-          {/* Details Tab */}
+          {/* Details Tab (commented out) */}
+          {/*
           {activeTab === 'details' && (
-            <div className="space-y-6">
-              {/* Main Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Anomaly Information</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        ID
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-900">{anomaly.id || 'N/A'}</span>
-                        <button
-                          onClick={() => copyToClipboard(anomaly.id)}
-                          className="p-1 text-gray-400 hover:text-gray-600"
-                        >
-                          <DocumentDuplicateIcon className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Detection Method
-                      </label>
-                      <span className={`
-                        inline-flex items-center px-2 py-1 text-xs rounded
-                        ${anomaly.detection_method === 'ml' 
-                          ? 'bg-blue-100 text-blue-700' 
-                          : 'bg-gray-100 text-gray-700'
-                        }
-                      `}>
-                        {anomaly.detection_method === 'ml' ? '🤖 Machine Learning' : '📋 Rule-based'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description
-                    </label>
-                    <p className="text-sm text-gray-900">
-                      {anomaly.description || anomaly.message || 'No description available'}
-                    </p>
-                  </div>
-
-                  {anomaly.confidence && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Confidence Score
-                      </label>
-                      <div className="flex items-center space-x-2">
-                        <div className="w-32 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-blue-500 h-2 rounded-full"
-                            style={{ width: `${anomaly.confidence * 100}%` }}
-                          ></div>
-                        </div>
-                        <span className="text-sm text-gray-600">
-                          {Math.round(anomaly.confidence * 100)}%
-                        </span>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Technical Details */}
-              {anomaly.details && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Technical Details</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      {Object.entries(anomaly.details).map(([key, value]) => (
-                        <div key={key}>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            {key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                          </label>
-                          <span className="text-sm text-gray-900">
-                            {typeof value === 'object' ? JSON.stringify(value) : value}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Timestamps */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <ClockIcon className="w-4 h-4" />
-                    <span>Timeline</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Detected:</span>
-                      <span className="text-gray-900">{formatTimestamp(anomaly.timestamp)}</span>
-                    </div>
-                    {anomaly.created_at && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Created:</span>
-                        <span className="text-gray-900">{formatTimestamp(anomaly.created_at)}</span>
-                      </div>
-                    )}
-                    {anomaly.updated_at && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">Last Updated:</span>
-                        <span className="text-gray-900">{formatTimestamp(anomaly.updated_at)}</span>
-                      </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+            <div>...details tab content commented out...</div>
           )}
+          */}
 
           {/* Context Tab */}
           {activeTab === 'context' && (

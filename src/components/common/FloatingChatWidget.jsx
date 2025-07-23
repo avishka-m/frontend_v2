@@ -102,21 +102,26 @@ const FloatingChatWidget = () => {
         { id: 'overview', label: 'Low Stock Alerts', icon: BarChart3, description: 'Get low stocks from the database' },
         { id: 'analytics', label: 'Inventory Summary', icon: BarChart3, description: 'give me about inventy summary' },
         { id: 'alerts', label: 'Order Alerts', icon: Zap, description: 'give me order related sumary' },
-        { id: 'workforce', label: 'Inventory Query', icon: Package, description: 'i whant to kno wspecific item in the system' }
+        { id: 'workforce', label: 'Inventory Query', icon: Package, description: 'i whant to kno wspecific item in the system' },
+        { id: 'ordinary', label: 'What can I Do', icon: Package, description: 'i want to know what actions are available to do me' }
       ],
       'ReceivingClerk': [
+        { id: 'ordinary', label: 'What can I Do', icon: Package, description: 'i want to know what actions are available to do me' },
         { id: 'inventory', label: 'Check Inventory', icon: Package, description: 'View current stock levels' },
         { id: 'receiving', label: 'Process Receiving', icon: ArrowUp, description: 'Handle incoming shipments' }
       ],
       'Picker': [
+        { id: 'ordinary', label: 'What can I Do', icon: Package, description: 'i want to know what actions are available to do me' },
         { id: 'orders', label: 'Pending Orders', icon: Package, description: 'View picking tasks' },
         { id: 'route', label: 'Optimize Route', icon: Truck, description: 'Get optimal picking path' }
       ],
       'Packer': [
+        { id: 'ordinary', label: 'What can I Do', icon: Package, description: 'i want to know what actions are available to do me' },
         { id: 'packing', label: 'Packing Queue', icon: Package, description: 'View packing tasks' },
         { id: 'shipping', label: 'Ready to Ship', icon: Truck, description: 'Check completed orders' }
       ],
       'Driver': [
+        { id: 'ordinary', label: 'What can I Do', icon: Package, description: 'i want to know what actions are available to do me' },
         { id: 'deliveries', label: 'Today\'s Routes', icon: Truck, description: 'View delivery schedule' },
         { id: 'vehicle', label: 'Vehicle Check', icon: Zap, description: 'Vehicle status and maintenance' }
       ]
