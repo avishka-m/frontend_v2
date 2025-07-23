@@ -490,22 +490,86 @@ export const useAnomalyDetection = (options = {}) => {
   // =============================================================================
 
   /**
-   * Extract all anomalies from detection result
+   * Extract all anomalies from detection result, adding category information
    */
   const extractAllAnomalies = (data) => {
-    const combined = data.combined || {};
     const allAnomalies = [];
     
-    Object.entries(combined).forEach(([category, anomalies]) => {
-      if (Array.isArray(anomalies)) {
-        allAnomalies.push(...anomalies.map(anomaly => ({
-          ...anomaly,
-          category: anomaly.category || category
-        })));
-      }
+    // Process combined anomalies (preferred structure)
+    if (data.combined) {
+      Object.entries(data.combined).forEach(([category, anomalies]) => {
+        if (Array.isArray(anomalies)) {
+          anomalies.forEach(anomaly => {
+            allAnomalies.push({
+              ...anomaly,
+              category: anomaly.category || category, // Ensure category is set
+              id: anomaly.id || anomaly.anomaly_id || `${category}-${anomaly.type}-${Date.now()}-${Math.random()}`
+            });
+          });
+        }
+      });
+    }
+    
+    // Fallback: Process rule_based structure
+    if (allAnomalies.length === 0 && data.rule_based) {
+      Object.entries(data.rule_based).forEach(([category, anomalies]) => {
+        if (Array.isArray(anomalies)) {
+          anomalies.forEach(anomaly => {
+            allAnomalies.push({
+              ...anomaly,
+              category, // Add category field for filtering
+              id: anomaly.id || anomaly.anomaly_id || `${category}-${anomaly.type}-${Date.now()}-${Math.random()}`
+            });
+          });
+        }
+      });
+    }
+    
+    // Also include ML-based anomalies if available
+    if (data.ml_based) {
+      Object.entries(data.ml_based).forEach(([category, anomalies]) => {
+        if (Array.isArray(anomalies)) {
+          anomalies.forEach(anomaly => {
+            // Avoid duplicates by checking if similar anomaly exists
+            const isDuplicate = allAnomalies.some(existing => 
+              existing.type === anomaly.type && 
+              existing.item_id === anomaly.item_id && 
+              existing.order_id === anomaly.order_id &&
+              existing.worker_id === anomaly.worker_id
+            );
+            
+            if (!isDuplicate) {
+              allAnomalies.push({
+                ...anomaly,
+                category: anomaly.category || category,
+                id: anomaly.id || anomaly.anomaly_id || `${category}-${anomaly.type}-ml-${Date.now()}-${Math.random()}`,
+                technique: anomaly.technique || 'ml' // Mark as ML-detected
+              });
+            }
+          });
+        }
+      });
+    }
+    
+    // Get resolved anomalies from localStorage
+    const resolvedAnomalies = JSON.parse(localStorage.getItem('resolvedAnomalies') || '[]');
+    
+    // Filter out resolved anomalies (both server-side and locally resolved)
+    const activeAnomalies = allAnomalies.filter(anomaly => {
+      // Filter server-side resolved anomalies
+      if (anomaly.status === 'resolved') return false;
+      
+      // Filter locally resolved anomalies
+      const isLocallyResolved = resolvedAnomalies.some(resolvedId => 
+        resolvedId === anomaly.id || 
+        resolvedId === anomaly.anomaly_id ||
+        resolvedId === `${anomaly.category}-${anomaly.type}`
+      );
+      
+      return !isLocallyResolved;
     });
     
-    return allAnomalies;
+    return activeAnomalies;
   };
 
   // =============================================================================

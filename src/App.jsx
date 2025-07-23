@@ -53,9 +53,11 @@ const Settings = lazy(() => import('./pages/Settings'));
 const OrderWorkflowTracker = lazy(() => import('./pages/OrderWorkflowTracker'));
 const WorkflowManagement = lazy(() => import('./pages/WorkflowManagement'));
 const RoleBasedChatbot = lazy(() => import('./pages/chatbot/RoleBasedChatbot'));
+const AnomalyDetection = lazy(() => import('./pages/AnomalyDetection'));
 const AnomalyDetectionDashboard = lazy(() => import('./pages/anomaly/AnomalyDetectionDashboard'));
 const AnomalyAnalysisPage = lazy(() => import('./pages/anomaly/AnomalyAnalysisPage'));
 const AnomalySettingsPage = lazy(() => import('./pages/anomaly/AnomalySettingsPage'));
+const AnomalyHistoryPage = lazy(() => import('./pages/anomaly/AnomalyHistoryPage'));
 
 
 // Warehouse Map Component
@@ -127,8 +129,10 @@ function App() {
                     {/* Analytics routes - Manager only */}
                     <Route path="/analytics" element={<RoleBasedRoute allowedRoles={['Manager']}><Analytics /></RoleBasedRoute>} />
                     {/* Anomaly Detection routes - All authenticated users */}
-                    <Route path="/anomaly-detection" element={<AnomalyDetectionDashboard />} />
+                    <Route path="/anomaly-detection/*" element={<AnomalyDetection />} />
+                    <Route path="/anomaly-detection/dashboard" element={<AnomalyDetectionDashboard />} />
                     <Route path="/anomaly-detection/analysis" element={<AnomalyAnalysisPage />} />
+                    <Route path="/anomaly-detection/history" element={<AnomalyHistoryPage />} />
                     <Route path="/anomaly-detection/settings" element={<RoleBasedRoute allowedRoles={['Manager']}><AnomalySettingsPage /></RoleBasedRoute>} />
                     {/* Workflow routes - Manager, Picker, Packer, Driver */}
                     <Route path="/workflow" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}><WorkflowManagement /></RoleBasedRoute>} />

@@ -34,24 +34,44 @@ const AnomalyDetailsModal = ({
   loading = false
 }) => {
   const [activeTab, setActiveTab] = useState('details');
+  const [isResolving, setIsResolving] = useState(false);
+  const [isDismissing, setIsDismissing] = useState(false);
   
   if (!anomaly) return null;
 
   const severityConfig = getSeverityConfig(anomaly.severity);
   const categoryConfig = getCategoryConfig(anomaly.category);
 
-  const handleDismiss = () => {
-    if (onDismiss) {
-      onDismiss(anomaly);
+  const handleDismiss = async () => {
+    if (isDismissing) return; // Prevent multiple clicks
+    setIsDismissing(true);
+    
+    try {
+      if (onDismiss) {
+        await onDismiss(anomaly);
+      }
+      onClose();
+    } catch (error) {
+      console.error('Error dismissing anomaly:', error);
+    } finally {
+      setIsDismissing(false);
     }
-    onClose();
   };
 
-  const handleResolve = () => {
-    if (onResolve) {
-      onResolve(anomaly);
+  const handleResolve = async () => {
+    if (isResolving) return; // Prevent multiple clicks
+    setIsResolving(true);
+    
+    try {
+      if (onResolve) {
+        await onResolve(anomaly);
+      }
+      onClose();
+    } catch (error) {
+      console.error('Error resolving anomaly:', error);
+    } finally {
+      setIsResolving(false);
     }
-    onClose();
   };
 
   const handleEscalate = () => {
@@ -367,16 +387,25 @@ const AnomalyDetailsModal = ({
                     <Button
                       variant="primary"
                       onClick={handleResolve}
-                      disabled={loading}
+                      disabled={loading || isResolving}
                       className="justify-start"
                     >
-                      ✅ Mark as Resolved
+                      {isResolving ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Resolving...
+                        </>
+                      ) : (
+                        <>
+                          ✅ Mark as Resolved
+                        </>
+                      )}
                     </Button>
                     
                     <Button
                       variant="secondary"
                       onClick={handleEscalate}
-                      disabled={loading}
+                      disabled={loading || isResolving || isDismissing}
                       className="justify-start"
                     >
                       🚨 Escalate to Manager
@@ -386,8 +415,18 @@ const AnomalyDetailsModal = ({
                       variant="outline"
                       onClick={() => {
                         // Create support ticket
-                        console.log('Creating support ticket for anomaly:', anomaly.id);
+                        const ticketData = {
+                          anomaly_id: anomaly.id,
+                          type: anomaly.type,
+                          severity: anomaly.severity,
+                          category: anomaly.category,
+                          description: anomaly.description,
+                          created_at: new Date().toISOString()
+                        };
+                        console.log('Creating support ticket for anomaly:', ticketData);
+                        alert('🎫 Support ticket created! (This is a demo implementation)');
                       }}
+                      disabled={loading || isResolving || isDismissing}
                       className="justify-start"
                     >
                       🎫 Create Support Ticket
@@ -396,10 +435,19 @@ const AnomalyDetailsModal = ({
                     <Button
                       variant="destructive"
                       onClick={handleDismiss}
-                      disabled={loading}
+                      disabled={loading || isDismissing}
                       className="justify-start"
                     >
-                      ❌ Dismiss Anomaly
+                      {isDismissing ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Dismissing...
+                        </>
+                      ) : (
+                        <>
+                          ❌ Dismiss Anomaly
+                        </>
+                      )}
                     </Button>
                   </div>
                 </CardContent>
