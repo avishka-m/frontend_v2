@@ -50,7 +50,7 @@ const ROLE_NAVIGATION = {
   ],
   ReceivingClerk: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
+    // { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/inventory/update', name: 'Update Inventory', icon: Package },
     { path: '/receiving/return-item', name: 'Return Item', icon: RotateCcw },
     { path: '/returns', name: 'Returns Management', icon: RotateCcw },
@@ -59,14 +59,14 @@ const ROLE_NAVIGATION = {
   ],
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
+    // { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/history', name: 'History', icon: ClipboardCheck },
     { path: '/warehouse-map', name: 'Warehouse Map', icon: MapPin },
     { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle }
   ],
   Packer: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
+    // { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
     { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/packing', name: 'Packing Tasks', icon: Archive },
@@ -74,7 +74,7 @@ const ROLE_NAVIGATION = {
   ],
   Driver: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
-    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
+    // { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
     { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/shipping', name: 'Shipping', icon: Truck },
