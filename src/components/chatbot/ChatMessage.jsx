@@ -4,6 +4,8 @@
  */
 
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { 
   FiUser, 
   FiMessageCircle, 
@@ -110,9 +112,9 @@ const ChatMessage = ({
             ? 'bg-blue-500 text-white'
             : 'bg-white border border-gray-200 text-gray-900'
         }`}>
-          {/* Message Content */}
-          <div className="text-sm whitespace-pre-wrap break-words">
-            {message.content}
+          {/* Message Content (Markdown) */}
+          <div className="text-sm whitespace-pre-wrap break-words prose prose-blue max-w-none">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
           </div>
 
           {/* Message Actions */}

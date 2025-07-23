@@ -99,10 +99,10 @@ const FloatingChatWidget = () => {
   const getQuickActions = () => {
     const actionMap = {
       'Manager': [
-        { id: 'overview', label: 'System Overview', icon: BarChart3, description: 'Get comprehensive warehouse status' },
-        { id: 'analytics', label: 'Performance Analytics', icon: BarChart3, description: 'View detailed performance metrics' },
-        { id: 'alerts', label: 'Critical Alerts', icon: Zap, description: 'Review urgent system notifications' },
-        { id: 'workforce', label: 'Workforce Status', icon: Package, description: 'Check worker performance and attendance' }
+        { id: 'overview', label: 'Low Stock Alerts', icon: BarChart3, description: 'Get low stocks from the database' },
+        { id: 'analytics', label: 'Inventory Summary', icon: BarChart3, description: 'give me about inventy summary' },
+        { id: 'alerts', label: 'Order Alerts', icon: Zap, description: 'give me order related sumary' },
+        { id: 'workforce', label: 'Inventory Query', icon: Package, description: 'i whant to kno wspecific item in the system' }
       ],
       'ReceivingClerk': [
         { id: 'inventory', label: 'Check Inventory', icon: Package, description: 'View current stock levels' },
