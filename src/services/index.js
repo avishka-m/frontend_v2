@@ -9,3 +9,4 @@ export * from './chatbotService';
 export * from './aiAssistantService';
 export * from './dashboardService';
 export * from './masterDataService';
+export * from './anomalyDetectionService';

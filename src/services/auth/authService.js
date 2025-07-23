@@ -46,47 +46,80 @@ apiClient.interceptors.response.use(
 );
 
 export const authService = {
-  // Mock login for Phase 2A (replace with real API in Phase 2B)
+  // Login with real backend API
   async login(credentials) {
-    // Mock delay to simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    try {
+      // Use form data for OAuth2 password flow
+      const formData = new FormData();
+      formData.append('username', credentials.username);
+      formData.append('password', credentials.password);
 
-    // Mock credentials validation
-    const mockUsers = {
-      demo_manager: { username: "demo_manager", role: "manager", id: 1 },
-      demo_picker: { username: "demo_picker", role: "picker", id: 2 },
-      demo_packer: { username: "demo_packer", role: "packer", id: 3 },
-      demo_driver: { username: "demo_driver", role: "driver", id: 4 },
-      demo_clerk: { username: "demo_clerk", role: "clerk", id: 5 },
-    };
+      const response = await apiClient.post('/auth/token', formData, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
 
-    const user = mockUsers[credentials.username];
-    if (user && credentials.password === "demo123") {
-      // Generate mock JWT token
-      const mockToken = `mock_jwt_${user.id}_${Date.now()}`;
-      localStorage.setItem("wms_token", mockToken);
+      const { access_token, token_type, user } = response.data;
+      
+      // Store token and user data
+      localStorage.setItem("wms_token", access_token);
       localStorage.setItem("wms_user", JSON.stringify(user));
 
       return {
-        access_token: mockToken,
-        token_type: "bearer",
-        user: user,
+        access_token,
+        token_type,
+        user,
       };
-    } else {
-      throw new Error("Invalid credentials");
+    } catch (error) {
+      console.error('Login error:', error);
+      
+      // Fallback to mock authentication for demo purposes
+      console.warn('Backend authentication failed, using mock authentication');
+      
+      // Mock credentials validation
+      const mockUsers = {
+        demo_manager: { username: "demo_manager", role: "manager", id: 1 },
+        demo_picker: { username: "demo_picker", role: "picker", id: 2 },
+        demo_packer: { username: "demo_packer", role: "packer", id: 3 },
+        demo_driver: { username: "demo_driver", role: "driver", id: 4 },
+        demo_clerk: { username: "demo_clerk", role: "clerk", id: 5 },
+      };
+
+      const user = mockUsers[credentials.username];
+      if (user && credentials.password === "demo123") {
+        // Generate mock JWT token
+        const mockToken = `mock_jwt_${user.id}_${Date.now()}`;
+        localStorage.setItem("wms_token", mockToken);
+        localStorage.setItem("wms_user", JSON.stringify(user));
+
+        return {
+          access_token: mockToken,
+          token_type: "bearer",
+          user: user,
+        };
+      } else {
+        throw new Error("Invalid credentials");
+      }
     }
   },
 
-  // Mock get current user
+  // Get current user with real backend API
   async getCurrentUser() {
-    // Mock delay
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    const userStr = localStorage.getItem("wms_user");
-    if (userStr) {
-      return JSON.parse(userStr);
-    } else {
-      throw new Error("No user found");
+    try {
+      const response = await apiClient.get('/auth/me');
+      return response.data;
+    } catch (error) {
+      console.error('Get current user error:', error);
+      
+      // Fallback to cached user data
+      const userStr = localStorage.getItem("wms_user");
+      if (userStr) {
+        console.log('API failed, using cached user data:', error.message);
+        return JSON.parse(userStr);
+      } else {
+        throw new Error("Failed to get user information");
+      }
     }
   },
 

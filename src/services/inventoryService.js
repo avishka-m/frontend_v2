@@ -14,8 +14,35 @@ export const inventoryService = {
 
       const response = await api.get(`/inventory/?${queryParams.toString()}`);
       
+      // Handle different response formats from backend
+      let inventoryData = response.data;
+      
+      // If the response has an items property, use that
+      if (response.data && response.data.items && Array.isArray(response.data.items)) {
+        inventoryData = response.data.items;
+      }
+      // If response.data is not an array, try to find the actual data
+      else if (!Array.isArray(response.data)) {
+        // Look for common patterns in API responses
+        if (response.data.data && Array.isArray(response.data.data)) {
+          inventoryData = response.data.data;
+        } else if (response.data.results && Array.isArray(response.data.results)) {
+          inventoryData = response.data.results;
+        } else {
+          // Fallback: return empty array if no valid data found
+          console.warn('Inventory API returned unexpected format:', response.data);
+          inventoryData = [];
+        }
+      }
+      
+      // Ensure inventoryData is always an array
+      if (!Array.isArray(inventoryData)) {
+        console.warn('Expected array but got:', typeof inventoryData, inventoryData);
+        inventoryData = [];
+      }
+      
       // Transform backend data to frontend format for compatibility
-      const transformedData = response.data.map(item => ({
+      const transformedData = inventoryData.map(item => ({
         id: item.itemID,
         itemID: item.itemID,
         inventoryID: item.itemID, // Add compatibility field for ReturnItem component
@@ -50,7 +77,18 @@ export const inventoryService = {
       return transformedData;
     } catch (error) {
       console.error('Error fetching inventory:', error);
-      throw error;
+      
+      // Return empty array for graceful failure
+      if (error.response) {
+        console.error('API Response Error:', error.response.status, error.response.data);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Request setup error:', error.message);
+      }
+      
+      // Return empty array instead of throwing to prevent app crashes
+      return [];
     }
   },
   

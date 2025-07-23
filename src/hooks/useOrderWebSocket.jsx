@@ -328,41 +328,18 @@ const useOrderWebSocket = () => {
       }
     }, 1000);
 
+    return () => clearInterval(checkConnection);
+  }, []);
 
-const useOrderWebSocket = () => {
-  // Temporarily simplified to avoid dependency issues
-  const getAuthData = () => {
-    const token = localStorage.getItem('token');
-    const isAuth = !!token;
-    return { token, isAuth };
-  };
-  // Connect on first use
-  useEffect(() => {
-    connectSharedWebSocket(getAuthData);
-    return () => {
-      // Only disconnect if no listeners left
-      if (sharedListenersRef.size === 0) disconnectSharedWebSocket();
-    };
-  }, []);
-  // Listener registration
-  const addOrderUpdateListener = useCallback((cb) => {
-    sharedListenersRef.add(cb);
-    return () => {
-      sharedListenersRef.delete(cb);
-      if (sharedListenersRef.size === 0) disconnectSharedWebSocket();
-    };
-  }, []);
   return {
-    isConnected: sharedIsConnected,
-    connectionStatus: sharedConnectionStatus,
-    connectionError: sharedConnectionError,
-    lastUpdate: sharedLastUpdate,
+    isConnected,
+    connectionStatus,
+    connectionError,
+    lastUpdate,
     addOrderUpdateListener,
-
     connect,
     disconnect,
     sendMessage,
-
   };
 };
 

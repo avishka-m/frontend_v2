@@ -22,7 +22,8 @@ import {
   ClipboardCheck,
   RotateCcw,
   Activity,
-  MessageCircle
+  MessageCircle,
+  Shield
 } from 'lucide-react';
 
 const ROLE_NAVIGATION = {
@@ -30,6 +31,7 @@ const ROLE_NAVIGATION = {
     { path: '/dashboard', name: 'Dashboard', icon: Home },
     { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
     { path: '/workflow', name: 'Workflow', icon: Activity },
+    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/inventory', name: 'Inventory', icon: Package },
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
     { path: '/customers', name: 'Customers', icon: Store },
@@ -46,6 +48,7 @@ const ROLE_NAVIGATION = {
   ],
   ReceivingClerk: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/inventory/update', name: 'Update Inventory', icon: Package },
     { path: '/receiving/return-item', name: 'Return Item', icon: RotateCcw },
     { path: '/returns', name: 'Returns Management', icon: RotateCcw },
@@ -54,12 +57,14 @@ const ROLE_NAVIGATION = {
   ],
   Picker: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/history', name: 'History', icon: ClipboardCheck },
     { path: '/warehouse-map', name: 'Warehouse Map', icon: MapPin },
     { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle }
   ],
   Packer: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
     { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/packing', name: 'Packing Tasks', icon: Archive },
@@ -67,6 +72,7 @@ const ROLE_NAVIGATION = {
   ],
   Driver: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
+    { path: '/anomaly-detection', name: 'Anomaly Detection', icon: Shield },
     { path: '/chatbot/enhanced', name: 'AI Assistant', icon: MessageCircle },
     { path: '/workflow', name: 'Workflow', icon: Activity },
     { path: '/shipping', name: 'Shipping', icon: Truck },
@@ -96,6 +102,12 @@ const Sidebar = () => {
       queryClient.prefetchQuery({
         queryKey: ['receivings', { statusFilter: '' }],
         queryFn: () => receivingService.getAllReceivings({})
+      });
+    } else if (path === '/anomaly-detection') {
+      // Prefetch anomaly detection data
+      queryClient.prefetchQuery({
+        queryKey: ['anomalies', 'dashboard'],
+        queryFn: () => fetch('/api/anomaly-detection/detect').then(res => res.json())
       });
     }
   };
@@ -130,18 +142,28 @@ const Sidebar = () => {
           <ul className="px-2 space-y-1">
             {navItems.map(item => {
               const Icon = item.icon;
+              const isAnomalyDetection = item.path === '/anomaly-detection';
+              const isActive = location.pathname === item.path || 
+                              (item.path === '/anomaly-detection' && location.pathname.startsWith('/anomaly-detection'));
+              
               return (
                 <li key={item.path}>
                   <Link
                     to={item.path}
-                    className={`flex items-center py-2 px-4 rounded-md ${
-                      location.pathname === item.path
-                        ? 'bg-primary-50 text-primary-600'
-                        : 'text-gray-700 hover:bg-gray-100'
+                    className={`flex items-center py-2 px-4 rounded-md transition-colors ${
+                      isActive
+                        ? isAnomalyDetection 
+                          ? 'bg-orange-50 text-orange-600' 
+                          : 'bg-primary-50 text-primary-600'
+                        : isAnomalyDetection
+                          ? 'text-gray-700 hover:bg-orange-50 hover:text-orange-600'
+                          : 'text-gray-700 hover:bg-gray-100'
                     }`}
                     onMouseEnter={() => handlePrefetch(item.path)}
                   >
-                    <span className="mr-3"><Icon className="w-6 h-6" /></span>
+                    <span className="mr-3">
+                      <Icon className={`w-6 h-6 ${isAnomalyDetection && isActive ? 'text-orange-600' : ''}`} />
+                    </span>
                     {!collapsed && <span>{item.name}</span>}
                   </Link>
                 </li>
