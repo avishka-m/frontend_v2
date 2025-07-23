@@ -34,17 +34,17 @@ const ROLE_NAVIGATION = {
     { path: '/orders', name: 'Orders', icon: ShoppingCart },
     { path: '/customers', name: 'Customers', icon: Store },
     { path: '/workers', name: 'Workers', icon: Users },
-    { path: '/locations', name: 'Locations', icon: MapPin },
+    // { path: '/locations', name: 'Locations', icon: MapPin },
     { path: '/receiving', name: 'Receiving', icon: ArrowLeftRight },
     { path: '/picking', name: 'Picking', icon: ClipboardCheck },
     { path: '/packing', name: 'Packing', icon: Archive },
     { path: '/shipping', name: 'Shipping', icon: Truck },
     { path: '/returns', name: 'Returns', icon: RotateCcw },
     { path: '/vehicles', name: 'Vehicles', icon: Truck },
-    { path: '/analytics', name: 'Analytics', icon: BarChart3 },
-    { path: '/seasonal-inventory', name: 'Seasonal Forecasting', icon: BarChart3 },
-    { path: '/seasonal-inventory/demo', name: 'Forecasting Demo', icon: BarChart3 },
-    { path: '/settings', name: 'Settings', icon: Settings }
+    // { path: '/analytics', name: 'Analytics', icon: BarChart3 },
+    { path: '/seasonal-inventory', name: 'Seasonal Forecasting', icon: BarChart3 }
+    // { path: '/seasonal-inventory/demo', name: 'Forecasting Demo', icon: BarChart3 },
+    // { path: '/settings', name: 'Settings', icon: Settings }
   ],
   ReceivingClerk: [
     { path: '/dashboard', name: 'Dashboard', icon: Home },
