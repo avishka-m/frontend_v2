@@ -42,7 +42,7 @@ const OrderCard = ({
       'processing': 'bg-blue-100 text-blue-800 border-blue-200',
       'picking': 'bg-orange-100 text-orange-800 border-orange-200',
       'packing': 'bg-purple-100 text-purple-800 border-purple-200',
-      'ready_for_shipping': 'bg-green-100 text-green-800 border-green-200',
+      'shipping': 'bg-green-100 text-green-800 border-green-200',
       'shipped': 'bg-indigo-100 text-indigo-800 border-indigo-200',
       'delivered': 'bg-gray-100 text-gray-800 border-gray-200',
       'cancelled': 'bg-red-100 text-red-800 border-red-200'

@@ -514,12 +514,8 @@ const WorkflowDashboard = ({
             }
             break;
           case "Driver":
-            if (currentStatus === "ready_for_shipping") {
-              result = await workflowOrderService.takeForDelivery(
-                orderId,
-                workerId
-              );
-            } else if (currentStatus === "shipped") {
+            if (currentStatus === "shipping") {
+              // Driver in working tab - mark as delivered
               result = await workflowOrderService.markAsDelivered(orderId);
             }
             break;
@@ -549,6 +545,16 @@ const WorkflowDashboard = ({
             
           } else {
             toast.error(result?.error || "Failed to confirm order");
+          }
+        } else if (userRole === "Driver" && currentStatus === "shipping") {
+          // Driver taking shipping order
+          result = await workflowOrderService.takeShippingOrder(orderId, workerId);
+
+          if (result?.success) {
+            toast.success(`Order #${orderId} assigned to you for delivery`);
+            // The WebSocket will handle moving the order to working tab
+          } else {
+            toast.error(result?.error || "Failed to take order");
           }
         } else {
           // For other roles, just assign order to current worker (no status change)
@@ -656,7 +662,7 @@ const WorkflowDashboard = ({
       receiving_clerk: "processing",
       Picker: "picking",
       Packer: "packing",
-      Driver: "ready_for_shipping",
+      Driver: "shipping",
     };
 
     const roleStatus = roleStatusMap[userRole];
@@ -668,7 +674,7 @@ const WorkflowDashboard = ({
       "processing",
       "picking",
       "packing",
-      "ready_for_shipping",
+      "shipping",
       "shipped",
       "delivered",
     ];

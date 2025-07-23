@@ -12,7 +12,7 @@ const generateMockDriverOrders = (currentWorkerId = 'driver123') => {
       orderID: 'DRV-001',
       customer_name: 'Tech Solutions Inc.',
       customerID: 'CUST-001',
-      order_status: 'ready_for_shipping',
+      order_status: 'shipping',
       order_date: yesterday.toISOString(),
       total_amount: 245.50,
       total_items: 3,
@@ -28,7 +28,7 @@ const generateMockDriverOrders = (currentWorkerId = 'driver123') => {
       orderID: 'DRV-002',
       customer_name: 'Global Retailers Ltd.',
       customerID: 'CUST-002',
-      order_status: 'ready_for_shipping',
+      order_status: 'shipping',
       order_date: yesterday.toISOString(),
       total_amount: 189.99,
       total_items: 1,
@@ -44,7 +44,7 @@ const generateMockDriverOrders = (currentWorkerId = 'driver123') => {
       orderID: 'DRV-003',
       customer_name: 'HomeGoods Store',
       customerID: 'CUST-003',
-      order_status: 'ready_for_shipping',
+      order_status: 'shipping',
       order_date: currentDate.toISOString(),
       total_amount: 567.25,
       total_items: 8,
@@ -272,19 +272,19 @@ class WorkflowOrderService {
     return this.updateOrderStatus(orderId, 'packing', pickerId);
   }
 
-  // Packer: Complete packing (packing → ready_for_shipping)
+  // Packer: Complete packing (packing → shipping)
   async completePackingOrder(orderId, packerId) {
-    return this.updateOrderStatus(orderId, 'ready_for_shipping', packerId);
+    return this.updateOrderStatus(orderId, 'shipping', packerId);
   }
 
-  // Driver: Take for delivery (ready_for_shipping → shipped)
-  async takeForDelivery(orderId, driverId) {
-    return this.updateOrderStatus(orderId, 'shipped', driverId);
+  // Driver: Take shipping order (shipping → shipping with assignment)
+  async takeShippingOrder(orderId, driverId) {
+    return this.assignOrderToWorker(orderId, driverId, 'shipping');
   }
 
-  // Driver: Mark as delivered (shipped → delivered)
+  // Driver: Mark as delivered (shipping → shipped)
   async markAsDelivered(orderId) {
-    return this.updateOrderStatus(orderId, 'delivered');
+    return this.updateOrderStatus(orderId, 'shipped');
   }
 
   // Cancel order (any status → cancelled)
@@ -402,7 +402,7 @@ class WorkflowOrderService {
       'receiving_clerk': ['processing'], // Alternative role name
       'Picker': ['picking'], // Can only work on picking orders
       'Packer': ['packing'], // Can only work on packing orders
-      'Driver': ['ready_for_shipping', 'shipped'] // Can work on ready and shipped orders
+      'Driver': ['shipping'] // Can work on shipping orders only
     };
     
     return statusMap[role] || [];
@@ -455,9 +455,8 @@ class WorkflowOrderService {
       'pending': { 'Manager': 'processing' },
       'processing': { 'ReceivingClerk': 'picking', 'receiving_clerk': 'picking' },
       'picking': { 'Picker': 'packing' },
-      'packing': { 'Packer': 'ready_for_shipping' },
-      'ready_for_shipping': { 'Driver': 'shipped' },
-      'shipped': { 'Driver': 'delivered' }
+      'packing': { 'Packer': 'shipping' }, // Packer completes to shipping
+      'shipping': { 'Driver': 'shipped' } // Driver delivers to shipped
     };
     
     return statusFlow[currentStatus]?.[role] || null;
@@ -470,8 +469,7 @@ class WorkflowOrderService {
       'processing': { 'ReceivingClerk': 'Start Picking', 'receiving_clerk': 'Start Picking' },
       'picking': { 'Picker': 'Complete Picking' },
       'packing': { 'Packer': 'Complete Packing' },
-      'ready_for_shipping': { 'Driver': 'Take for Delivery' },
-      'shipped': { 'Driver': 'Mark Delivered' }
+      'shipping': { 'Driver': 'Mark Delivered' } // Driver marks as delivered from shipping
     };
     
     return actionLabels[currentStatus]?.[role] || 'Process Order';
