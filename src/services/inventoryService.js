@@ -53,7 +53,18 @@ export const inventoryService = {
       return transformedData;
     } catch (error) {
       console.error('Error fetching inventory:', error);
-      throw error;
+      
+      // Return empty array for graceful failure
+      if (error.response) {
+        console.error('API Response Error:', error.response.status, error.response.data);
+      } else if (error.request) {
+        console.error('No response received:', error.request);
+      } else {
+        console.error('Request setup error:', error.message);
+      }
+      
+      // Return empty array instead of throwing to prevent app crashes
+      return [];
     }
   },
   

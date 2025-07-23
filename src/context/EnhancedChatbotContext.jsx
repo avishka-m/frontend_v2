@@ -265,12 +265,13 @@ const EnhancedChatbotContext = createContext();
 
 // Provider component
 export const EnhancedChatbotProvider = ({ children }) => {
-  const { currentUser } = useAuth();
+  const authContext = useAuth();
+  const { currentUser } = authContext || {};
   const [state, dispatch] = useReducer(assistantReducer, initialState);
   
   // Initialize assistant
   const initializeAssistant = useCallback(async () => {
-    if (!currentUser || state.isInitialized) return;
+    if (!currentUser || state.isInitialized || !authContext) return;
     
     dispatch({ type: ASSISTANT_ACTIONS.INITIALIZE_START });
     

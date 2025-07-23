@@ -59,6 +59,12 @@ const UpdateInventory = lazy(() => import('./pages/UpdateInventory'));
 const ReturnItem = lazy(() => import('./pages/receiving/ReturnItem'));
 const SeasonalInventoryDashboard = lazy(() => import('./pages/SeasonalInventoryDashboard'));
 const SeasonalInventoryDemo = lazy(() => import('./pages/SeasonalInventoryDemo'));
+const AnomalyDetection = lazy(() => import('./pages/AnomalyDetection'));
+const AnomalyDetectionDashboard = lazy(() => import('./pages/anomaly/AnomalyDetectionDashboard'));
+const AnomalyAnalysisPage = lazy(() => import('./pages/anomaly/AnomalyAnalysisPage'));
+const AnomalySettingsPage = lazy(() => import('./pages/anomaly/AnomalySettingsPage'));
+const AnomalyHistoryPage = lazy(() => import('./pages/anomaly/AnomalyHistoryPage'));
+
 
 function App() {
   return (
@@ -129,6 +135,12 @@ function App() {
                     {/* Seasonal Inventory routes - Manager only */}
                     <Route path="/seasonal-inventory" element={<RoleBasedRoute allowedRoles={['Manager']}><SeasonalInventoryDashboard /></RoleBasedRoute>} />
                     <Route path="/seasonal-inventory/demo" element={<RoleBasedRoute allowedRoles={['Manager']}><SeasonalInventoryDemo /></RoleBasedRoute>} />
+                    {/* Anomaly Detection routes - All authenticated users */}
+                    <Route path="/anomaly-detection/*" element={<AnomalyDetection />} />
+                    <Route path="/anomaly-detection/dashboard" element={<AnomalyDetectionDashboard />} />
+                    <Route path="/anomaly-detection/analysis" element={<AnomalyAnalysisPage />} />
+                    <Route path="/anomaly-detection/history" element={<AnomalyHistoryPage />} />
+                    <Route path="/anomaly-detection/settings" element={<RoleBasedRoute allowedRoles={['Manager']}><AnomalySettingsPage /></RoleBasedRoute>} />
                     {/* Workflow routes - Manager, Picker, Packer, Driver */}
                     <Route path="/workflow" element={<RoleBasedRoute allowedRoles={['Manager', 'Picker', 'Packer', 'Driver', 'ReceivingClerk']}><WorkflowManagement /></RoleBasedRoute>} />
                     <Route path="/workflow/dashboard" element={<Navigate to="/dashboard" replace />} />

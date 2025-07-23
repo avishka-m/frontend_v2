@@ -6,14 +6,33 @@ import {
   Search,
   ChevronDown,
   User,
-  LogOut
+  LogOut,
+  Package
 } from 'lucide-react';
 
 const Header = () => {
-  const { currentUser, logout } = useAuth();
+  const authContext = useAuth();
+  const { currentUser, logout } = authContext || {};
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
   const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // If auth context is not available, return a loading state
+  if (!authContext) {
+    return (
+      <header className="bg-white shadow-sm border-b border-gray-200">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Package className="w-8 h-8 text-blue-600" />
+              <h1 className="text-xl font-semibold text-gray-900">WMS Dashboard</h1>
+            </div>
+            <div className="text-sm text-gray-500">Loading...</div>
+          </div>
+        </div>
+      </header>
+    );
+  }
 
   const handleSearch = (e) => {
     e.preventDefault();

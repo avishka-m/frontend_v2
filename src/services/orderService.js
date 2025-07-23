@@ -74,8 +74,23 @@ const orderService = {
 
       const response = await api.get(`/orders?${queryParams.toString()}`);
       
+      // Handle different response formats from backend
+      let orderData = response.data;
+      
+      // If the response has an items or orders property, use that
+      if (response.data && response.data.items && Array.isArray(response.data.items)) {
+        orderData = response.data.items;
+      } else if (response.data && response.data.orders && Array.isArray(response.data.orders)) {
+        orderData = response.data.orders;
+      } else if (response.data && response.data.data && Array.isArray(response.data.data)) {
+        orderData = response.data.data;
+      } else if (!Array.isArray(response.data)) {
+        console.warn('Orders API returned unexpected format:', response.data);
+        orderData = [];
+      }
+      
       // Transform backend data to frontend format for compatibility
-      const transformedData = response.data.map(order => ({
+      const transformedData = orderData.map(order => ({
         id: order.orderID || order.order_id,
         order_id: order.orderID || order.order_id,
         orderID: order.orderID || order.order_id,  // Keep for compatibility

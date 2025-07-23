@@ -22,14 +22,23 @@ export const Button = ({
   size = 'default', 
   className = '', 
   disabled = false,
+  onClick,
   ...props 
 }) => {
   const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed';
+  
+  const handleClick = (e) => {
+    if (!disabled && onClick) {
+      console.log('🖱️ Button clicked:', children);
+      onClick(e);
+    }
+  };
   
   return (
     <button 
       className={`${baseClasses} ${variants[variant]} ${sizes[size]} ${className}`}
       disabled={disabled}
+      onClick={handleClick}
       {...props}
     >
       {children}
