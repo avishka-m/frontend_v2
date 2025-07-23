@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import ForgotPassword from './ForgotPassword';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { useAuth } from '../hooks/useAuth';
@@ -18,6 +19,7 @@ const Login = () => {
   const [loginError, setLoginError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [cardVisible, setCardVisible] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
 
   useEffect(() => {
     setCardVisible(true);
@@ -118,9 +120,13 @@ const Login = () => {
               </div>
 
               <div className="flex items-center justify-between mt-2">
-                <Link to="/forgot-password" className="text-sm font-medium text-primary-600 hover:text-primary-500">
+                <button
+                  type="button"
+                  className="text-sm font-medium text-primary-600 hover:text-primary-500 focus:outline-none"
+                  onClick={() => setShowForgotModal(true)}
+                >
                   Forgot your password?
-                </Link>
+                </button>
               </div>
 
               {/* Test Credentials Helper */}
@@ -155,6 +161,26 @@ const Login = () => {
             </Form>
           )}
         </Formik>
+        {/* Forgot Password Modal */}
+        {showForgotModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+            <div className="relative">
+              <div className="absolute top-2 right-2">
+                <button
+                  type="button"
+                  className="text-gray-400 hover:text-primary-600 text-xl font-bold focus:outline-none"
+                  onClick={() => setShowForgotModal(false)}
+                  aria-label="Close"
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="w-[400px] max-w-full">
+                <ForgotPassword />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
