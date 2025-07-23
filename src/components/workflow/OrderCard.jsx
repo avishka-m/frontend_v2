@@ -93,6 +93,9 @@ const OrderCard = ({
         disabled: false,
         nextStatus: nextStatus
       };
+    } else if (actionContext === 'history' && userRole === 'Manager') {
+      // History tab for managers - orders are confirmed but no action needed
+      return null; // No action button for confirmed orders
     }
     
     return null;
@@ -129,9 +132,17 @@ const OrderCard = ({
         {/* Status */}
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium text-gray-500">Status</span>
-          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(status)}`}>
-            {status.replace('_', ' ')}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full border ${getStatusColor(status)}`}>
+              {status.replace('_', ' ')}
+            </span>
+            {/* Manager confirmation indicator */}
+            {userRole === 'Manager' && actionContext === 'history' && status === 'pending' && (
+              <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 border border-green-200">
+                ✓ Confirmed
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Order Info */}

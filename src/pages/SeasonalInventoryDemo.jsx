@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import ForecastChart from '../../components/SeasonalInventory/ForecastChart';
-import SeasonalPatternsChart from '../../components/SeasonalInventory/SeasonalPatternsChart';
-import InventoryRecommendations from '../../components/SeasonalInventory/InventoryRecommendations';
+import ForecastChart from '../components/SeasonalInventory/ForecastChart';
+import SeasonalPatternsChart from '../components/SeasonalInventory/SeasonalPatternsChart';
+import InventoryRecommendations from '../components/SeasonalInventory/InventoryRecommendations';
 import {
   ChartBarIcon,
   ArrowPathIcon,

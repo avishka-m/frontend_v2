@@ -67,13 +67,14 @@ const WorkflowDashboard = ({
       count: availableOrders.length,
       color: "blue",
     },
-    {
+    // Hide working tab for managers since they don't need it
+    ...(userRole !== "Manager" ? [{
       id: "working",
       label: "Working",
       icon: Play,
       count: workingOrders.length,
       color: "orange",
-    },
+    }] : []),
     {
       id: "history",
       label: "History",
@@ -94,78 +95,113 @@ const WorkflowDashboard = ({
       setLoading(true);
       const roleStatuses = getRoleStatuses();
 
-      // Fetch all orders for this role
-      const result = await workflowOrderService.getOrdersByRole(userRole, roleStatuses, workerId);
-      
-      if (result.success) {
-        const allOrders = result.data;
+      // Special logic for Manager role
+      if (userRole === "Manager") {
+        // Fetch all pending orders
+        const result = await workflowOrderService.getOrdersByRole(userRole, ['pending'], workerId);
+        
+        if (result.success) {
+          const allPendingOrders = result.data || [];
+          
+          // Separate orders based on manager confirmation status
+          const confirmedOrderIds = workflowOrderService.getManagerConfirmedOrders().map(item => item.order_id);
+          
+          const available = allPendingOrders.filter(order => 
+            !confirmedOrderIds.includes(order.order_id || order.orderID)
+          );
+          
+          const history = allPendingOrders.filter(order => 
+            confirmedOrderIds.includes(order.order_id || order.orderID)
+          );
 
-        // Separate orders into different tabs
-        const available = [];
-        const working = [];
-        const history = [];
-
-        allOrders.forEach((order) => {
-          const orderId = order.order_id || order.orderID;
-          const assignedWorker = order.assigned_worker;
-          const status = order.order_status;
-
-          // Check if order is assigned to current user
-          const isAssignedToMe =
-            assignedWorker &&
-            assignedWorker.toString() === workerId?.toString();
-
-          console.log(`📋 Categorizing Order #${orderId}:`, {
-            status,
-            assignedWorker,
-            isAssignedToMe,
-            workerId,
-            roleStatuses,
+          console.log(`📋 Manager Orders:`, {
+            totalPending: allPendingOrders.length,
+            available: available.length,
+            confirmed: history.length,
+            confirmedOrderIds
           });
 
-          // Determine which tab the order belongs to based on step-by-step workflow
-          if (roleStatuses.includes(status)) {
-            // This role can work on this status
-
-            if (isAssignedToMe) {
-              // Order is assigned to me - goes to working tab
-              console.log(
-                `→ Working: Order #${orderId} assigned to me (${status})`
-              );
-              working.push(order);
-            } else {
-              // Order is not assigned to me - available to take
-              console.log(
-                `→ Available: Order #${orderId} available for ${userRole} (${status})`
-              );
-              available.push(order);
-            }
-          } else {
-            // Check if this role previously worked on this order (for history)
-            const wasWorkedOnByMe = orderWasProcessedByRole(
-              order,
-              userRole,
-              workerId
-            );
-
-            if (wasWorkedOnByMe) {
-              console.log(
-                `→ History: Order #${orderId} was processed by ${userRole}`
-              );
-              history.push(order);
-            } else {
-              console.log(
-                `→ Ignored: Order #${orderId} not relevant for ${userRole} (status: ${status})`
-              );
-            }
-          }
-        });
-
-        setAvailableOrders(available);
-        setWorkingOrders(working);
-        setHistoryOrders(history);
+          setAvailableOrders(available);
+          setWorkingOrders([]); // Managers don't have working orders
+          setHistoryOrders(history);
+        } else {
+          console.error("Failed to fetch manager orders:", result.error);
+          toast.error(result.error || "Failed to fetch orders");
+        }
       } else {
-        toast.error(result.error);
+        // Original logic for other roles
+        const result = await workflowOrderService.getOrdersByRole(userRole, roleStatuses, workerId);
+        
+        if (result.success) {
+          const allOrders = result.data;
+
+          // Separate orders into different tabs
+          const available = [];
+          const working = [];
+          const history = [];
+
+          allOrders.forEach((order) => {
+            const orderId = order.order_id || order.orderID;
+            const assignedWorker = order.assigned_worker;
+            const status = order.order_status;
+
+            // Check if order is assigned to current user
+            const isAssignedToMe =
+              assignedWorker &&
+              assignedWorker.toString() === workerId?.toString();
+
+            console.log(`📋 Categorizing Order #${orderId}:`, {
+              status,
+              assignedWorker,
+              isAssignedToMe,
+              workerId,
+              roleStatuses,
+            });
+
+            // Determine which tab the order belongs to based on step-by-step workflow
+            if (roleStatuses.includes(status)) {
+              // This role can work on this status
+
+              if (isAssignedToMe) {
+                // Order is assigned to me - goes to working tab
+                console.log(
+                  `→ Working: Order #${orderId} assigned to me (${status})`
+                );
+                working.push(order);
+              } else {
+                // Order is not assigned to me - available to take
+                console.log(
+                  `→ Available: Order #${orderId} available for ${userRole} (${status})`
+                );
+                available.push(order);
+              }
+            } else {
+              // Check if this role previously worked on this order (for history)
+              const wasWorkedOnByMe = orderWasProcessedByRole(
+                order,
+                userRole,
+                workerId
+              );
+
+              if (wasWorkedOnByMe) {
+                console.log(
+                  `→ History: Order #${orderId} was processed by ${userRole}`
+                );
+                history.push(order);
+              } else {
+                console.log(
+                  `→ Ignored: Order #${orderId} not relevant for ${userRole} (status: ${status})`
+                );
+              }
+            }
+          });
+
+          setAvailableOrders(available);
+          setWorkingOrders(working);
+          setHistoryOrders(history);
+        } else {
+          toast.error(result.error);
+        }
       }
     } catch (error) {
       console.error("Error fetching orders:", error);
@@ -450,9 +486,8 @@ const WorkflowDashboard = ({
         // Complete action - move order to next status
         switch (userRole) {
           case "Manager":
-            if (currentStatus === "pending") {
-              result = await workflowOrderService.confirmOrder(orderId);
-            }
+            // Manager shouldn't have working orders in the new workflow
+            console.warn("Manager should not have orders in working tab");
             break;
           case "ReceivingClerk":
           case "receiving_clerk":
@@ -502,13 +537,16 @@ const WorkflowDashboard = ({
       } else {
         // Take action - determine appropriate action based on role and status
         if (userRole === "Manager" && currentStatus === "pending") {
-          // Manager taking pending order should confirm it
-          result = await workflowOrderService.confirmOrder(orderId);
+          // Manager confirming pending order - use new workflow (no status change)
+          result = await workflowOrderService.confirmOrderForManager(orderId, workerId);
 
           if (result?.success) {
-            toast.success(
-              `Order #${orderId} confirmed and moved to processing`
-            );
+            toast.success(`Order #${orderId} confirmed`);
+            
+            // Move order from available to history tab locally
+            setAvailableOrders(prev => prev.filter(o => (o.order_id || o.orderID) !== orderId));
+            setHistoryOrders(prev => [...prev, order]);
+            
           } else {
             toast.error(result?.error || "Failed to confirm order");
           }
@@ -658,7 +696,7 @@ const WorkflowDashboard = ({
                 <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
                 <p className="text-sm text-gray-600">
                   {userRole} Dashboard -{" "}
-                  {availableOrders.length + workingOrders.length} active orders
+                  {userRole === "Manager" ? availableOrders.length : (availableOrders.length + workingOrders.length)} active orders
                 </p>
               </div>
             </div>

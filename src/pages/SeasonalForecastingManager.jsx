@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { seasonalInventoryService } from '../../services/seasonalInventoryService';
-import ForecastChart from '../../components/SeasonalInventory/ForecastChart';
-import SeasonalPatternsChart from '../../components/SeasonalInventory/SeasonalPatternsChart';
-import InventoryRecommendations from '../../components/SeasonalInventory/InventoryRecommendations';
+import ForecastChart from '../components/SeasonalInventory/ForecastChart';
+import SeasonalPatternsChart from '../components/SeasonalInventory/SeasonalPatternsChart';
+import InventoryRecommendations from '../components/SeasonalInventory/InventoryRecommendations';
 import toast from 'react-hot-toast';
 import { ChartBarIcon, ArrowPathIcon, ExclamationCircleIcon } from '@heroicons/react/24/outline';
 

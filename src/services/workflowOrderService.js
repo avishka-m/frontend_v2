@@ -227,6 +227,41 @@ class WorkflowOrderService {
     return this.updateOrderStatus(orderId, 'processing');
   }
 
+  // Manager: Confirm pending order without changing status (for new workflow)
+  async confirmOrderForManager(orderId, managerId) {
+    try {
+      // Instead of changing status, we'll add a manager confirmation flag
+      // This will need to be implemented in the backend to track manager confirmations
+      const response = await api.put(`/orders/${orderId}/manager-confirm`, {
+        manager_id: managerId,
+        confirmed_at: new Date().toISOString()
+      });
+      
+      return {
+        success: true,
+        data: response.data
+      };
+    } catch (error) {
+      console.error('Error confirming order for manager:', error);
+      
+      // Fallback: For development/testing, we can simulate this
+      // by adding a local storage entry
+      console.warn('Manager confirmation endpoint not available, using local tracking');
+      
+      const success = this.addToManagerConfirmed(orderId, managerId);
+      
+      return {
+        success: success,
+        data: {
+          order_id: orderId,
+          manager_confirmed: true,
+          confirmed_by: managerId,
+          confirmed_at: new Date().toISOString()
+        }
+      };
+    }
+  }
+
   // Receiving Clerk: Process confirmed order (processing → picking)
   async processToPickingOrder(orderId) {
     return this.updateOrderStatus(orderId, 'picking');
@@ -373,6 +408,47 @@ class WorkflowOrderService {
     return statusMap[role] || [];
   }
 
+  // Helper: Check if order has been confirmed by manager (for new workflow)
+  getManagerConfirmedOrders() {
+    // For now, we'll use localStorage to track manager confirmations
+    // In production, this should come from the backend
+    try {
+      const confirmed = localStorage.getItem('manager_confirmed_orders');
+      return confirmed ? JSON.parse(confirmed) : [];
+    } catch (error) {
+      console.error('Error reading manager confirmed orders:', error);
+      return [];
+    }
+  }
+
+  // Helper: Add order to manager confirmed list (for new workflow)
+  addToManagerConfirmed(orderId, managerId) {
+    try {
+      const confirmed = this.getManagerConfirmedOrders();
+      const newConfirmation = {
+        order_id: orderId,
+        manager_id: managerId,
+        confirmed_at: new Date().toISOString()
+      };
+      
+      // Remove any existing confirmation for this order
+      const filtered = confirmed.filter(item => item.order_id !== orderId);
+      filtered.push(newConfirmation);
+      
+      localStorage.setItem('manager_confirmed_orders', JSON.stringify(filtered));
+      return true;
+    } catch (error) {
+      console.error('Error adding manager confirmation:', error);
+      return false;
+    }
+  }
+
+  // Helper: Check if specific order is confirmed by manager
+  isOrderConfirmedByManager(orderId) {
+    const confirmed = this.getManagerConfirmedOrders();
+    return confirmed.some(item => item.order_id === orderId);
+  }
+
   // Helper: Get next status for role action
   getNextStatus(currentStatus, role) {
     const statusFlow = {
@@ -399,6 +475,14 @@ class WorkflowOrderService {
     };
     
     return actionLabels[currentStatus]?.[role] || 'Process Order';
+  }
+
+  // Helper: Get role action label for manager's new workflow
+  getManagerActionLabel(currentStatus, isConfirmed = false) {
+    if (currentStatus === 'pending') {
+      return isConfirmed ? 'View Details' : 'Confirm Order';
+    }
+    return 'View Details';
   }
 }
 
