@@ -1,6 +1,7 @@
 import api from './api';
 
-// Mock data for testing driver dashboard
+// Mock data for testing driver dashboard - COMMENTED OUT FOR PRODUCTION
+/* 
 const generateMockDriverOrders = (currentWorkerId = 'driver123') => {
   const currentDate = new Date();
   const yesterday = new Date(currentDate - 24 * 60 * 60 * 1000);
@@ -133,6 +134,7 @@ const generateMockDriverOrders = (currentWorkerId = 'driver123') => {
     }
   ];
 };
+*/
 
 class WorkflowOrderService {
   
@@ -154,6 +156,8 @@ class WorkflowOrderService {
         };
       }
       
+      // MOCK DATA DISABLED FOR PRODUCTION
+      /* 
       // If no real data and this is a driver, provide mock data for testing
       if (userRole === 'Driver' && (!response.data || response.data.length === 0)) {
         console.log('🚛 No real driver orders found, using mock data for testing');
@@ -169,6 +173,7 @@ class WorkflowOrderService {
           data: filteredMockOrders
         };
       }
+      */
       
       return {
         success: true,
@@ -177,6 +182,8 @@ class WorkflowOrderService {
     } catch (error) {
       console.error('Error fetching orders by role:', error);
       
+      // MOCK DATA DISABLED FOR PRODUCTION
+      /* 
       // If API fails and this is a driver, provide mock data as fallback
       if (userRole === 'Driver') {
         console.log('🚛 API failed for driver orders, using mock data as fallback');
@@ -192,6 +199,7 @@ class WorkflowOrderService {
           data: filteredMockOrders
         };
       }
+      */
       
       return {
         success: false,
