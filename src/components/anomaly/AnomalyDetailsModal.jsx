@@ -284,16 +284,16 @@ const AnomalyDetailsModal = ({
                       )}
                     </Button>
                     
-                    <Button
+                    {/* <Button
                       variant="secondary"
                       onClick={handleEscalate}
                       disabled={loading || isResolving || isDismissing}
                       className="justify-start"
                     >
                       🚨 Escalate to Manager
-                    </Button>
+                    </Button> */}
                     
-                    <Button
+                    {/* <Button
                       variant="outline"
                       onClick={() => {
                         // Create support ticket
@@ -312,7 +312,7 @@ const AnomalyDetailsModal = ({
                       className="justify-start"
                     >
                       🎫 Create Support Ticket
-                    </Button>
+                    </Button> */}
                     
                     <Button
                       variant="destructive"

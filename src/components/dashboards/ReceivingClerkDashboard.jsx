@@ -27,7 +27,7 @@ const ReceivingClerkDashboard = () => {
               Authorization: `Bearer ${token}`
             },
             params: {
-              days: 30 // Last 30 days
+              days: 100 // Last 30 days
             }
           }
         );
@@ -204,12 +204,12 @@ const ReceivingClerkDashboard = () => {
       )}
 
       {/* Workflow Dashboard Component */}
-      <WorkflowDashboard 
+      {/* <WorkflowDashboard 
         title="Receiving Workflow"
         role="ReceivingClerk"
         iconComponent={ClipboardCheck}
         gradientColors="from-blue-500 to-cyan-600"
-      />
+      /> */}
     </div>
   );
 };
