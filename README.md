@@ -403,7 +403,5 @@ This enables:
 - [ ] Accessibility improvements (WCAG 2.1 AA)
 
 ---
-
-**Version**: 2.0.0  
-**Last Updated**: September 2025  
+ 
 **Backend Dependency**: base_wms_backend v1.0.0+
