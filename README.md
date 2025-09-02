@@ -1,4 +1,4 @@
-# WMS Frontend V2
+# WMS Frontend 
 
 Modern, responsive frontend for the Warehouse Management System built with React, Vite, and Tailwind CSS.
 
